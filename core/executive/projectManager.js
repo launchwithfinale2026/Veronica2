@@ -122,6 +122,52 @@ class ProjectManager {
     }
 
 
+    // Task handoff (Phase 10 of the Intelligence Layer milestone): full
+    // ownership transfer of a project to a different department, distinct
+    // from CollaborationEngine.delegate() (a one-off subtask another
+    // department runs and hands back). A project's department is encoded
+    // as a tag, not a metadata field (see ExecutivePlanner.toProject()),
+    // so reassigning it means swapping that tag -- memory.update()'s
+    // top-level spread already supports overwriting `tags` the same way
+    // it merges `metadata`, so no store.js change was needed for this.
+    reassignDepartment(projectId, toDepartmentId, note){
+
+        const toDepartment = this.planner.departments.find(dept => dept.id === toDepartmentId);
+
+        if(!toDepartment){
+            throw new Error(`Unknown department: "${toDepartmentId}"`);
+        }
+
+        const entry = this.requireEntry(projectId);
+
+        const fromDepartmentId = entry.tags.find(tag => this.planner.departments.some(d => d.id === tag));
+
+        if(fromDepartmentId === toDepartmentId){
+            throw new Error(`"${entry.content}" is already assigned to "${toDepartmentId}"`);
+        }
+
+        const newTags = entry.tags.filter(tag => tag !== fromDepartmentId).concat(toDepartmentId);
+
+        const historyEntry = {
+            kind: "handoff",
+            from: fromDepartmentId || null,
+            to: toDepartmentId,
+            note: note || null,
+            timestamp: new Date().toISOString()
+        };
+
+        const updated = memory.update(projectId, {
+            tags: newTags,
+            metadata: { history: [...(entry.metadata.history || []), historyEntry] }
+        });
+
+        knowledge.addRelationship({ from: entry.content, to: toDepartmentId, type: "handedOffTo" });
+
+        return this.planner.toProject(updated);
+
+    }
+
+
     milestonesForProject(projectId){
 
         return memory.filter({ tag: GoalDecomposer.TAG })

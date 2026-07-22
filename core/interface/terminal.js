@@ -15,6 +15,7 @@ const bus = require("../bus");
 const executive = require("../executive");
 const learning = require("../learning");
 const automation = require("../automation");
+const CollaborationEngine = require("../collaboration/engine");
 
 
 const identity = JSON.parse(
@@ -29,6 +30,8 @@ const agents = loadAgents();
 seedFromAgents(agents);
 
 const departments = loadDepartments(agents);
+
+const collaboration = new CollaborationEngine(departments);
 
 const context = new ContextEngine();
 
@@ -152,6 +155,18 @@ automation.run <jobName>
 automation.runNow <jobName>
 
 automation.start
+
+executive.handoff <projectId> <toDepartmentId> [note]
+
+collaborate.message <fromDept> <toDept> <text>
+
+collaborate.delegate <fromDept> <toDept> <task>
+
+collaborate.review <reviewerDept> <content>
+
+collaborate.consensus <dept1,dept2,...> <proposal>
+
+collaborate.history
 
 ask <command>
 
@@ -638,6 +653,80 @@ rl.on("line", async (input) => {
         }
 
 
+        // TASK HANDOFF: REASSIGN A PROJECT TO A DIFFERENT DEPARTMENT
+        else if (command.startsWith("executive.handoff ")) {
+
+            const rest = command.substring(18).trim();
+
+            const [projectId, toDepartmentId, ...noteParts] = rest.split(" ");
+
+            console.log(executive.reassignDepartment(projectId, toDepartmentId, noteParts.join(" ") || undefined));
+
+        }
+
+
+        // SEND A MESSAGE FROM ONE AGENT TO ANOTHER
+        else if (command.startsWith("collaborate.message ")) {
+
+            const rest = command.substring(20).trim();
+
+            const [fromId, toId, ...messageParts] = rest.split(" ");
+
+            console.log(collaboration.sendMessage(fromId, toId, messageParts.join(" ")));
+
+        }
+
+
+        // DELEGATE A TASK FROM ONE DEPARTMENT TO ANOTHER
+        else if (command.startsWith("collaborate.delegate ")) {
+
+            const rest = command.substring(21).trim();
+
+            const [fromId, toId, ...taskParts] = rest.split(" ");
+
+            console.log(await collaboration.delegate(fromId, toId, taskParts.join(" ")));
+
+        }
+
+
+        // HAVE A DEPARTMENT REVIEW/CRITIQUE SOME CONTENT
+        else if (command.startsWith("collaborate.review ")) {
+
+            const rest = command.substring(19).trim();
+
+            const separator = rest.indexOf(" ");
+
+            const reviewerId = separator === -1 ? rest : rest.substring(0, separator);
+            const content = separator === -1 ? "" : rest.substring(separator + 1).trim();
+
+            console.log(await collaboration.review(reviewerId, content));
+
+        }
+
+
+        // CALL A CONSENSUS VOTE ACROSS MULTIPLE DEPARTMENTS
+        else if (command.startsWith("collaborate.consensus ")) {
+
+            const rest = command.substring(22).trim();
+
+            const separator = rest.indexOf(" ");
+
+            const departmentIds = (separator === -1 ? rest : rest.substring(0, separator)).split(",");
+            const proposal = separator === -1 ? "" : rest.substring(separator + 1).trim();
+
+            console.log(await collaboration.consensus(departmentIds, proposal));
+
+        }
+
+
+        // COLLABORATION HISTORY
+        else if (command === "collaborate.history") {
+
+            console.log(collaboration.history());
+
+        }
+
+
         // HELP
         else if (command === "help") {
 
@@ -683,6 +772,12 @@ automation.history
 automation.run <jobName>
 automation.runNow <jobName>
 automation.start
+executive.handoff <projectId> <toDepartmentId> [note]
+collaborate.message <fromDept> <toDept> <text>
+collaborate.delegate <fromDept> <toDept> <task>
+collaborate.review <reviewerDept> <content>
+collaborate.consensus <dept1,dept2,...> <proposal>
+collaborate.history
 ask <command>
 help
 exit

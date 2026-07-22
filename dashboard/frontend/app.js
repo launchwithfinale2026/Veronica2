@@ -254,6 +254,43 @@ async function loadAutomationHistory(){
 }
 
 
+function formatCollaborationEntry(entry){
+
+    if(entry.kind === "message"){
+        return `[message] ${entry.from} -> ${entry.to}: ${entry.content}`;
+    }
+
+    if(entry.kind === "delegation"){
+        return `[delegation] ${entry.from} -> ${entry.to}: ${entry.task}`;
+    }
+
+    if(entry.kind === "review"){
+        return `[review] ${entry.reviewer} — ${entry.verdict}`;
+    }
+
+    if(entry.kind === "consensus"){
+        return `[consensus] "${entry.proposal}" — ${entry.decision} (${entry.tally.yes}y/${entry.tally.no}n/${entry.tally.abstain}a)`;
+    }
+
+    return `[${entry.kind}] ${entry.content}`;
+
+}
+
+
+async function loadCollaborationHistory(){
+
+    const history = await fetchJSON("/api/collaboration/history");
+
+    renderList(
+        "collaboration-history",
+        history,
+        "No collaboration activity yet.",
+        entry => `[${new Date(entry.created).toLocaleString()}] ${formatCollaborationEntry(entry)}`
+    );
+
+}
+
+
 async function loadCompanies(){
 
     const companies = await fetchJSON("/api/companies");
@@ -307,6 +344,7 @@ async function loadDashboard(){
             loadAutomationStatus(),
             loadAutomationSchedules(),
             loadAutomationHistory(),
+            loadCollaborationHistory(),
             loadCompanies()
         ]);
 
@@ -760,6 +798,156 @@ function setupAutomationRunForm(){
 }
 
 
+function setupCollabMessageForm(){
+
+    const form = document.getElementById("collab-message-form");
+    const result = document.getElementById("collab-message-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const from = document.getElementById("collab-message-from").value;
+        const to = document.getElementById("collab-message-to").value;
+        const message = document.getElementById("collab-message-text").value;
+
+        result.textContent = "Sending...";
+
+        try {
+
+            await authedFetch("/api/collaboration/message", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ from, to, message })
+            });
+
+            result.textContent = "Sent.";
+            form.reset();
+            loadDashboard();
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupCollabDelegateForm(){
+
+    const form = document.getElementById("collab-delegate-form");
+    const result = document.getElementById("collab-delegate-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const from = document.getElementById("collab-delegate-from").value;
+        const to = document.getElementById("collab-delegate-to").value;
+        const task = document.getElementById("collab-delegate-task").value;
+
+        result.textContent = "Delegating (calls Claude)...";
+
+        try {
+
+            const outcome = await authedFetch("/api/collaboration/delegate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ from, to, task })
+            });
+
+            result.textContent = `${outcome.agent}: ${outcome.response}`;
+            form.reset();
+            loadDashboard();
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupCollabReviewForm(){
+
+    const form = document.getElementById("collab-review-form");
+    const result = document.getElementById("collab-review-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const reviewer = document.getElementById("collab-review-dept").value;
+        const content = document.getElementById("collab-review-content").value;
+
+        result.textContent = "Reviewing (calls Claude)...";
+
+        try {
+
+            const outcome = await authedFetch("/api/collaboration/review", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ reviewer, content })
+            });
+
+            result.textContent = `${outcome.verdict}: ${outcome.feedback.join("; ")}`;
+            form.reset();
+            loadDashboard();
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupCollabConsensusForm(){
+
+    const form = document.getElementById("collab-consensus-form");
+    const result = document.getElementById("collab-consensus-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const departmentIds = document.getElementById("collab-consensus-depts").value.split(",").map(s => s.trim());
+        const proposal = document.getElementById("collab-consensus-proposal").value;
+
+        result.textContent = "Voting (calls Claude, once per department)...";
+
+        try {
+
+            const outcome = await authedFetch("/api/collaboration/consensus", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ departmentIds, proposal })
+            });
+
+            result.textContent = `${outcome.decision} (${outcome.tally.yes}y/${outcome.tally.no}n/${outcome.tally.abstain}a)`;
+            form.reset();
+            loadDashboard();
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
 function setupCompanyLookupForm(){
 
     const form = document.getElementById("company-lookup-form");
@@ -951,6 +1139,10 @@ document.addEventListener("DOMContentLoaded", () => {
     setupConsolidateForm();
     setupRecommendForm();
     setupAutomationRunForm();
+    setupCollabMessageForm();
+    setupCollabDelegateForm();
+    setupCollabReviewForm();
+    setupCollabConsensusForm();
     setupCompanyLookupForm();
     setupCompanyCreateForm();
 

@@ -150,6 +150,20 @@
       }
     },
     {
+      "id": "executive.reassignDepartment",
+      "description": "Task handoff: transfer full ownership of a project to a different department.",
+      "permission": "manage_agents",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": { "type": "string" },
+          "toDepartmentId": { "type": "string" },
+          "note": { "type": "string" }
+        },
+        "required": ["projectId", "toDepartmentId"]
+      }
+    },
+    {
       "id": "company.create",
       "description": "Create a company: the top-level container for projects, employees, documents, finances, relationships, and communications.",
       "permission": "manage_agents",

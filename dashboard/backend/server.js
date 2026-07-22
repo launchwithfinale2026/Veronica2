@@ -23,6 +23,7 @@ const executive = require("../../core/executive");
 const learning = require("../../core/learning");
 const automation = require("../../core/automation");
 const bus = require("../../core/bus");
+const CollaborationEngine = require("../../core/collaboration/engine");
 
 
 const FRONTEND_ROOT = path.join(__dirname, "../frontend");
@@ -41,6 +42,8 @@ const agents = loadAgents();
 seedFromAgents(agents);
 
 const departments = loadDepartments(agents);
+
+const collaboration = new CollaborationEngine(departments);
 
 
 // Reads every department's activity.log (JSON lines), merges, and
@@ -145,7 +148,9 @@ const ROUTES = {
 
     "GET /api/automation/status": () => automation.status(),
 
-    "GET /api/automation/history": () => automation.history()
+    "GET /api/automation/history": () => automation.history(),
+
+    "GET /api/collaboration/history": () => collaboration.history()
 
 };
 
@@ -250,7 +255,10 @@ function serveStatic(res, pathname){
 // from scratch (Node's http has no built-in WS support) would mean
 // hand-writing the handshake/framing/masking protocol for a capability
 // SSE already covers.
-const STREAMED_EVENTS = ["memory.updated", "knowledge.updated", "department.activity", "automation.jobCompleted"];
+const STREAMED_EVENTS = [
+    "memory.updated", "knowledge.updated", "department.activity", "automation.jobCompleted",
+    "collaboration.message", "collaboration.delegated", "collaboration.reviewed", "collaboration.consensus"
+];
 const SSE_HEARTBEAT_MS = 25000;
 
 function handleEventStream(req, res){
@@ -407,6 +415,62 @@ function createServer(){
 
             }
 
+            if(parsed.pathname === "/api/collaboration/message" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { from, to, message } = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, collaboration.sendMessage(from, to, message));
+
+            }
+
+            if(parsed.pathname === "/api/collaboration/delegate" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { from, to, task } = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, await collaboration.delegate(from, to, task));
+
+            }
+
+            if(parsed.pathname === "/api/collaboration/review" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { reviewer, content, criteria } = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, await collaboration.review(reviewer, content, { criteria }));
+
+            }
+
+            if(parsed.pathname === "/api/collaboration/consensus" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { departmentIds, proposal } = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, await collaboration.consensus(departmentIds, proposal));
+
+            }
+
             const decomposeMatch = parsed.pathname.match(/^\/api\/executive\/projects\/([^/]+)\/decompose$/);
 
             if(decomposeMatch && req.method === "POST"){
@@ -458,6 +522,26 @@ function createServer(){
                 }
 
                 return sendJSON(res, 200, { artifacts: executive.addArtifact(decodeURIComponent(artifactMatch[1]), artifact) });
+
+            }
+
+            const handoffMatch = parsed.pathname.match(/^\/api\/executive\/projects\/([^/]+)\/handoff$/);
+
+            if(handoffMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { toDepartmentId, note } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!toDepartmentId){
+                    return sendJSON(res, 400, { error: "toDepartmentId is required" });
+                }
+
+                return sendJSON(res, 200, executive.reassignDepartment(decodeURIComponent(handoffMatch[1]), toDepartmentId, note));
 
             }
 

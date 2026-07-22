@@ -37,6 +37,8 @@ module.exports = {
 
     addArtifact: (projectId, artifact) => projectManager.addArtifact(projectId, artifact),
 
+    reassignDepartment: (projectId, toDepartmentId, note) => projectManager.reassignDepartment(projectId, toDepartmentId, note),
+
     createCompany: (input) => companyManager.createCompany(input),
 
     listCompanies: () => companyManager.listCompanies(),

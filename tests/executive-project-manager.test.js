@@ -209,3 +209,39 @@ test("getProject()/updateStatus()/addArtifact() reject an unknown id", () => {
     assert.throws(() => projectManager.addArtifact("not-a-real-id", "x"));
 
 });
+
+test("reassignDepartment() swaps the department tag, records history, and links a handedOffTo relationship", () => {
+
+    const { planner, projectManager } = makeStack();
+    const knowledge = require("../core/knowledge");
+
+    const project = planner.plan({ title: "Handoff project XQZP11", department: "hades" });
+    assert.strictEqual(project.department, "hades");
+
+    const reassigned = projectManager.reassignDepartment(project.id, "hephaestus", "moving to engineering");
+
+    assert.strictEqual(reassigned.department, "hephaestus");
+
+    const detail = projectManager.getProject(project.id);
+    assert.strictEqual(detail.department, "hephaestus");
+    assert.strictEqual(detail.timeline.history.length, 1);
+    assert.strictEqual(detail.timeline.history[0].kind, "handoff");
+    assert.strictEqual(detail.timeline.history[0].from, "hades");
+    assert.strictEqual(detail.timeline.history[0].to, "hephaestus");
+    assert.strictEqual(detail.timeline.history[0].note, "moving to engineering");
+
+    const connections = knowledge.connections("Handoff project XQZP11");
+    assert.ok(connections.some(rel => rel.type === "handedOffTo" && rel.to === "hephaestus"));
+
+});
+
+test("reassignDepartment() rejects an unknown department and a no-op reassignment", () => {
+
+    const { planner, projectManager } = makeStack();
+
+    const project = planner.plan({ title: "Handoff guard project XQZP12", department: "hades" });
+
+    assert.throws(() => projectManager.reassignDepartment(project.id, "not-a-real-dept"));
+    assert.throws(() => projectManager.reassignDepartment(project.id, "hades"));
+
+});

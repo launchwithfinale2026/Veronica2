@@ -62,6 +62,16 @@ module.exports = {
 
     },
 
+    "executive.reassignDepartment": ({ projectId, toDepartmentId, note } = {}) => {
+
+        if(!projectId || !toDepartmentId){
+            throw new Error("A projectId and toDepartmentId are required");
+        }
+
+        return require("../../executive").reassignDepartment(projectId, toDepartmentId, note);
+
+    },
+
     "executive.consolidate": () => require("../../executive").consolidate(),
 
     "executive.consolidationHistory": ({ limit } = {}) => require("../../executive").consolidationHistory(limit)

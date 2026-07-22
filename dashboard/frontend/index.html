@@ -165,6 +165,52 @@
   </section>
 
   <section class="panel">
+    <h2>Collaboration</h2>
+    <div class="widget-group">
+      <h3>History</h3>
+      <div id="collaboration-history" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Send a message</h3>
+      <form id="collab-message-form" class="stacked-form">
+        <input type="text" id="collab-message-from" placeholder="from department id" required>
+        <input type="text" id="collab-message-to" placeholder="to department id" required>
+        <input type="text" id="collab-message-text" placeholder="message" required>
+        <button type="submit">Send</button>
+      </form>
+      <p id="collab-message-result" class="hint"></p>
+    </div>
+    <div class="widget-group">
+      <h3>Delegate a task</h3>
+      <form id="collab-delegate-form" class="stacked-form">
+        <input type="text" id="collab-delegate-from" placeholder="from department id" required>
+        <input type="text" id="collab-delegate-to" placeholder="to department id" required>
+        <input type="text" id="collab-delegate-task" placeholder="task" required>
+        <button type="submit">Delegate (calls Claude)</button>
+      </form>
+      <p id="collab-delegate-result" class="hint"></p>
+    </div>
+    <div class="widget-group">
+      <h3>Request a review</h3>
+      <form id="collab-review-form" class="stacked-form">
+        <input type="text" id="collab-review-dept" placeholder="reviewer department id" required>
+        <input type="text" id="collab-review-content" placeholder="content to review" required>
+        <button type="submit">Review (calls Claude)</button>
+      </form>
+      <p id="collab-review-result" class="hint"></p>
+    </div>
+    <div class="widget-group">
+      <h3>Call a consensus vote</h3>
+      <form id="collab-consensus-form" class="stacked-form">
+        <input type="text" id="collab-consensus-depts" placeholder="department ids, comma-separated" required>
+        <input type="text" id="collab-consensus-proposal" placeholder="proposal" required>
+        <button type="submit">Vote (calls Claude, once per department)</button>
+      </form>
+      <p id="collab-consensus-result" class="hint"></p>
+    </div>
+  </section>
+
+  <section class="panel">
     <h2>Intelligence</h2>
     <div class="widget-group">
       <h3>Decisions</h3>

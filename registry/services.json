@@ -20,6 +20,13 @@
       "module": "core/automation",
       "status": "active",
       "description": "Persisted job queue with retry/backoff and a recurring scheduler for background jobs (nightly consolidation, learning recommendations). The tick loop only runs while a long-running host process (the dashboard server) has started it."
+    },
+    {
+      "id": "collaboration-engine",
+      "name": "Multi-Agent Collaboration",
+      "module": "core/collaboration",
+      "status": "active",
+      "description": "Agent-to-agent communication, delegation, review/critique, and consensus voting between departments. Constructed with an already-loaded departments array (see terminal.js/dashboard server.js), not a self-contained singleton."
     }
   ]
 }

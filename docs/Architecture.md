@@ -992,3 +992,76 @@ Layer milestone, Phase 9 of 18).
   forward; the existing `GET /api/...` endpoints remain how a tab gets
   the current state on load, which is intentional — the point of SSE here
   is "notify me of what changes next," not "replace all data-fetching").
+
+---
+
+## Multi-Agent Collaboration (`core/collaboration/engine.js`)
+
+**Decision:** `CollaborationEngine` is a caller-constructed class (like
+`core/router`'s `Router`), not a self-contained singleton like `core/
+executive`/`core/learning`/`core/automation` — and every operation here is
+human/dashboard/terminal-triggered, not agent-initiated. Built 2026-07-22
+(Intelligence Layer milestone, Phase 10 of 18).
+
+- **Why a class, not a singleton facade**: it needs an already-loaded
+  `departments` array (real `DepartmentManager` instances with agents and
+  live `IntelligenceEngine`/`Brain` attached), the same array `terminal.js`
+  and `dashboard/backend/server.js` already build via `loadDepartments
+  (agents)`. A self-contained singleton would mean constructing a *second*
+  set of 9 `DepartmentManager`/`IntelligenceEngine`/`Brain` instances
+  internally — wasteful, and a source of drift (two separate department
+  rosters that could disagree). `new CollaborationEngine(departments)` in
+  both entry points, right next to where `departments` is already built,
+  reuses the exact instances already in scope.
+- **Why not wired into the tool system**: `core/tools/handlers/*.js`
+  assume everything reachable is a `require()`-able singleton (`core/
+  executive`, `core/learning`, etc.); `departments` isn't one — it's
+  constructed fresh per entry point. Wiring collaboration into tools would
+  mean either constructing a third set of `DepartmentManager` instances
+  inside a tool handler, or restructuring how departments are loaded
+  project-wide, neither of which this pass asked for. Practically, this
+  also draws an intentional line: every collaboration operation here is
+  triggered by a human (terminal command, dashboard form/API call), not by
+  an agent mid-reasoning deciding to delegate or call a vote. Agent-
+  initiated collaboration would mean wiring this into the tool-use loop
+  (`core/brain/providers/claude.js`) — a materially bigger, more security-
+  sensitive change (agent-initiated multi-department action, potentially
+  chaining real API calls an agent chose to make) than this pass scoped.
+- **Four capabilities, two different costs**: `sendMessage()` is a log +
+  knowledge-graph edge only — no reasoning call, cheap, synchronous.
+  `delegate()`, `review()`, and `consensus()` all make real LLM calls
+  (`DepartmentManager.run()`, the same path a direct department run
+  uses) — `consensus()` makes one *per department*, in parallel
+  (`Promise.all`), deliberately: votes must be independent, not each
+  agent seeing the previous one's reasoning and cascading toward
+  agreement, which is what a sequential loop would risk.
+- `review()`/`consensus()` ask for strict JSON responses (verdict/
+  feedback, vote/reasoning) using the same `useTools:false` + markdown-
+  fence-stripping + validate-with-clear-error pattern established in
+  `GoalDecomposer`/`MemoryConsolidation`/`LearningEngine` — one JSON
+  document back, not free text a caller would have to parse heuristically.
+- **Task handoff is a different concept, not folded into this module**:
+  the milestone spec's "task handoff" (full ownership transfer of a
+  project to a different department) is `ProjectManager.
+  reassignDepartment()`, in `core/executive`, not here — it mutates
+  project *state* (the department tag, a history entry), which is
+  `ProjectManager`'s job, not agent-to-agent interaction. It reuses
+  `memory.update()`'s top-level spread (already supported since Phase 3,
+  just not previously exercised on `tags`) to swap the department tag,
+  rather than needing a new store.js capability. `delegate()` (this
+  module) is a one-off subtask another department runs and hands back;
+  `reassignDepartment()` is permanent reassignment — genuinely different
+  operations that happen to share the word "handoff" in casual usage.
+- Every collaboration record persists the same way every other executive
+  entity does (a `type: "decisions"` memory entry tagged `collaboration` +
+  a kind, `knowledge.addRelationship()` for the agent-to-agent edge) and
+  publishes a Phase-9 live-update event (`collaboration.message`/
+  `delegated`/`reviewed`/`consensus`), so collaboration activity shows up
+  in the dashboard's live feed automatically, no separate wiring needed.
+- Not built: agent-initiated collaboration (see above), delegation/review
+  chains deeper than one hop (an agent's delegated task can't itself
+  delegate further — no concrete recursive-delegation use case yet to
+  design timeout/cycle-detection against), and weighted/expertise-based
+  consensus (every vote counts equally regardless of department — no
+  concrete need yet for e.g. weighting HADES's vote higher on a financial
+  proposal).
