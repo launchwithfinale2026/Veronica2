@@ -368,6 +368,58 @@
         },
         "required": ["jobName"]
       }
+    },
+    {
+      "id": "obsidian.list",
+      "description": "List every Markdown note in the configured Obsidian vault (OBSIDIAN_VAULT_PATH, defaults to the repo root).",
+      "permission": "execute_tools",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "obsidian.read",
+      "description": "Read a note's raw Markdown content from the vault.",
+      "permission": "execute_tools",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string", "description": "Note path relative to the vault root" }
+        },
+        "required": ["path"]
+      }
+    },
+    {
+      "id": "obsidian.write",
+      "description": "Write (create or overwrite) a note in the vault.",
+      "permission": "execute_tools",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string", "description": "Note path relative to the vault root" },
+          "content": { "type": "string" }
+        },
+        "required": ["path"]
+      }
+    },
+    {
+      "id": "obsidian.index",
+      "description": "Index every note in the vault into memory (summaries) and the knowledge graph ([[wikilinks]] become graph relationships).",
+      "permission": "execute_tools",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "web.fetch",
+      "description": "Make an outbound HTTP request to an allowlisted external service (SERVICE_ALLOWLIST env var). Fails closed: nothing is reachable until its hostname is explicitly allowlisted.",
+      "permission": "execute_tools",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string" },
+          "method": { "type": "string", "enum": ["GET", "POST"], "description": "Defaults to GET" },
+          "body": { "description": "Request body (POST only); objects are JSON-encoded" },
+          "headers": { "type": "object" }
+        },
+        "required": ["url"]
+      }
     }
   ]
 }

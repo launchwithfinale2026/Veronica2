@@ -34,6 +34,13 @@
       "module": "core/logging",
       "status": "active",
       "description": "Leveled logging (debug/info/warn/error) with warn/error persisted to a durable error log, plus process-level uncaughtException/unhandledRejection crash guards installed on both entry points' real boot paths."
+    },
+    {
+      "id": "integrations",
+      "name": "External Integrations",
+      "module": "core/integrations",
+      "status": "active",
+      "description": "Obsidian vault read/write/index (configurable path, defaults to the repo root) and an allowlisted outbound HTTP connector (fails closed until SERVICE_ALLOWLIST is set). Reachable via the existing generic tool system -- no dedicated routes needed."
     }
   ]
 }

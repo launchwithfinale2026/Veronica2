@@ -1167,3 +1167,71 @@ Built 2026-07-22 (Intelligence Layer milestone, Phase 11 of 18).
   `console.log` boot-sequence messages through `core/logging` (would
   touch dozens of working call sites for no functional gain — the whole
   point of this phase was fixing real gaps, not manufacturing busywork).
+
+---
+
+## External Integrations (`core/integrations/`)
+
+**Decision:** two integrations built with real value and real security
+scoping (Obsidian vault, outbound HTTP), one deliberately deferred
+(general "filesystem intelligence" — see below). Built 2026-07-22
+(Intelligence Layer milestone, Phase 12 of 18).
+
+- **Obsidian vault path**: `OBSIDIAN_VAULT_PATH`, defaulting to the repo
+  root. This isn't a guess — the repo root already has a real (if empty)
+  `.obsidian/` directory, which Obsidian only ever creates by actually
+  opening that exact folder as a vault, so it's evidence, not a made-up
+  default. Every operation fail-closed checks for `.obsidian/` at the
+  configured path (`requireVault()`) — if `OBSIDIAN_VAULT_PATH` points
+  somewhere that isn't a real vault, every operation throws a clear error
+  rather than silently treating an arbitrary folder as one.
+- **Indexing**: `indexVault()` turns every note into a `type: "note"`
+  knowledge entity, `[[wikilinks]]` inside it into `links` relationships
+  (Obsidian's own linking syntax, extracted rather than reimplemented),
+  and a 280-char summary into a `type: "technical knowledge"` memory
+  entry tagged `obsidian` — reachable through `memory.search()`/the
+  Persistent Context Engine like everything else, not a separate,
+  disconnected store. Same sandboxing pattern `core/tools/handlers/
+  filesystem.js` already established (every path resolved against the
+  vault root, rejected if it would escape), applied to a configurable
+  root instead of a hardcoded one.
+- **Outbound HTTP is VERONICA's first ability to reach anything outside
+  Claude's own API** — every other tool operates on local state. That's a
+  real SSRF-shaped risk (an agent reasoning over some external document
+  could be prompt-injected into exfiltrating data to an attacker URL, or
+  probing internal network services), so `core/integrations/http.js`
+  fails closed by design: `SERVICE_ALLOWLIST` (comma-separated hostnames)
+  must explicitly name a host before any request to it is permitted —
+  unset/empty means nothing is reachable, not "open by default." Same
+  fail-closed posture the dashboard's write endpoints (`API_TOKEN` unset)
+  and the sandboxed filesystem tool already established. Also caps
+  response size (1MB) and request duration (10s) — a personal system
+  fetching a JSON API response doesn't need either unbounded.
+- **Found while writing tests**: `request()` validated its input
+  (`assertAllowed()`) with a plain synchronous `throw`, before the
+  function was declared `async` — so a caller using `await request(...)`
+  or `.catch(...)` for error handling wouldn't catch a validation error
+  the same way it'd catch a real network failure (a synchronous throw
+  from a non-async function propagates immediately, not as a promise
+  rejection). `assert.rejects()` in the new tests caught this exactly as
+  designed — the fix was declaring `request()` `async`, so every code
+  path (validation and network) rejects the same way.
+- **No dedicated dashboard routes or terminal commands were added for
+  these** — unlike `executive`/`company`/`learning`/`automation`,
+  `obsidian.*`/`web.fetch` are registered as ordinary tools with zero
+  dependency on `core/intelligence`/`core/tools` (no circular-require
+  risk to route around with a facade), so they're already fully reachable
+  through the *existing* generic mechanism (`tools.run` in the terminal,
+  `POST /api/tools/:id/run` on the dashboard) with no new wiring needed.
+  Verified live against the real dashboard rather than assumed.
+- **Deliberately deferred**: a distinct "filesystem intelligence"
+  subsystem (indexing/searching arbitrary local files beyond the
+  sandboxed workspace and the Obsidian vault). The milestone's own later
+  roadmap has a dedicated File Intelligence phase (documents/code/PDFs/
+  images/videos/repositories, searchable embeddings) — building a partial
+  version of that here under a different name would mean redoing it
+  properly later. "APIs"/"service connections" are covered by what
+  already exists (the dashboard's own REST API, documented throughout
+  this file) plus the new HTTP connector above; a bespoke MCP client is
+  the milestone's own later, dedicated MCP Integrations phase, not
+  reinvented here under a more generic name.
