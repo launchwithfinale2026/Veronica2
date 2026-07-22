@@ -2145,3 +2145,49 @@ register/heartbeat/role POST routes) is ready for Phase 17 to use.
 matching the existing precedent that `device.identity`/
 `device.capabilities` are terminal+dashboard only, not exposed as
 tools either.
+
+---
+
+## Phase 17 — Command Center Dashboard
+
+**Goal:** add the four named views that didn't already exist (Executive
+view and Memory view already did, across Phases 9/11/12) — Goal view,
+Agent network, Device network, Action approvals — as a new "Command
+Center" dashboard panel, plus the API routes behind them.
+
+- **`GET /api/goals/overview`**: the roadmap with real per-project
+  progress (`ProjectManager.progress()`, via `getProject()`) attached —
+  visible without looking each project up individually.
+- **`GET /api/agents/network`**: every agent plus its real knowledge-
+  graph connections (`knowledge.connections(agent.name)` — delegations,
+  reviews, messages from `core/collaboration/engine.js`) — actual
+  relationships, not just the flat roster `GET /api/agents` already
+  gave.
+- **`GET /api/devices/network`**: Phase 16's `DeviceManager.networkStatus()`,
+  finally wired into the dashboard (deferred there specifically so it
+  wouldn't be built twice).
+- **`GET /api/executive/proposals?status=pending`**: the existing
+  Phase 15 route, extended to support a `?status=` filter — required
+  changing the route dispatcher itself (`ROUTES[routeKey]()` ->
+  `ROUTES[routeKey](parsed.searchParams)`), since no GET route had ever
+  needed a query parameter before. Backward compatible: every existing
+  route function takes no parameters, so the extra argument is simply
+  ignored by all of them.
+
+**A genuinely overlooked bug caught while adding this**: the new
+`GET /api/devices/network` route bootstraps `core/device/network.json`
+on first read (same lazy-create pattern as `core/memory/store.js`'s
+`ensureFile()`) — meaning `tests/dashboard.test.js` now creates that
+real file as a side effect of testing a GET route, the same class of
+issue this test suite has hit repeatedly for other real files
+(`docs/Architecture.md`'s "Learning Engine"/"Production Hardening"
+sections). Given the established backup/restore discipline, added the
+same treatment here rather than letting it slip through as residue.
+
+4 new tests (`tests/dashboard.test.js`) covering the new/extended
+routes' response shape. No new automated tests for the frontend
+widgets themselves — verified with `node --check`, a real server
+instance confirming every new route, and cross-checking every new
+element id against `index.html`, same verification level as prior
+dashboard-only phases (no headless browser available in this
+environment).

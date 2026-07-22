@@ -349,14 +349,39 @@ building the widget twice.
 
 7 new tests. Wired into dashboard routes and terminal commands.
 
+## Phase 17 -- Command Center Dashboard
+
+Full design reasoning in `docs/Architecture.md`'s "Phase 17 -- Command
+Center Dashboard". Executive view and Memory view already existed
+(Phases 9/11/12); adds the four that didn't as a new "Command Center"
+panel: Goal view (`GET /api/goals/overview` -- roadmap + real per-
+project progress), Agent network (`GET /api/agents/network` -- real
+knowledge-graph connections per agent, not just the flat roster),
+Device network (Phase 16's `DeviceManager.networkStatus()`, wired into
+the dashboard now that Phase 17 exists to build the view properly),
+and Action approvals (the existing Phase 15 proposals route extended
+with a `?status=pending` filter for a focused queue).
+
+Required extending the route dispatcher itself to pass query params
+through (`ROUTES[routeKey](parsed.searchParams)`) -- backward
+compatible, every existing route ignores the extra argument.
+
+Found and fixed the same "real file created as a side effect of a GET
+route" issue this suite has hit before (see Architecture.md): the new
+devices route bootstraps `core/device/network.json` on first read,
+now properly backed up/restored in `tests/dashboard.test.js`.
+
+4 new tests covering the new/extended routes.
+
 ## Totals
 
-- 17 commits across Phases 10-16 combined with the earlier 9, each with
+- 18 commits across Phases 10-17 combined with the earlier 9, each with
   `npm test` green before committing.
 - Test count: 210 -> 222 (end of the original 9-phase pass) -> 240 (end
   of Phase 10) -> 267 (end of Phase 11) -> 291 (end of Phase 12) -> 300
   (end of Phase 13) -> 307 (end of Phase 14) -> 313 (end of Phase 15)
-  -> 320 (end of Phase 16), all passing throughout.
+  -> 320 (end of Phase 16) -> 324 (end of Phase 17), all passing
+  throughout.
 - No existing test broken; no existing public API removed or changed
   incompatibly.
 

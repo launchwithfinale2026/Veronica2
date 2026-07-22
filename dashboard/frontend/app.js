@@ -67,6 +67,62 @@ async function loadAgents(){
 }
 
 
+async function loadGoalView(){
+
+    const goals = await fetchJSON("/api/goals/overview");
+
+    renderList(
+        "goal-view",
+        goals,
+        "No active goals.",
+        goal => `[${goal.department}] ${goal.title} -- ${goal.status}, ${goal.progress}% complete (priority ${goal.priority})`
+    );
+
+}
+
+
+async function loadAgentNetwork(){
+
+    const network = await fetchJSON("/api/agents/network");
+
+    renderList(
+        "agent-network",
+        network,
+        "No agents loaded.",
+        agent => `${agent.name} (${agent.department}) -- ${agent.connections.length} connection(s)${agent.connections.length ? ": " + agent.connections.map(c => `${c.type}->${c.from === agent.name ? c.to : c.from}`).join(", ") : ""}`
+    );
+
+}
+
+
+async function loadDeviceNetwork(){
+
+    const network = await fetchJSON("/api/devices/network");
+
+    renderList(
+        "device-network",
+        network,
+        "No devices registered yet.",
+        entry => `[${entry.status}] ${entry.name} (${entry.type}, role: ${entry.role}) -- last seen ${entry.minutesSinceLastSeen}m ago`
+    );
+
+}
+
+
+async function loadPendingApprovals(){
+
+    const pending = await fetchJSON("/api/executive/proposals?status=pending");
+
+    renderList(
+        "pending-approvals",
+        pending,
+        "No proposals awaiting approval.",
+        proposal => `[${proposal.risk} risk] ${proposal.action} -- ${proposal.reason} (id ${proposal.id})`
+    );
+
+}
+
+
 async function loadDepartments(){
 
     const departments = await fetchJSON("/api/departments");
@@ -551,6 +607,10 @@ async function loadDashboard(){
         await Promise.all([
             loadStatus(),
             loadAgents(),
+            loadGoalView(),
+            loadAgentNetwork(),
+            loadDeviceNetwork(),
+            loadPendingApprovals(),
             loadDepartments(),
             loadActivity(),
             loadMemoryByType("personal-goals", "goals", "No goals recorded yet."),

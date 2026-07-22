@@ -55,6 +55,18 @@ if(ATHENA_LOG_EXISTED_BEFORE){
     fs.copyFileSync(ATHENA_LOG_PATH, ATHENA_LOG_BACKUP);
 }
 
+// GET /api/devices/network (Phase 16/17) bootstraps core/device/network.json
+// on first read if it doesn't exist yet (same pattern as core/memory/
+// store.js's ensureFile()) -- back it up/restore like every other real,
+// gitignored per-machine file this suite touches.
+const NETWORK_PATH = path.join(__dirname, "..", "core", "device", "network.json");
+const NETWORK_EXISTED_BEFORE = fs.existsSync(NETWORK_PATH);
+const NETWORK_BACKUP = path.join(os.tmpdir(), `veronica-network-backup-dashboard-${process.pid}.json`);
+
+if(NETWORK_EXISTED_BEFORE){
+    fs.copyFileSync(NETWORK_PATH, NETWORK_BACKUP);
+}
+
 const { createServer } = require("../dashboard/backend/server");
 
 let server;
@@ -120,6 +132,13 @@ test.after(async () => {
         fs.unlinkSync(ERROR_LOG_PATH);
     }
 
+    if(NETWORK_EXISTED_BEFORE){
+        fs.copyFileSync(NETWORK_BACKUP, NETWORK_PATH);
+        fs.unlinkSync(NETWORK_BACKUP);
+    } else if(fs.existsSync(NETWORK_PATH)){
+        fs.unlinkSync(NETWORK_PATH);
+    }
+
     delete process.env.API_TOKEN;
 
 });
@@ -151,6 +170,52 @@ test("GET /api/health reports process health, not just a canned online string", 
     assert.ok(typeof body.recentErrorCount === "number");
 
 });
+
+test("GET /api/agents/network returns every agent with its real knowledge-graph connections", async () => {
+
+    const res = await fetch(`${baseUrl}/api/agents/network`);
+    const body = await res.json();
+
+    assert.strictEqual(res.status, 200);
+    assert.strictEqual(body.length, 9);
+    assert.ok(body.every(agent => "name" in agent && "department" in agent && Array.isArray(agent.connections)));
+
+});
+
+
+test("GET /api/goals/overview returns the roadmap with real per-project progress", async () => {
+
+    const res = await fetch(`${baseUrl}/api/goals/overview`);
+    const body = await res.json();
+
+    assert.strictEqual(res.status, 200);
+    assert.ok(Array.isArray(body));
+    assert.ok(body.every(project => Number.isFinite(project.progress) && project.progress >= 0 && project.progress <= 100));
+
+});
+
+
+test("GET /api/executive/proposals?status=pending only returns pending proposals", async () => {
+
+    const res = await fetch(`${baseUrl}/api/executive/proposals?status=pending`);
+    const body = await res.json();
+
+    assert.strictEqual(res.status, 200);
+    assert.ok(body.every(proposal => proposal.status === "pending"));
+
+});
+
+
+test("GET /api/devices/network returns an array (empty is valid -- no devices registered yet)", async () => {
+
+    const res = await fetch(`${baseUrl}/api/devices/network`);
+    const body = await res.json();
+
+    assert.strictEqual(res.status, 200);
+    assert.ok(Array.isArray(body));
+
+});
+
 
 test("GET /api/logs/errors returns the real persisted error log", async () => {
 

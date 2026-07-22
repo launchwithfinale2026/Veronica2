@@ -170,6 +170,16 @@ const ROUTES = {
         status: agent.status
     })),
 
+    // Phase 17 -- Command Center Dashboard: "Agent network" view. Each
+    // agent plus its real knowledge-graph connections (delegatesTo,
+    // reviewed, messaged, etc. -- see core/collaboration/engine.js) --
+    // the actual relationships between agents, not just a flat roster.
+    "GET /api/agents/network": () => agents.map(agent => ({
+        name: agent.name,
+        department: agent.department,
+        connections: knowledge.connections(agent.name)
+    })),
+
     "GET /api/departments": () => departments.map(dept => dept.statusReport()),
 
     "GET /api/knowledge": () => knowledge.read(),
@@ -194,6 +204,15 @@ const ROUTES = {
 
     "GET /api/executive/roadmap": () => executive.roadmap(),
 
+    // Phase 17 -- Command Center Dashboard: "Goal view". The roadmap
+    // already has priority/status; this adds per-project progress
+    // (ProjectManager.progress(), via getProject()) so a goal's actual
+    // completion is visible without looking each one up individually.
+    "GET /api/goals/overview": () => executive.roadmap().map(project => ({
+        ...project,
+        progress: executive.getProject(project.id).progress
+    })),
+
     "GET /api/executive/deadlines": () => executive.evaluateDeadlines(),
 
     "GET /api/executive/consolidations": () => executive.consolidationHistory(),
@@ -214,7 +233,7 @@ const ROUTES = {
 
     "GET /api/executive/daily-reviews": () => executive.dailyReviewHistory(),
 
-    "GET /api/executive/proposals": () => executive.listProposals(),
+    "GET /api/executive/proposals": (searchParams) => executive.listProposals(searchParams.get("status") || undefined),
 
     "GET /api/executive/report": () => orchestrator.report(),
 
@@ -1102,7 +1121,7 @@ function createServer(){
             }
 
             if(ROUTES[routeKey]){
-                return sendJSON(res, 200, ROUTES[routeKey]());
+                return sendJSON(res, 200, ROUTES[routeKey](parsed.searchParams));
             }
 
             if(parsed.pathname.startsWith("/api/")){
