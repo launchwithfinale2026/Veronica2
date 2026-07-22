@@ -27,24 +27,14 @@
 const memory = require("../memory");
 const knowledge = require("../knowledge");
 const bus = require("../bus");
+const { parseJsonResponse } = require("../brain/parseJsonResponse");
 
 const COLLABORATION_TAG = "collaboration";
 
 
-function stripFences(text){
-    return text.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
-}
-
-
 function parseReview(text){
 
-    let parsed;
-
-    try {
-        parsed = JSON.parse(stripFences(text));
-    } catch(error){
-        throw new Error(`Review response was not valid JSON: ${error.message}`);
-    }
+    const parsed = parseJsonResponse(text, "Review response");
 
     if(!parsed || !["approve", "revise", "reject"].includes(parsed.verdict)){
         throw new Error("Review response must have a \"verdict\" of \"approve\", \"revise\", or \"reject\"");
@@ -60,13 +50,7 @@ function parseReview(text){
 
 function parseVote(text){
 
-    let parsed;
-
-    try {
-        parsed = JSON.parse(stripFences(text));
-    } catch(error){
-        throw new Error(`Vote response was not valid JSON: ${error.message}`);
-    }
+    const parsed = parseJsonResponse(text, "Vote response");
 
     if(!parsed || !["yes", "no", "abstain"].includes(parsed.vote)){
         throw new Error("Vote response must have a \"vote\" of \"yes\", \"no\", or \"abstain\"");

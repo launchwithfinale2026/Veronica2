@@ -22,6 +22,7 @@ const memory = require("../memory");
 const knowledge = require("../knowledge");
 const ExecutivePlanner = require("./planner");
 const GoalDecomposer = require("./decomposer");
+const { parseJsonResponse } = require("../brain/parseJsonResponse");
 
 const CONSOLIDATION_TAG = "executive-consolidation";
 
@@ -38,15 +39,7 @@ const CONSOLIDATION_AGENT = {
 
 function parseConsolidation(text){
 
-    const stripped = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
-
-    let parsed;
-
-    try {
-        parsed = JSON.parse(stripped);
-    } catch(error){
-        throw new Error(`Consolidation response was not valid JSON: ${error.message}`);
-    }
+    const parsed = parseJsonResponse(text, "Consolidation response");
 
     if(!parsed || typeof parsed.summary !== "string"){
         throw new Error("Consolidation response must have a \"summary\" string");

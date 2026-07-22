@@ -22,6 +22,7 @@ const IntelligenceEngine = require("../intelligence");
 const memory = require("../memory");
 const knowledge = require("../knowledge");
 const ExecutivePlanner = require("./planner");
+const { parseJsonResponse } = require("../brain/parseJsonResponse");
 
 const DECOMPOSITION_TAG = "executive-decomposition";
 
@@ -36,20 +37,9 @@ const DECOMPOSITION_AGENT = {
 };
 
 
-// LLMs asked for "JSON only" still sometimes wrap it in a ```json fence --
-// strip that before parsing rather than failing the whole decomposition
-// over formatting.
 function parseStructure(text){
 
-    const stripped = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
-
-    let parsed;
-
-    try {
-        parsed = JSON.parse(stripped);
-    } catch(error){
-        throw new Error(`Decomposition response was not valid JSON: ${error.message}`);
-    }
+    const parsed = parseJsonResponse(text, "Decomposition response");
 
     if(!parsed || !Array.isArray(parsed.milestones)){
         throw new Error("Decomposition response must have a \"milestones\" array");

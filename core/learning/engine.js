@@ -14,6 +14,7 @@ const IntelligenceEngine = require("../intelligence");
 const memory = require("../memory");
 const knowledge = require("../knowledge");
 const log = require("./log");
+const { parseJsonResponse } = require("../brain/parseJsonResponse");
 
 const RECOMMENDATION_TAG = "learning-recommendation";
 
@@ -26,15 +27,7 @@ const LEARNING_AGENT = {
 
 function parseRecommendations(text){
 
-    const stripped = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
-
-    let parsed;
-
-    try {
-        parsed = JSON.parse(stripped);
-    } catch(error){
-        throw new Error(`Recommendation response was not valid JSON: ${error.message}`);
-    }
+    const parsed = parseJsonResponse(text, "Recommendation response");
 
     if(!parsed || !Array.isArray(parsed.recommendations)){
         throw new Error("Recommendation response must have a \"recommendations\" array");
