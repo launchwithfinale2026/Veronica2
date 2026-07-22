@@ -28,6 +28,29 @@ const email = require("./email");
 const cloudStorage = require("./cloudStorage");
 
 
+// Phase 23 (Integration Framework): "sync history" for the connectors
+// that poll (github, gmail/calendar/drive under the "google" entry) --
+// the real timestamp of the most recently ingested event for that
+// source, via the same shared pipeline every poller already writes to
+// (core/integrations/eventIngestion.js), not a separately-tracked "last
+// sync" field that could drift out of sync with what was actually
+// ingested. Lazily required: eventIngestion -> memory has no path back
+// to this file, but every other lazy require in this codebase follows
+// the same defensive convention rather than assuming that stays true
+// forever.
+function lastSyncFor(sources){
+
+    const eventIngestion = require("./eventIngestion");
+
+    const events = sources
+        .flatMap(source => eventIngestion.recentEvents({ source, limit: 1 }))
+        .sort((a, b) => new Date(b.metadata.occurredAt) - new Date(a.metadata.occurredAt));
+
+    return events.length ? events[0].metadata.occurredAt : null;
+
+}
+
+
 function list(){
 
     return [
@@ -58,10 +81,10 @@ function list(){
             note: "Indexes local files under data/workspace/ into memory. No credentials required."
         },
 
-        github.status(),
+        { ...github.status(), lastSync: lastSyncFor(["github"]) },
         discord.status(),
         discordBot.status(),
-        googleOAuth.status(),
+        { ...googleOAuth.status(), lastSync: lastSyncFor(["gmail", "calendar", "drive"]) },
         calendar.status(),
         email.status(),
         cloudStorage.status()
