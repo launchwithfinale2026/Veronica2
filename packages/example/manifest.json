@@ -1,0 +1,24 @@
+{
+    "name": "example",
+    "version": "1.0.0",
+    "description": "Reference capability package -- demonstrates the Phase 20 install pipeline end to end with one real, working agent and tool. Not a business department; a template for building one.",
+    "agents": [
+        {
+            "name": "ExampleAgent",
+            "department": null,
+            "role": "Reference Agent",
+            "capabilities": ["demonstration"]
+        }
+    ],
+    "tools": [
+        {
+            "id": "example.ping",
+            "description": "Returns a real, deterministic response -- proves a package-provided tool can actually execute once installed.",
+            "permission": "read",
+            "inputSchema": { "type": "object", "properties": {} }
+        }
+    ],
+    "dependencies": [],
+    "permissions": ["read"],
+    "approvalRequired": false
+}

@@ -158,6 +158,14 @@ module.exports = {
 
     rejectProposal: (id, note) => actionProposalEngine.reject(id, note),
 
-    executeProposal: (id) => actionProposalEngine.execute(id)
+    executeProposal: (id) => actionProposalEngine.execute(id),
+
+    // Phase 19/20 -- the async counterpart to executeProposal() above,
+    // for external actions (create_github_issue, post_discord_message,
+    // install_capability) that need a real connector/installer call.
+    // See core/executive/actionProposal.js's executeExternal() for why
+    // this is a separate method rather than making execute() itself
+    // async.
+    executeExternalProposal: (id) => actionProposalEngine.executeExternal(id)
 
 };

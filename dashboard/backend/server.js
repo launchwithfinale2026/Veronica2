@@ -31,6 +31,9 @@ const integrationRegistry = require("../../core/integrations/registry");
 const credentialManager = require("../../core/integrations/credentialManager");
 const googleOAuth = require("../../core/integrations/google/oauth");
 const discordBot = require("../../core/integrations/discordBot");
+const capabilitiesRegistry = require("../../core/capabilities/registry");
+const installer = require("../../core/capabilities/installer");
+const capabilitiesPlanner = require("../../core/capabilities/planner");
 const PersonalContextEngine = require("../../core/profile/personalContextEngine");
 const log = require("../../core/logging");
 const { installCrashGuards } = require("../../core/logging/crashGuard");
@@ -268,6 +271,12 @@ const ROUTES = {
     "GET /api/integrations/google/auth-url": () => ({ url: googleOAuth.getAuthUrl() }),
 
     "GET /api/integrations/discord-bot/status": () => discordBot.status(),
+
+    // Phase 20 (Capability Expansion Architecture): every capability
+    // VERONICA knows about, built-in and installed-package alike, with
+    // its real status (active/installed/disabled/error) -- real state
+    // only, see core/capabilities/registry.js.
+    "GET /api/capabilities": () => capabilitiesRegistry.list(),
 
     "GET /api/profile": () => personalContext.summary(),
 
@@ -783,6 +792,64 @@ function createServer(){
                 const { note } = JSON.parse((await readBody(req)) || "{}");
 
                 return sendJSON(res, 200, executive.rejectProposal(decodeURIComponent(proposalRejectMatch[1]), note));
+
+            }
+
+            // The async counterpart to the route below, for external
+            // proposals (create_github_issue/post_discord_message/
+            // install_capability) -- see executeExternalProposal()'s own
+            // comment for why this is a separate method/route rather
+            // than reusing the internal-action execute() route.
+            const proposalExecuteExternalMatch = parsed.pathname.match(/^\/api\/executive\/proposals\/([^/]+)\/execute-external$/);
+
+            if(proposalExecuteExternalMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                return sendJSON(res, 200, await executive.executeExternalProposal(decodeURIComponent(proposalExecuteExternalMatch[1])));
+
+            }
+
+            // Phase 20: install a capability package from a directory
+            // path on this machine -- approvalRequired packages return a
+            // pending proposal instead (approve it, then POST the
+            // execute-external route above to actually install).
+            if(parsed.pathname === "/api/capabilities/install" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { packageDir } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!packageDir){
+                    return sendJSON(res, 400, { error: "packageDir is required" });
+                }
+
+                return sendJSON(res, 200, installer.install(packageDir));
+
+            }
+
+            // Phase 20: "VERONICA, create a trading division" -- the
+            // capability-gap analysis step. Read-only, no auth required
+            // (same posture as every other GET-shaped analysis endpoint),
+            // implemented as POST only because it takes a body (the
+            // free-text objective).
+            if(parsed.pathname === "/api/capabilities/analyze" && req.method === "POST"){
+
+                const { objective } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!objective){
+                    return sendJSON(res, 400, { error: "objective is required" });
+                }
+
+                return sendJSON(res, 200, capabilitiesPlanner.analyzeRequest(objective));
 
             }
 

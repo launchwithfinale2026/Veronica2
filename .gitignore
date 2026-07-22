@@ -30,6 +30,10 @@ core/device/network.json
 # state, not source
 core/automation/state.json
 
+# Phase 20: installed capability registry state -- operational state
+# (what's installed/active on THIS machine), not source
+core/capabilities/state.json
+
 # Semantic memory embeddings cache -- regenerable from memory content via
 # reindex(), not source, and can grow large
 core/memory/embeddings.json

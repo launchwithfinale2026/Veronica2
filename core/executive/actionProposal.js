@@ -64,12 +64,19 @@ const APPROVAL_REQUIRED = {
 // action.
 const EXTERNAL_ACTION_RISK = {
     create_github_issue: "medium",
-    post_discord_message: "low"
+    post_discord_message: "low",
+    // Phase 20 (Capability Expansion Architecture): installing a new
+    // capability package can add agents/tools that gain real
+    // permissions (see a package's own manifest.json) -- treated as
+    // "high" risk, same bucket as a real roadmap-changing action, not
+    // "low" like an informational post.
+    install_capability: "high"
 };
 
 const EXTERNAL_APPROVAL_REQUIRED = {
     create_github_issue: true,
-    post_discord_message: true
+    post_discord_message: true,
+    install_capability: true
 };
 
 
@@ -361,6 +368,21 @@ class ActionProposalEngine {
                 await discord.sendMessage(content);
 
                 return "Posted Discord message";
+
+            }
+
+            case "install_capability": {
+
+                // Lazy require -- see core/capabilities/installer.js's
+                // header comment for why this can't be a top-level
+                // require (installer.js requires THIS file, for
+                // proposeExternalAction(), creating a cycle otherwise).
+                const installer = require("../capabilities/installer");
+                const { packageDir } = proposal.payload || {};
+
+                const capability = installer.completeInstall(packageDir);
+
+                return `Installed and activated capability "${capability.name}" v${capability.version}`;
 
             }
 
