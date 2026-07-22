@@ -2459,3 +2459,105 @@ child process plus a real ephemeral HTTP server for the health-check
 path, the new `lastSync` registry field, the system report's three
 questions, and the new dashboard routes verified against a real running
 server instance.
+
+## Phases 25-32 — Engine to Operating System
+
+**Goal:** the shift this arc's own framing named -- not "build more
+features," but take VERONICA from an engine (you ask, it answers,
+capabilities are static) to an operating system (capabilities activate
+themselves, plan themselves, research what they don't know, evaluate
+themselves, and compose into missions and an organization-wide view).
+Eight phases, one theme: every one of them is a real extension of an
+already-existing system, never a parallel one. Full per-phase detail in
+`docs/CHANGELOG.md`; this section covers what required real judgment.
+
+**Phase 25 closed Phase 20's own known gap** (named explicitly in
+`docs/NEXT_STEPS.md` at the time): `core/capabilities/activation.js` is
+now the single source of truth `core/agents/loader.js`/
+`core/tools/loader.js`/`core/departments/loader.js`/
+`core/automation/jobs.js` all pull from, so an installed, active
+package's agents/tools/department/automations become real, live
+instances -- not just a registry entry. This was safe to verify against
+the FULL existing test suite precisely because zero active (non-core)
+packages is the state every existing test already runs in: the change
+is provably additive (empty arrays in, identical behavior out) rather
+than something that had to be reasoned about from first principles.
+
+**Phase 27's builder produces skeletons, and says so, everywhere.**
+This phase's own prompt used the words "Agent Skeletons"/"Tool
+Skeletons" -- language this implementation took literally rather than
+building five illustrative business departments (trading/marketing/
+finance/research/real_estate) that don't actually do anything. A
+generated tool's handler body is `throw new Error("...is a generated
+skeleton...")`, not a canned success response -- calling it fails
+loudly, which is the honest behavior for code that doesn't exist yet.
+Two real, non-obvious bugs surfaced here (both fixed, both worth
+remembering for any future template-generation work in this codebase):
+a relative require path computed assuming the package lives under the
+default `packages/` directory breaks the moment a caller (a test, or a
+future different install location) uses a different output root; and
+`fs.mkdtempSync()` on macOS returns a path through the `/var` symlink
+while Node's own module resolver resolves through the realpath
+`/private/var` -- a relative path computed from the pre-realpath string
+is silently one directory-segment short. Both fixed by computing every
+generated file's require path dynamically, from real, realpath-
+normalized locations, at generation time -- never a hardcoded depth
+assumption.
+
+**Phase 29's Research Engine requires a real URL, on principle.** There
+is no web-search connector anywhere in this codebase. Giving this engine
+a bare topic name and having it "research" anyway -- inventing
+documentation content that was never actually fetched -- would be
+indistinguishable from fabrication, exactly what this project's
+standing instructions have prohibited since Phase 19. Requiring a real,
+fetchable URL keeps every stored piece of research knowledge honestly
+attributable to a real source, even though it means the engine can't
+answer "look into X" without being told where to look.
+
+**Phase 31's Mission Engine and Phase 32's Organization Overview are
+both, deliberately, composition rather than construction.** Neither
+file implements a new planning algorithm, a new health metric, or a new
+knowledge-graph query -- `MissionEngine` wires together
+`ExecutivePlanner`/`GoalDecomposer`/`ProjectManager`/
+`ExecutiveRecommendationEngine`/the capability planner exactly as each
+already worked in isolation; `OrganizationOverview` reads twelve
+already-existing systems and reports on them. This was the direct,
+literal reading of both phases' own instructions ("integrate with the
+existing executive planner," "avoid duplicate implementations, prefer
+extending existing abstractions") -- and it meant the actual
+implementation risk in both files was almost entirely in getting field
+names/shapes right against the real systems being composed (see the
+`task.effort.hours` vs. `task.estimatedHours` bug below), not in
+designing anything new.
+
+**A real bug, found by a real test, in Phase 31**: `estimateTimeline()`
+initially read `task.estimatedHours` off a decomposed task -- the shape
+the LLM's own raw JSON response uses. `decomposer.js`'s `persistTask()`
+transforms that into `task.effort.hours` once the task becomes a real
+memory entry, and `decompose()` returns the PERSISTED shape, not the
+raw one. A test asserting a specific, hand-computed day estimate (not a
+vague "estimate exists" check) caught this immediately.
+
+**A real incident, from verifying Phase 31 for real**: booting the
+actual dashboard and POSTing a real mission objective against the real
+Claude API (to confirm the new route genuinely worked end to end, not
+just against a mocked LLM in a test) wrote 15 real memory entries and
+14 real knowledge-graph entities/relationships into this project's
+actual `database.json`/`graph.json` -- not test-isolated files. Found by
+searching for the smoke test's own marker string across `memory.recall()`,
+removed by id, and by name from the knowledge graph; both files
+confirmed still valid JSON, full suite confirmed still green afterward.
+Every prior "boot the real server and curl it" verification in this
+project's history was a read-only GET; this is the first one that
+POSTed to a route with a genuine side effect, and it's a reminder that
+this class of live verification needs the SAME cleanup discipline as
+any test touching shared state, even when it isn't a test.
+
+43 new tests (403 → 446) across all eight phases -- see
+`docs/CHANGELOG.md` for the per-phase breakdown. Every phase's new
+tests run against REAL system state wherever practical (the real
+capability registry, the real knowledge graph, the real learning log,
+real `loadAgents()`/`loadDepartments()` output) rather than mocks,
+consistent with this project's standing preference throughout its
+history for exercising real collaborating objects over stubbing them
+out.

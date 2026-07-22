@@ -277,3 +277,54 @@ requirements.
    `GOOGLE_CLIENT_ID`+`SECRET`+`REDIRECT_URI`, and for Google specifically,
    complete the real OAuth consent flow in a browser
    (`GET /api/integrations/google/auth-url`).
+
+## 6. Update — Phases 25-32 (Engine → Operating System)
+
+**Verdict unchanged: ready for continued single-operator personal use.
+Not yet ready for multi-user or adversarial-input use.** Nothing in
+this arc closes or reopens that verdict's underlying reasons (§2.2's
+knowledge-graph isolation gap, §3's identity/session gap) -- this arc
+added capability-lifecycle/planning/research/self-assessment/mission/
+organization systems, none of which touch the access-control boundary
+those findings are about.
+
+- **Dynamic capability activation is real** (Phase 25): an installed,
+  active package's agents/tools/departments/automations become live
+  instances, not just registry metadata -- closing the one gap Phase 20
+  left explicitly open.
+- **The package builder (Phase 27) generates skeletons, not working
+  capability, and says so in the generated code itself** -- a generated
+  tool throws if actually called. This is a deliberate scope boundary,
+  not a limitation to fix: VERONICA scaffolding a new capability and
+  VERONICA correctly implementing one are different claims, and only
+  the first is made here.
+- **The Research Engine (Phase 29) requires a real URL** -- there is no
+  web-search connector in this codebase, so it cannot "look into"
+  something without being told where to look. Every stored research
+  memory has a real citation, fetched for real.
+- **The Self-Improvement Engine (Phase 30) never executes anything** --
+  every queue it produces (optimization/refactor/recommendations) is a
+  plain, inspectable proposal object; nothing in that file calls any
+  execution path.
+- **446 tests passing** (up from 375 at the point §5 above was written),
+  covering all eight new phases, verified end to end against real
+  system state (real capability registry, real knowledge graph, real
+  `loadAgents()`/`loadDepartments()` output) rather than mocks wherever
+  practical.
+- **One real incident, corrected**: a live end-to-end verification of
+  Phase 31's mission-creation route (a real POST against the running
+  dashboard, using the real Claude API) wrote real data into the actual
+  `database.json`/`graph.json` rather than a test-isolated copy. Found
+  and removed by id/name immediately after; both files confirmed valid,
+  full suite confirmed green. See `docs/Architecture.md`'s "Phases
+  25-32" section for the specific lesson (live-route verification with
+  a real side effect needs the same cleanup discipline as a test).
+
+### Recommended next phase (Phase 33+)
+
+See `docs/CHANGELOG.md`'s Phase 25-32 "Remaining limitations" section
+and the roadmap communicated at the end of this work. In short: closing
+the DepartmentManager activity-log path assumption for package-declared
+departments; a dedicated dashboard-panel plugin system if package-
+specific UI ever becomes a real need; and the pre-existing §2.2/§3
+findings above, unchanged by this arc.

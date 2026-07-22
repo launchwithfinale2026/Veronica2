@@ -622,10 +622,143 @@ route plus the served HTML/JS.
 - **The LaunchAgent is a template, not installed** (Phase 21) -- running
   `scripts/install-launch-agent.sh` is a deliberate, manual, one-time
   operator action, not something this session did automatically.
-- **Recommended next phase:** wire installed capability packages into
-  the live agent/tool/department loaders (the real next increment for
-  Phase 20, above); a dedicated visual/browser-tested dashboard pass
-  once a browser-capable environment is available; a GitHub webhook
-  receiver (needs public HTTPS reachability); extending Discord's
-  approval-gated posting to the real bot's channels instead of only the
-  webhook.
+
+## Phase 25 -- Dynamic Capability Activation
+
+Closed the exact gap the prior phase's own docs/NEXT_STEPS.md named as
+the top next increment. `core/capabilities/activation.js` (new) is the
+single source of truth for "what does an active, installed capability
+package provide," read directly from the registry -- `core/agents/loader.js`,
+`core/tools/loader.js`, `core/departments/loader.js`, and
+`core/automation/jobs.js` each extended (not rewritten) to also load a
+package's agents/tools/department/automations alongside the base
+roster. Zero active packages (every existing test, every clean install)
+means identical behavior to before this phase. 7 new tests.
+
+## Phase 26 -- Capability Marketplace
+
+`core/capabilities/marketplace.js` (new): categorizes every capability
+into Installed/Available/Disabled/Experimental/Updates Available/
+Deprecated/Broken, with real per-package metadata -- install size (an
+actual recursive byte count), update history (the existing registry
+history array), and a real updates-available detection (registered
+version vs. the manifest on disk right now). "Available" packages are
+discovered by scanning `packages/` for manifests not yet installed.
+7 new tests.
+
+## Phase 27 -- Internal Package Builder
+
+`core/capabilities/builder.js` (new): generates a new capability
+package's real files -- manifest, agent/tool SKELETONS (explicitly
+placeholder, not working capability), an optional department
+manager.js, a self-validating test, a README -- from small, reusable
+templates. Found and fixed two real bugs: hardcoded relative require
+paths breaking under a custom output directory, and a macOS
+`/var/folders` vs. `/private/var/folders` symlink discrepancy between
+`mkdtempSync` and Node's module resolver. 6 new tests.
+
+## Phase 28 -- Capability Planner extension
+
+Extended (not replaced) `core/capabilities/planner.js`: each catalog
+capability now carries required-agent-role/required-APIs/dependsOn/
+risk/estimatedDays, so `analyzeRequest()` additionally returns a real
+dependency graph, required permissions/agents/APIs, a risk assessment,
+and a summed build-time estimate -- fully backward compatible with
+Phase 20's original output shape. 4 new tests.
+
+## Phase 29 -- Knowledge & Research Engine
+
+`core/research/engine.js` (new): fetches a real URL through the
+existing allowlisted http connector, extracts plain text (regex-based,
+no new DOM-parser dependency), extracts structured knowledge via a real
+LLM call (same dependency-injection pattern as GoalDecomposer), and
+stores it as an ordinary, cited memory entry. Deliberately requires a
+real URL -- never fabricates knowledge from a bare topic name, since
+there's no web-search connector in this codebase. 5 new tests.
+
+## Phase 30 -- Self Improvement Engine
+
+`core/system/selfImprovement.js` (new): what's duplicated (a real tool-
+id collision check across installed packages), outdated (reuses Phase
+26's version-drift detection), and performing poorly (departments/tools
+with enough volume and a high failure rate, same thresholds as Phase
+11's SelfMonitor) -- assembled into an Optimization Queue, Refactor
+Queue, Performance Report, and a real, live Security Report (is
+`API_TOKEN` set, is `SERVICE_ALLOWLIST` set, which connectors are
+unconfigured right now). No autonomous execution anywhere in this file
+-- proposals only. 4 new tests.
+
+## Phase 31 -- Mission Engine
+
+`core/executive/missionEngine.js` (new): the shift from commands to
+objectives, composing five already-existing systems (ExecutivePlanner,
+GoalDecomposer, the capability planner, ProjectManager,
+ExecutiveRecommendationEngine) around one persisted mission record,
+rather than building a parallel planning system. Wired into the
+existing `core/executive/index.js` facade. 4 new tests.
+
+## Phase 32 -- Organization Operating System
+
+`core/executive/organizationOverview.js` (new): the one aggregation
+point across companies/departments/projects/missions/capabilities/
+knowledge/automation/devices/approvals this phase's dashboard ask
+names -- every section a thin read over a system that already existed.
+Cross-department dependencies are derived from real knowledge-graph
+relationships between agents in different departments. Dashboard gains
+an "Organization Overview" panel placed FIRST in the layout, per the
+information-hierarchy principle (executive summary before everything
+else). 6 new tests.
+
+## Totals (Phases 25-32)
+
+- 8 commits, one per phase, each with `npm test` green before
+  committing.
+- Test count: 403 (end of Phase 24) -> 410 (Phase 25) -> 417 (Phase 26)
+  -> 423 (Phase 27) -> 427 (Phase 28) -> 432 (Phase 29) -> 436 (Phase 30)
+  -> 440 (Phase 31) -> 446 (Phase 32), all passing throughout.
+- No existing test broken; no existing public API removed or changed
+  incompatibly.
+- One real incident during this arc, found and corrected: a live
+  end-to-end smoke test of Phase 31's mission creation (against the
+  real Claude API, to verify the dashboard route actually worked) wrote
+  15 real memory entries and 14 real knowledge-graph entities/
+  relationships into the actual (non-test) database.json/graph.json.
+  Found and removed all of them by id/name immediately after, verified
+  both files remained valid JSON and the full suite still passed. This
+  is the same class of risk every "boot the real server and curl it"
+  verification in this project's history carries when the route being
+  tested WRITES (as opposed to the many prior smoke tests that were
+  read-only GETs) -- worth remembering for any future live verification
+  of a write route.
+
+## Remaining limitations / future work (updated)
+
+- **Installed capability packages ARE now hot-wired into the live
+  roster** (Phase 25 closes the gap Phase 20 left open) -- agents/tools/
+  departments/automations all activate for real once a package is
+  installed and active.
+- **No dynamic dashboard-panel plugin system** -- a package-specific
+  dashboard view still means extending `dashboard/frontend/` directly
+  (documented in every generated package's README, Phase 27).
+- **Package-provided departments inherit DepartmentManager's own
+  activity-log path assumption** (`departments/<id>/logs/`, relative to
+  `core/departments/base.js`'s own location) -- a package's department
+  would need that directory to exist, or its own `.log()` calls will
+  fail, since the base class doesn't yet know how to log to a package's
+  own directory. Not hit in practice (`packages/example/` declares no
+  department), but a real gap for the first package that does.
+- **Architecture Debt in Phase 30's Self Improvement Engine is a
+  manually curated snapshot**, not live-derived -- update
+  `KNOWN_ARCHITECTURE_DEBT` in `core/system/selfImprovement.js` as items
+  are resolved.
+- **Mission Engine's timeline estimates are explicitly rough** -- an
+  8-hour-workday conversion of real decomposed task hours plus the
+  capability planner's static per-domain day estimates, stated as
+  estimates, not commitments.
+- **No web-search connector** -- Phase 29's Research Engine requires a
+  real, specific URL; it cannot discover documentation on its own.
+- Every limitation listed in the Phase 19-24 section above still
+  applies except where superseded here.
+- **Recommended next phase:** see docs/Architecture.md's "Phases 25-32"
+  section and the final architecture review for the full Phase 33+
+  roadmap.
