@@ -10,6 +10,7 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 
 const loadAgents = require("../../core/agents/loader");
 const loadDepartments = require("../../core/departments/loader");
@@ -24,6 +25,8 @@ const learning = require("../../core/learning");
 const automation = require("../../core/automation");
 const bus = require("../../core/bus");
 const CollaborationEngine = require("../../core/collaboration/engine");
+const log = require("../../core/logging");
+const { installCrashGuards } = require("../../core/logging/crashGuard");
 
 
 const FRONTEND_ROOT = path.join(__dirname, "../frontend");
@@ -99,6 +102,13 @@ function handleMemory(searchParams){
 }
 
 
+// Recent-errors window for /api/health's degraded/ok verdict -- a
+// personal system running for weeks shouldn't be marked "degraded"
+// forever because of one error from days ago.
+const HEALTH_ERROR_WINDOW_MS = 15 * 60 * 1000;
+const HEALTH_DEGRADED_THRESHOLD = 5;
+
+
 const ROUTES = {
 
     "GET /api/status": () => ({
@@ -110,6 +120,32 @@ const ROUTES = {
         uptimeSeconds: Math.floor((Date.now() - START_TIME) / 1000),
         timestamp: new Date().toISOString()
     }),
+
+    // Distinct from /api/status (identity/roster info): this is a real
+    // liveness/readiness check -- process resource usage, whether the
+    // automation tick loop is actually running, and a recent-error count
+    // derived from core/logging (Phase 11's error log), not a canned
+    // "online" string.
+    "GET /api/health": () => {
+
+        const memoryUsage = process.memoryUsage();
+        const recentErrors = log.readErrors(50)
+            .filter(entry => Date.now() - new Date(entry.timestamp).getTime() <= HEALTH_ERROR_WINDOW_MS);
+
+        return {
+            status: recentErrors.length >= HEALTH_DEGRADED_THRESHOLD ? "degraded" : "ok",
+            uptimeSeconds: Math.floor(process.uptime()),
+            memory: {
+                rssBytes: memoryUsage.rss,
+                heapUsedBytes: memoryUsage.heapUsed,
+                heapTotalBytes: memoryUsage.heapTotal
+            },
+            automation: { running: automation.status().running },
+            recentErrorCount: recentErrors.length,
+            timestamp: new Date().toISOString()
+        };
+
+    },
 
     "GET /api/agents": () => agents.map(agent => ({
         name: agent.name,
@@ -150,7 +186,9 @@ const ROUTES = {
 
     "GET /api/automation/history": () => automation.history(),
 
-    "GET /api/collaboration/history": () => collaboration.history()
+    "GET /api/collaboration/history": () => collaboration.history(),
+
+    "GET /api/logs/errors": () => log.readErrors()
 
 };
 
@@ -160,6 +198,30 @@ const ROUTES = {
 // they all require an explicit opt-in token rather than being open by
 // default like the read-only endpoints above. Fails closed: no API_TOKEN
 // configured means every write endpoint is off.
+// Constant-time comparison (Production Hardening, Phase 11) -- a plain
+// `===` short-circuits on the first mismatched character, which in
+// principle leaks how many leading characters of a guess are correct via
+// response timing. Low real risk for a localhost-bound personal
+// dashboard, but the fix is free (crypto.timingSafeEqual, no new
+// dependency) so there's no reason not to.
+function tokensMatch(provided, expected){
+
+    const providedBuffer = Buffer.from(provided || "");
+    const expectedBuffer = Buffer.from(expected);
+
+    // timingSafeEqual throws on mismatched lengths rather than just
+    // returning false -- pad to the same length first so a wrong-length
+    // guess doesn't throw (and isn't distinguishable by "did it throw").
+    if(providedBuffer.length !== expectedBuffer.length){
+        crypto.timingSafeEqual(expectedBuffer, expectedBuffer);
+        return false;
+    }
+
+    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+
+}
+
+
 function checkApiAuth(req){
 
     const token = process.env.API_TOKEN;
@@ -171,7 +233,7 @@ function checkApiAuth(req){
     const header = req.headers["authorization"] || "";
     const provided = header.startsWith("Bearer ") ? header.slice(7) : null;
 
-    if(provided !== token){
+    if(!tokensMatch(provided, token)){
         return { ok: false, status: 403, error: "Invalid or missing API token" };
     }
 
@@ -290,9 +352,20 @@ function handleEventStream(req, res){
         res.write(": heartbeat\n\n");
     }, SSE_HEARTBEAT_MS);
 
-    req.on("close", () => {
+    const cleanup = () => {
         clearInterval(heartbeat);
         listeners.forEach(({ eventName, handler }) => bus.off(eventName, handler));
+    };
+
+    req.on("close", cleanup);
+
+    // A write to a socket that dropped between events (not caught by
+    // req.on("close") alone in every case) emits "error" on the response
+    // rather than throwing synchronously -- without this, that would be
+    // an unhandled "error" event, which Node treats as fatal.
+    res.on("error", error => {
+        log.warn("dashboard", `SSE stream write failed: ${error.message}`);
+        cleanup();
     });
 
 }
@@ -305,11 +378,17 @@ function createServer(){
         const parsed = new URL(req.url, "http://localhost");
         const routeKey = `${req.method} ${parsed.pathname}`;
 
-        if(parsed.pathname === "/api/events" && req.method === "GET"){
-            return handleEventStream(req, res);
-        }
-
         try {
+
+            // A synchronous throw here (e.g. res.writeHead() on an already-
+            // closed socket) used to happen outside this try block -- since
+            // nothing awaits this request handler's returned promise,
+            // that became an unhandled rejection at the process level
+            // instead of a normal error response. See docs/Architecture.md
+            // "Production Hardening".
+            if(parsed.pathname === "/api/events" && req.method === "GET"){
+                return handleEventStream(req, res);
+            }
 
             if(parsed.pathname === "/api/memory" && req.method === "GET"){
                 return sendJSON(res, 200, handleMemory(parsed.searchParams));
@@ -733,6 +812,16 @@ function createServer(){
 
         } catch(error){
 
+            log.error("dashboard", `${routeKey} failed: ${error.message}`, { stack: error.stack });
+
+            // A route that already wrote headers (e.g. the SSE handler,
+            // mid-stream) throwing later can't also send a 500 -- Node
+            // would throw a second, uglier error ("Cannot set headers
+            // after they are sent") trying to. Just end the response.
+            if(res.headersSent){
+                return res.end();
+            }
+
             return sendJSON(res, 500, { error: error.message });
 
         }
@@ -746,6 +835,13 @@ module.exports = { createServer };
 
 
 if(require.main === module){
+
+    // Scoped to the real-boot path, not module top level -- this file is
+    // also require()d by tests to get createServer(), and a real
+    // uncaughtException during a test run must fail that test, not call
+    // process.exit(1) and kill the whole `npm test` run. See
+    // docs/Architecture.md "Production Hardening".
+    installCrashGuards("dashboard");
 
     const PORT = process.env.DASHBOARD_PORT || 4000;
 

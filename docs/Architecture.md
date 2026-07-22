@@ -1065,3 +1065,105 @@ human/dashboard/terminal-triggered, not agent-initiated. Built 2026-07-22
   consensus (every vote counts equally regardless of department — no
   concrete need yet for e.g. weighting HADES's vote higher on a financial
   proposal).
+
+---
+
+## Production Hardening (`core/logging/`)
+
+**Decision:** an audit-driven pass, not a wholesale rewrite — found and
+fixed real gaps rather than adding generic defensive code everywhere.
+Built 2026-07-22 (Intelligence Layer milestone, Phase 11 of 18).
+
+- **What the audit actually found** (grep for `uncaughtException`/
+  `unhandledRejection` across the whole repo, trace of every response
+  path in the dashboard server, review of `checkApiAuth()`):
+  1. Zero process-level crash handling existed anywhere. An unhandled
+     rejection in either entry point would, depending on Node version/
+     flags, either silently crash the process or print a warning and
+     leave it in an unknown state — no durable trace either way.
+  2. `dashboard/backend/server.js`'s `/api/events` (SSE) dispatch ran
+     **outside** the request handler's `try`/`catch` (added in Phase 9,
+     never caught since nothing in it has thrown yet in practice) — a
+     synchronous throw there would be an unhandled promise rejection at
+     the process level, not a normal error response. This is exactly the
+     kind of bug the new crash guards exist to catch, so it became the
+     first thing they'd need to catch — fixed at the source instead
+     (moved inside the `try`), with the crash guards as defense in depth
+     for whatever's still unanticipated.
+  3. `checkApiAuth()`'s token comparison was a plain `===`, which
+     short-circuits on the first mismatched byte — a timing side-channel
+     in principle. Low real risk for a localhost-bound personal
+     dashboard, but `crypto.timingSafeEqual` is a free fix (no new
+     dependency, a few lines), so there's no reason not to take it.
+  4. `/api/status` looked like a health check but is actually identity/
+     roster info — nothing anywhere reported actual process health
+     (memory, whether the automation tick loop is really running, recent
+     error rate).
+- **`core/logging/index.js`** is a small leveled logger
+  (`debug`/`info`/`warn`/`error`), **not** a replacement for the
+  `console.log("[MODULE] ...")` calls already scattered through the rest
+  of the codebase — rewriting dozens of already-working, already-tested
+  call sites to route through a new logger would be exactly the kind of
+  high-risk, low-value churn this project's own guidance warns against.
+  Only `warn`/`error` persist to `core/logging/errors.log` (gitignored,
+  same `*.log` rule as `core/learning/executions.log`) — `debug`/`info`
+  are exactly what console already shows, and persisting every info line
+  would turn the error log into noise instead of a signal worth reading
+  after a crash.
+- **`core/logging/crashGuard.js`** installs the two process-level
+  handlers. `unhandledRejection` logs and **keeps running** (most
+  rejected promises here — a failed fetch, a job's own error already
+  being retried by `core/automation` — aren't actually fatal, and taking
+  down a long-running dashboard/automation host over one bad promise
+  would be worse than the bug that caused it). `uncaughtException` logs
+  and **exits** (`process.exit(1)`) — Node's own guidance is that the
+  process is in an undefined state afterward and shouldn't keep running;
+  exiting loudly with a durable log entry beats limping on broken.
+  Installed in `core/interface/terminal.js` at module top level (it's
+  always the live process when loaded at all — nothing requires it as a
+  library) but scoped to `dashboard/backend/server.js`'s
+  `require.main === module` guard, **not** module top level — that file
+  is also `require()`d by `tests/dashboard.test.js`/`tests/sync.test.js`
+  to get `createServer()`, and a real error during a test run must fail
+  that test, not call `process.exit(1)` and kill the whole `npm test`
+  run.
+- The handlers are exported as plain functions
+  (`makeUnhandledRejectionHandler`/`makeUncaughtExceptionHandler`), not
+  only wired up internally — **found while writing tests**: calling
+  `process.emit("unhandledRejection"/"uncaughtException", ...)` to test
+  them synthetically doesn't work, because Node's own test runner
+  listens for those exact same two process events to detect real test
+  failures. Emitting them fights the test runner instead of exercising
+  this module's logic (confirmed: both tests failed, reporting the
+  synthetic error as a real test failure, before this fix). Refactored so
+  tests call the handler functions directly like any other function —
+  no `process.emit`, no interference with the test runner's own crash
+  detection.
+- **`GET /api/health`** is the real liveness/readiness check `/api/status`
+  wasn't: process uptime/memory usage, whether the automation tick loop
+  is actually running, and a recent-error count (from `core/logging`,
+  windowed to the last 15 minutes so one error from days ago doesn't mark
+  the system "degraded" forever) driving an `ok`/`degraded` verdict.
+  `GET /api/logs/errors` surfaces the persisted error log itself.
+- **Found while checking for residue after this phase, before it
+  shipped** (the same discipline that caught bugs in Phases 6-9): a
+  leftover `core/learning/executions.log` after a clean `npm test` run
+  traced back to `tests/collaboration-engine.test.js` (Phase 10) —
+  it calls real `DepartmentManager.run()` (via `delegate()`/
+  `consensus()`), which records to that file, but the test file was
+  never given the backup/restore treatment for it. Missed when Phase 10
+  shipped because that file's own tests all passed; only showed up as
+  filesystem residue on a later, unrelated phase's audit. Fixed by
+  applying the same backup/restore pattern every other file exercising
+  that instrumentation already has. This is the fourth time this exact
+  class of bug (a test exercises already-instrumented code as a side
+  effect of testing something else, without backing up the file that
+  instrumentation writes to) has been caught — see "Learning Engine" and
+  "Automation Engine" above for the first two.
+- Not built: rate limiting (a personal, single-user, localhost-bound
+  dashboard has no concrete need for it), log rotation/pruning for
+  `errors.log` (same unbounded-growth deferral already made for
+  `executions.log` — see "Learning Engine"), and routing the existing
+  `console.log` boot-sequence messages through `core/logging` (would
+  touch dozens of working call sites for no functional gain — the whole
+  point of this phase was fixing real gaps, not manufacturing busywork).

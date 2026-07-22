@@ -27,6 +27,13 @@
       "module": "core/collaboration",
       "status": "active",
       "description": "Agent-to-agent communication, delegation, review/critique, and consensus voting between departments. Constructed with an already-loaded departments array (see terminal.js/dashboard server.js), not a self-contained singleton."
+    },
+    {
+      "id": "logging",
+      "name": "Structured Logging",
+      "module": "core/logging",
+      "status": "active",
+      "description": "Leveled logging (debug/info/warn/error) with warn/error persisted to a durable error log, plus process-level uncaughtException/unhandledRejection crash guards installed on both entry points' real boot paths."
     }
   ]
 }

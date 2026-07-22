@@ -31,6 +31,16 @@ const LOG_STATE = LOG_PATHS.map(({ id, path: logPath }) => ({
     backup: path.join(os.tmpdir(), `veronica-${id}-log-backup-collab-${process.pid}.log`)
 }));
 
+// delegate()/consensus() call the real DepartmentManager.run(), which
+// (Phase 7) records to core/learning/log.js's executions.log -- same
+// backup/restore every other file exercising that instrumentation needs
+// (see docs/Architecture.md "Learning Engine" for the first time this
+// exact class of bug was caught, and "Production Hardening" for where it
+// resurfaced in this file, missed the first time around).
+const EXEC_LOG_PATH = path.join(__dirname, "..", "core", "learning", "executions.log");
+const EXEC_LOG_EXISTED_BEFORE = fs.existsSync(EXEC_LOG_PATH);
+const EXEC_LOG_BACKUP = path.join(os.tmpdir(), `veronica-executions-backup-collab-${process.pid}.log`);
+
 test.before(() => {
     fs.copyFileSync(DB_PATH, DB_BACKUP);
     fs.copyFileSync(GRAPH_PATH, GRAPH_BACKUP);
@@ -38,6 +48,9 @@ test.before(() => {
         if(state.existedBefore){
             fs.copyFileSync(state.path, state.backup);
         }
+    }
+    if(EXEC_LOG_EXISTED_BEFORE){
+        fs.copyFileSync(EXEC_LOG_PATH, EXEC_LOG_BACKUP);
     }
 });
 
@@ -53,6 +66,12 @@ test.after(() => {
         } else if(fs.existsSync(state.path)){
             fs.unlinkSync(state.path);
         }
+    }
+    if(EXEC_LOG_EXISTED_BEFORE){
+        fs.copyFileSync(EXEC_LOG_BACKUP, EXEC_LOG_PATH);
+        fs.unlinkSync(EXEC_LOG_BACKUP);
+    } else if(fs.existsSync(EXEC_LOG_PATH)){
+        fs.unlinkSync(EXEC_LOG_PATH);
     }
 });
 

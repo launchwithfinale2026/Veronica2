@@ -2,6 +2,10 @@ const readline = require("readline");
 const fs = require("fs");
 const path = require("path");
 
+const { installCrashGuards } = require("../logging/crashGuard");
+
+installCrashGuards("terminal");
+
 const Router = require("../router");
 const loadAgents = require("../agents/loader");
 const ContextEngine = require("../context/engine");
@@ -12,6 +16,7 @@ const loadDepartments = require("../departments/loader");
 const tools = require("../tools");
 const device = require("../device");
 const bus = require("../bus");
+const log = require("../logging");
 const executive = require("../executive");
 const learning = require("../learning");
 const automation = require("../automation");
@@ -167,6 +172,8 @@ collaborate.review <reviewerDept> <content>
 collaborate.consensus <dept1,dept2,...> <proposal>
 
 collaborate.history
+
+system.errors
 
 ask <command>
 
@@ -727,6 +734,14 @@ rl.on("line", async (input) => {
         }
 
 
+        // RECENT ERRORS
+        else if (command === "system.errors") {
+
+            console.log(log.readErrors());
+
+        }
+
+
         // HELP
         else if (command === "help") {
 
@@ -778,6 +793,7 @@ collaborate.delegate <fromDept> <toDept> <task>
 collaborate.review <reviewerDept> <content>
 collaborate.consensus <dept1,dept2,...> <proposal>
 collaborate.history
+system.errors
 ask <command>
 help
 exit

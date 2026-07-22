@@ -41,6 +41,16 @@ const ATHENA_LOG_PATH = path.join(__dirname, "..", "departments", "athena", "log
 const ATHENA_LOG_EXISTED_BEFORE = fs.existsSync(ATHENA_LOG_PATH);
 const ATHENA_LOG_BACKUP = path.join(os.tmpdir(), `veronica-athena-log-backup-dashboard-${process.pid}.log`);
 
+// GET /api/health and GET /api/logs/errors read from (and one test below
+// writes to) core/logging/errors.log.
+const ERROR_LOG_PATH = path.join(__dirname, "..", "core", "logging", "errors.log");
+const ERROR_LOG_EXISTED_BEFORE = fs.existsSync(ERROR_LOG_PATH);
+const ERROR_LOG_BACKUP = path.join(os.tmpdir(), `veronica-errors-log-backup-dashboard-${process.pid}.log`);
+
+if(ERROR_LOG_EXISTED_BEFORE){
+    fs.copyFileSync(ERROR_LOG_PATH, ERROR_LOG_BACKUP);
+}
+
 if(ATHENA_LOG_EXISTED_BEFORE){
     fs.copyFileSync(ATHENA_LOG_PATH, ATHENA_LOG_BACKUP);
 }
@@ -103,6 +113,13 @@ test.after(async () => {
         fs.unlinkSync(ATHENA_LOG_PATH);
     }
 
+    if(ERROR_LOG_EXISTED_BEFORE){
+        fs.copyFileSync(ERROR_LOG_BACKUP, ERROR_LOG_PATH);
+        fs.unlinkSync(ERROR_LOG_BACKUP);
+    } else if(fs.existsSync(ERROR_LOG_PATH)){
+        fs.unlinkSync(ERROR_LOG_PATH);
+    }
+
     delete process.env.API_TOKEN;
 
 });
@@ -118,6 +135,47 @@ test("GET /api/status reports online with real agent/department counts", async (
     assert.strictEqual(body.agents, 9);
     assert.strictEqual(body.departments, 9);
     assert.ok(typeof body.uptimeSeconds === "number");
+
+});
+
+test("GET /api/health reports process health, not just a canned online string", async () => {
+
+    const res = await fetch(`${baseUrl}/api/health`);
+    const body = await res.json();
+
+    assert.strictEqual(res.status, 200);
+    assert.ok(["ok", "degraded"].includes(body.status));
+    assert.ok(typeof body.uptimeSeconds === "number");
+    assert.ok(typeof body.memory.rssBytes === "number");
+    assert.ok(typeof body.automation.running === "boolean");
+    assert.ok(typeof body.recentErrorCount === "number");
+
+});
+
+test("GET /api/logs/errors returns the real persisted error log", async () => {
+
+    const log = require("../core/logging");
+    log.error("dashboard-test", "GET /api/logs/errors marker XQZLOGS1");
+
+    const res = await fetch(`${baseUrl}/api/logs/errors`);
+    const body = await res.json();
+
+    assert.strictEqual(res.status, 200);
+    assert.ok(body.some(entry => entry.message === "GET /api/logs/errors marker XQZLOGS1"));
+
+});
+
+test("checkApiAuth rejects a wrong-length token without throwing", async () => {
+
+    process.env.API_TOKEN = "test-api-secret";
+
+    const res = await fetch(`${baseUrl}/api/memory`, {
+        method: "POST",
+        headers: { Authorization: "Bearer short", "Content-Type": "application/json" },
+        body: JSON.stringify({ content: "should not be stored" })
+    });
+
+    assert.strictEqual(res.status, 403);
 
 });
 
