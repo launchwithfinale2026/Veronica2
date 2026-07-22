@@ -220,6 +220,18 @@
       <h3>Knowledge Graph</h3>
       <div id="intelligence-knowledge" class="widget"></div>
     </div>
+    <div class="widget-group">
+      <h3>Semantic memory search</h3>
+      <p id="semantic-search-status" class="hint"></p>
+      <form id="semantic-search-form" class="inline-form">
+        <input type="text" id="semantic-search-query" placeholder="search by meaning, not keywords" required>
+        <button type="submit">Search</button>
+      </form>
+      <form id="reindex-embeddings-form" class="inline-form">
+        <button type="submit">Reindex embeddings (calls OpenAI)</button>
+      </form>
+      <pre id="semantic-search-result" class="widget code-block"></pre>
+    </div>
   </section>
 
   <section class="panel panel-wide">

@@ -1,6 +1,9 @@
 const store = require("./store");
 const context = require("./context");
 const bus = require("../bus");
+const EmbeddingIndex = require("./embeddings");
+
+const embeddingIndex = new EmbeddingIndex();
 
 module.exports = {
 
@@ -48,6 +51,23 @@ module.exports = {
 
     },
 
-    types: store.TYPES
+    types: store.TYPES,
+
+    // Semantic retrieval (Phase 14 of the Intelligence Layer milestone) --
+    // additive to, not a replacement for, search()/filter() above. See
+    // core/memory/embeddings.js for why this only activates with
+    // OPENAI_API_KEY configured, and why indexing is a separate,
+    // explicitly-triggered step rather than automatic on every remember().
+    semanticSearchAvailable(){
+        return embeddingIndex.isConfigured();
+    },
+
+    reindexEmbeddings(){
+        return embeddingIndex.reindex(store.recall());
+    },
+
+    semanticSearch(query, options){
+        return embeddingIndex.search(query, store.recall(), options);
+    }
 
 };

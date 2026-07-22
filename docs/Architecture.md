@@ -1297,3 +1297,71 @@ still missing rather than re-implementing what already worked. Built
   beyond "the bearer token already gates every write" are real future
   work if a second physical device and a genuine pairing need show up —
   not built speculatively against a need that doesn't exist yet.
+
+---
+
+## Advanced Memory (`core/memory/embeddings.js`)
+
+**Decision:** real embedding-based semantic search (OpenAI), additive to
+keyword search, off by default and gracefully degrading everywhere it's
+used. Knowledge graph, memory ranking, and learning systems (this
+milestone's Phase 7) already existed going into this phase — the one
+concrete, repeatedly-flagged gap was semantic retrieval, so that's what
+got built, not a rebuild of what already worked. Built 2026-07-22
+(Intelligence Layer milestone, Phase 14 of 18).
+
+- **Why OpenAI, not a new dependency**: `openai` was already a listed
+  dependency (`core/brain/providers/openai.js`, an existing but rarely-
+  exercised fallback text provider) — using its embeddings endpoint adds
+  zero new packages. Anthropic doesn't offer a dedicated embeddings API,
+  so this is the one place in the whole project where a real OpenAI SDK
+  call is load-bearing rather than an unused fallback.
+- **Checked fresh on every call, not cached at construction**:
+  `getClient()` reads `process.env.OPENAI_API_KEY` each time rather than
+  once at startup — `dotenv.config()` runs at various points across
+  different entry points/providers, so caching "no key" the moment
+  `core/memory/index.js` first loads could wrongly stick even after a key
+  becomes available later in the same process's lifetime.
+- **Not wired into `memory.remember()`**: embedding every memory on every
+  write would put a real, billed API call on the exact hot path nearly
+  every executive operation already funnels through (planning a project,
+  creating a company, logging a decision — see "Learning Engine" for why
+  hot paths get special caution). Indexing is `reindexEmbeddings()`, a
+  separate, explicitly-triggered batch step — the same "not automatic,
+  triggered when needed" posture established for consolidation/learning
+  recommendations. A content hash per entry means re-running it only
+  embeds what's new or changed since the last pass, not everything again.
+- **The Persistent Context Engine now tries semantic search first**
+  (`core/context/engine.js`'s `searchMemories()`), falling back to the
+  existing keyword `memory.search()` on: semantic search not being
+  configured, zero results (an entry that hasn't been reindexed yet
+  simply can't surface — see below), or *any* error from the embedding
+  call. A transient OpenAI hiccup degrading one refinement of retrieval
+  shouldn't be able to break every single reasoning call in the system —
+  keyword search was already good enough to ship Phases 1-13 on, so it
+  remains the floor, not a single point of failure introduced by adding
+  something better on top.
+- **This required making `ContextEngine.retrieve()` `async`** (previously
+  synchronous) — a real embedding call can't be synchronous. Traced every
+  caller before making the change: `core/intelligence/index.js`'s
+  `think()` was the *only* caller (`core/router`'s `route()` stopped
+  calling it directly back in Phase 9), and `think()` was already
+  `async`, so adding one `await` there is a fully contained change with
+  no ripple into `think()`'s own callers (already awaiting it either way).
+- **Search results are scoped to what's actually been reindexed**:
+  `search()` filters to entries with a stored embedding before ranking —
+  an entry that exists in memory but hasn't been through
+  `reindexEmbeddings()` yet can't appear in semantic results (silently
+  returning it via some other signal would misrepresent what "semantic
+  search" actually found). `searchMemories()`'s fallback-on-empty-results
+  handles the case where nothing reindexed matches well enough to return
+  anything, same reasoning as the error-fallback above.
+- Not built: automatic/scheduled reindexing (a natural fit for `core/
+  automation`'s job registry once there's a concrete cadence need — not
+  added speculatively this pass), a blended keyword+semantic+importance
+  ranking formula (semantic search is deliberately its own separate,
+  similarity-only-ranked method rather than one unified scoring function
+  — no concrete need yet demonstrated for blending them), and any other
+  embedding provider (only OpenAI; Claude has no embeddings API to fall
+  back to, and adding a second provider without a concrete second need is
+  the same premature-complexity trap this project avoids everywhere else).

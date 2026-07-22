@@ -119,7 +119,7 @@ test("identity.hasPermission() matches permissionsForRole()", () => {
 
 });
 
-test("registry loads all 37 tools with real handlers", () => {
+test("registry loads all 39 tools with real handlers", () => {
 
     const list = tools.list();
     const ids = list.map(t => t.id).sort();
@@ -157,7 +157,9 @@ test("registry loads all 37 tools with real handlers", () => {
         "learning.recommendations",
         "learning.toolPerformance",
         "memory.recall",
+        "memory.reindexEmbeddings",
         "memory.remember",
+        "memory.semanticSearch",
         "obsidian.index",
         "obsidian.list",
         "obsidian.read",

@@ -320,6 +320,19 @@ async function loadKnowledge(){
 }
 
 
+async function loadSemanticSearchStatus(){
+
+    const status = await fetchJSON("/api/memory/semantic-search-status");
+
+    const statusElement = document.getElementById("semantic-search-status");
+
+    statusElement.textContent = status.available
+        ? "Available (OPENAI_API_KEY configured)."
+        : "Not available -- set OPENAI_API_KEY to enable. Falls back to keyword search everywhere else.";
+
+}
+
+
 async function loadDashboard(){
 
     try {
@@ -345,6 +358,7 @@ async function loadDashboard(){
             loadAutomationSchedules(),
             loadAutomationHistory(),
             loadCollaborationHistory(),
+            loadSemanticSearchStatus(),
             loadCompanies()
         ]);
 
@@ -948,6 +962,69 @@ function setupCollabConsensusForm(){
 }
 
 
+function setupSemanticSearchForm(){
+
+    const form = document.getElementById("semantic-search-form");
+    const result = document.getElementById("semantic-search-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const query = document.getElementById("semantic-search-query").value;
+
+        result.textContent = "Searching (calls OpenAI)...";
+
+        try {
+
+            const results = await authedFetch("/api/memory/semantic-search", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ query })
+            });
+
+            result.textContent = JSON.stringify(results, null, 2);
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupReindexEmbeddingsForm(){
+
+    const form = document.getElementById("reindex-embeddings-form");
+    const result = document.getElementById("semantic-search-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        result.textContent = "Reindexing (calls OpenAI for each new/changed memory)...";
+
+        try {
+
+            const outcome = await authedFetch("/api/memory/reindex-embeddings", { method: "POST" });
+
+            result.textContent = JSON.stringify(outcome, null, 2);
+            loadDashboard();
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
 function setupCompanyLookupForm(){
 
     const form = document.getElementById("company-lookup-form");
@@ -1143,6 +1220,8 @@ document.addEventListener("DOMContentLoaded", () => {
     setupCollabDelegateForm();
     setupCollabReviewForm();
     setupCollabConsensusForm();
+    setupSemanticSearchForm();
+    setupReindexEmbeddingsForm();
     setupCompanyLookupForm();
     setupCompanyCreateForm();
 

@@ -48,6 +48,13 @@
       "module": "core/device/registry.js",
       "status": "active",
       "description": "Per-machine roster of every device this instance has ever synced with (first/last seen, sync count), built from the device identity already carried in every sync package. Complements the pre-existing core/device identity + sync mechanism with actual multi-device awareness."
+    },
+    {
+      "id": "semantic-memory",
+      "name": "Semantic Memory Index",
+      "module": "core/memory/embeddings.js",
+      "status": "active",
+      "description": "Embedding-based (OpenAI) semantic memory search, additive to keyword search. Requires OPENAI_API_KEY and an explicit reindex; falls back to keyword search everywhere (including the Persistent Context Engine) when unconfigured or on any embedding-call failure."
     }
   ]
 }

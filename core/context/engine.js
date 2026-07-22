@@ -41,9 +41,17 @@ class ContextEngine {
     // company in scope yet. Nothing wires this in automatically today;
     // it's a hook for a future company-scoped caller (see
     // docs/Architecture.md).
-    retrieve(query, options = {}){
+    //
+    // async as of Phase 14 (Advanced Memory) -- semantic search is a real
+    // network call, so retrieve() now always returns a Promise (even
+    // when it falls back to the synchronous keyword path) rather than
+    // sometimes being sync and sometimes async depending on whether
+    // OPENAI_API_KEY happens to be configured. The only caller,
+    // core/intelligence/index.js's think(), was already async, so this
+    // is a contained change -- see docs/Architecture.md "Advanced Memory".
+    async retrieve(query, options = {}){
 
-        const memories = query ? memory.search(query, { limit: LIST_LIMIT }) : [];
+        const memories = query ? await this.searchMemories(query) : [];
 
         const knowledgeResult = query
             ? knowledge.retrieve(query)
@@ -92,6 +100,35 @@ class ContextEngine {
             state: {}
 
         };
+
+    }
+
+
+    // Semantic search when configured (real embedding-based similarity,
+    // not keyword overlap), falling back to the existing keyword search
+    // on ANY failure -- a transient OpenAI API error shouldn't break
+    // every reasoning call in the system just because a "nicer to have"
+    // retrieval mode hiccuped. Also falls back for any query that hasn't
+    // been reindexed yet (semanticSearch() can only rank entries with a
+    // stored embedding -- see core/memory/embeddings.js), rather than
+    // returning a confidently-empty result.
+    async searchMemories(query){
+
+        if(!memory.semanticSearchAvailable()){
+            return memory.search(query, { limit: LIST_LIMIT });
+        }
+
+        try {
+
+            const results = await memory.semanticSearch(query, { limit: LIST_LIMIT });
+
+            return results.length ? results : memory.search(query, { limit: LIST_LIMIT });
+
+        } catch(error){
+
+            return memory.search(query, { limit: LIST_LIMIT });
+
+        }
 
     }
 

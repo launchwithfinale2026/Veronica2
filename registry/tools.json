@@ -31,6 +31,24 @@
       }
     },
     {
+      "id": "memory.semanticSearch",
+      "description": "Search memories by semantic similarity (embeddings), not keyword overlap. Requires OPENAI_API_KEY to be configured and memory.reindexEmbeddings to have been run at least once.",
+      "permission": "read_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string" }
+        },
+        "required": ["query"]
+      }
+    },
+    {
+      "id": "memory.reindexEmbeddings",
+      "description": "Batch-embed every memory entry that's new or changed since the last reindex, enabling memory.semanticSearch. Requires OPENAI_API_KEY.",
+      "permission": "manage_agents",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
       "id": "knowledge.query",
       "description": "Find entities and their connections in the knowledge graph.",
       "permission": "read_memory",

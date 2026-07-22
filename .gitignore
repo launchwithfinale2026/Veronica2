@@ -25,3 +25,7 @@ core/device/known-devices.json
 # Automation engine runtime state (job queue + schedules) -- operational
 # state, not source
 core/automation/state.json
+
+# Semantic memory embeddings cache -- regenerable from memory content via
+# reindex(), not source, and can grow large
+core/memory/embeddings.json

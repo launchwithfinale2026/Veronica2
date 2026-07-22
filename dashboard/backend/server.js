@@ -166,6 +166,8 @@ const ROUTES = {
 
     "GET /api/device/known": () => sync.knownDevices(),
 
+    "GET /api/memory/semantic-search-status": () => ({ available: memory.semanticSearchAvailable() }),
+
     "GET /api/executive/roadmap": () => executive.roadmap(),
 
     "GET /api/executive/deadlines": () => executive.evaluateDeadlines(),
@@ -411,6 +413,36 @@ function createServer(){
                 }
 
                 return sendJSON(res, 200, memory.remember(input));
+
+            }
+
+            if(parsed.pathname === "/api/memory/semantic-search" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { query } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!query){
+                    return sendJSON(res, 400, { error: "query is required" });
+                }
+
+                return sendJSON(res, 200, await memory.semanticSearch(query));
+
+            }
+
+            if(parsed.pathname === "/api/memory/reindex-embeddings" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                return sendJSON(res, 200, await memory.reindexEmbeddings());
 
             }
 

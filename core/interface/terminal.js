@@ -94,6 +94,10 @@ memory.view
 
 memory.search <term>
 
+memory.semanticSearch <term>
+
+memory.reindexEmbeddings
+
 remember <memory>
 
 knowledge.view
@@ -300,6 +304,24 @@ rl.on("line", async (input) => {
             const term = command.substring(14).trim();
 
             console.log(memory.retrieve(term));
+
+        }
+
+
+        // SEMANTIC SEARCH MEMORY (requires OPENAI_API_KEY + a prior reindex)
+        else if (command.startsWith("memory.semanticSearch ")) {
+
+            const term = command.substring(22).trim();
+
+            console.log(await memory.semanticSearch(term));
+
+        }
+
+
+        // REINDEX MEMORY EMBEDDINGS
+        else if (command === "memory.reindexEmbeddings") {
+
+            console.log(await memory.reindexEmbeddings());
 
         }
 
@@ -764,6 +786,8 @@ agents.list
 departments.list
 memory.view
 memory.search <term>
+memory.semanticSearch <term>
+memory.reindexEmbeddings
 remember <memory>
 knowledge.view
 knowledge.find <name>

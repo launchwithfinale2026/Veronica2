@@ -30,7 +30,7 @@ class Intelligence {
         // (department-driven tasks) both converge here, so neither has to
         // build its own context anymore (see docs/Architecture.md
         // "Persistent Context Engine").
-        const executiveContext = this.context.retrieve(mission.task, {
+        const executiveContext = await this.context.retrieve(mission.task, {
             companyId: options.companyId
         });
 
