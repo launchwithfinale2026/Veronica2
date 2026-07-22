@@ -769,7 +769,8 @@ async function loadDashboard(){
             loadSemanticSearchStatus(),
             loadCompanies(),
             loadResearchHistory(),
-            loadMissionHistory()
+            loadMissionHistory(),
+            loadOrganizationOverview()
         ]);
 
     } catch(error){
@@ -2054,6 +2055,29 @@ function setupMissionStatusForm(){
         }
 
     });
+
+}
+
+
+async function loadOrganizationOverview(){
+
+    const overview = await fetchJSON("/api/organization/overview");
+    const container = document.getElementById("organization-overview");
+
+    const lines = [
+        `Companies: ${overview.organizationTree.companies.length} | Departments: ${overview.organizationTree.departments.length}`,
+        `Projects: ${overview.executiveKPIs.totalProjects} total, ${overview.executiveKPIs.completedProjects} completed (${overview.executiveKPIs.completionRate}%)`,
+        `Pending approvals: ${overview.executiveKPIs.pendingApprovals}`,
+        `Missions: ${overview.missionStatus.length}`,
+        `Capabilities: ${overview.capabilityMap.installed.length} installed, ${overview.capabilityMap.available.length} available, ${overview.capabilityMap.broken.length} broken`,
+        `Knowledge: ${overview.knowledgeGrowth.entityCount} entities, ${overview.knowledgeGrowth.relationshipCount} relationships`,
+        `Cross-department dependencies: ${overview.crossDepartmentDependencies.length}`,
+        `Automation: ${overview.automationStatus.running ? "running" : "stopped"}`,
+        `Devices: ${overview.deviceNetwork.length}`,
+        `Unconfigured connectors: ${overview.liveSystemHealth.credentials.filter(c => !c.configured).map(c => c.id).join(", ") || "none"}`
+    ];
+
+    container.textContent = lines.join("\n");
 
 }
 

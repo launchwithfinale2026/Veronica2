@@ -39,6 +39,7 @@ const capabilitiesMarketplace = require("../../core/capabilities/marketplace");
 const capabilitiesBuilder = require("../../core/capabilities/builder");
 const ResearchEngine = require("../../core/research/engine");
 const SelfImprovementEngine = require("../../core/system/selfImprovement");
+const OrganizationOverview = require("../../core/executive/organizationOverview");
 const PersonalContextEngine = require("../../core/profile/personalContextEngine");
 const log = require("../../core/logging");
 const { installCrashGuards } = require("../../core/logging/crashGuard");
@@ -78,6 +79,11 @@ const deviceManager = new DeviceManager();
 const researchEngine = new ResearchEngine();
 
 const selfImprovement = new SelfImprovementEngine();
+
+// Phase 32 -- reuses the SAME real, already-loaded departments/agents
+// this process constructed at boot (see loadAgents()/loadDepartments()
+// above), not a second roster.
+const organizationOverview = new OrganizationOverview({ departments, agents });
 
 
 // Reads every department's activity.log (JSON lines), merges, and
@@ -315,6 +321,12 @@ const ROUTES = {
     },
 
     "GET /api/research/history": (searchParams) => researchEngine.history(searchParams.get("topic") || undefined),
+
+    // Phase 32 (Organization Operating System): the one aggregation
+    // point across companies/departments/projects/missions/capabilities/
+    // knowledge/automation/devices/approvals -- see
+    // core/executive/organizationOverview.js.
+    "GET /api/organization/overview": () => organizationOverview.generate(),
 
     "GET /api/profile": () => personalContext.summary(),
 
