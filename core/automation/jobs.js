@@ -40,6 +40,12 @@ const DAILY_REVIEW_INTERVAL_MS = 24 * 60 * 60 * 1000;
 // action autonomously, not just reads/summarizes existing state.
 const EXECUTE_TASKS_INTERVAL_MS = 5 * 60 * 1000;
 
+// Phase 19 (External Integration). GitHub's own rate limits (5000
+// req/hr authenticated) comfortably tolerate this; 15 minutes is
+// frequent enough for "new PR/issue" to reach the daily briefing same-day
+// without hammering the API on every tick.
+const GITHUB_POLL_INTERVAL_MS = 15 * 60 * 1000;
+
 
 function registerBuiltInJobs(engine){
 
@@ -69,12 +75,63 @@ function registerBuiltInJobs(engine){
 
     engine.registerJob("self-monitor", () => selfMonitor.runSelfCheck());
 
+    // Not gated behind isConfigured() at registration time (env vars can
+    // change between now and when the job actually ticks) -- the gate is
+    // inside the job body itself, so a still-unconfigured GitHub just
+    // means this tick is a cheap no-op, not a startup failure.
+    engine.registerJob("github-poll", () => pollWatchedGithubRepos());
+
     engine.schedule("consolidate", CONSOLIDATE_INTERVAL_MS);
     engine.schedule("learning-recommend", RECOMMEND_INTERVAL_MS);
     engine.schedule("self-monitor", SELF_MONITOR_INTERVAL_MS);
     engine.schedule("daily-briefing", DAILY_BRIEFING_INTERVAL_MS);
     engine.schedule("weekly-report", WEEKLY_REPORT_INTERVAL_MS);
     engine.schedule("daily-review", DAILY_REVIEW_INTERVAL_MS);
+    engine.schedule("github-poll", GITHUB_POLL_INTERVAL_MS);
+
+}
+
+
+// Which repos to watch isn't a credential, so it doesn't belong in
+// credentialManager -- GITHUB_WATCHED_REPOS is a plain, optional,
+// comma-separated "owner/repo" list (e.g.
+// "jakeuser/veronica,jakeuser/other-repo"). No repos configured (or
+// GITHUB_TOKEN missing) means this job silently does nothing -- it never
+// throws, matching every other credential-gated job's fail-closed
+// posture.
+async function pollWatchedGithubRepos(){
+
+    const github = require("../integrations/github");
+
+    if(!github.isConfigured()){
+        return { polled: [], reason: "GitHub not configured" };
+    }
+
+    const watched = (process.env.GITHUB_WATCHED_REPOS || "")
+        .split(",")
+        .map(entry => entry.trim())
+        .filter(Boolean);
+
+    if(watched.length === 0){
+        return { polled: [], reason: "No repos configured -- set GITHUB_WATCHED_REPOS (\"owner/repo,owner/repo\")" };
+    }
+
+    const results = [];
+
+    for(const entry of watched){
+
+        const [owner, repo] = entry.split("/");
+
+        if(!owner || !repo){
+            continue;
+        }
+
+        const ingested = await github.pollRepository(owner, repo);
+        results.push({ repo: entry, ingestedCount: ingested.length });
+
+    }
+
+    return { polled: results };
 
 }
 
@@ -104,4 +161,4 @@ function registerExecutionJob(engine, departments){
 }
 
 
-module.exports = { registerBuiltInJobs, registerExecutionJob };
+module.exports = { registerBuiltInJobs, registerExecutionJob, pollWatchedGithubRepos };
