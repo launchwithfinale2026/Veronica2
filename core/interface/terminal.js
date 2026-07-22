@@ -22,6 +22,7 @@ const executive = require("../executive");
 const learning = require("../learning");
 const automation = require("../automation");
 const CollaborationEngine = require("../collaboration/engine");
+const ExecutiveOrchestrator = require("../executive/orchestrator");
 
 
 const identity = JSON.parse(
@@ -38,6 +39,11 @@ seedFromAgents(agents);
 const departments = loadDepartments(agents);
 
 const collaboration = new CollaborationEngine(departments);
+
+// Backs the executive.pursue/report/runNext commands below. Constructed
+// with this session's real departments -- same reasoning as
+// `collaboration` above.
+const orchestrator = new ExecutiveOrchestrator({ departments });
 
 const context = new ContextEngine();
 
@@ -173,6 +179,12 @@ automation.runNow <jobName>
 automation.start
 
 executive.handoff <projectId> <toDepartmentId> [note]
+
+executive.pursue <json goal>
+
+executive.report
+
+executive.runNext
 
 collaborate.message <fromDept> <toDept> <text>
 
@@ -721,6 +733,32 @@ rl.on("line", async (input) => {
             const [projectId, toDepartmentId, ...noteParts] = rest.split(" ");
 
             console.log(executive.reassignDepartment(projectId, toDepartmentId, noteParts.join(" ") || undefined));
+
+        }
+
+
+        // PLAN AND DECOMPOSE A GOAL IN ONE CALL
+        else if (command.startsWith("executive.pursue ")) {
+
+            const rawInput = command.substring(17).trim();
+
+            console.log(await orchestrator.pursue(JSON.parse(rawInput)));
+
+        }
+
+
+        // AGGREGATE ROADMAP PROGRESS/STATUS/DEADLINE REPORT
+        else if (command === "executive.report") {
+
+            console.log(orchestrator.report());
+
+        }
+
+
+        // MANUALLY RUN EXACTLY ONE READY TASK RIGHT NOW
+        else if (command === "executive.runNext") {
+
+            console.log(await orchestrator.runNextReadyTask());
 
         }
 

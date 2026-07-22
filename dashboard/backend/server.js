@@ -25,6 +25,7 @@ const learning = require("../../core/learning");
 const automation = require("../../core/automation");
 const bus = require("../../core/bus");
 const CollaborationEngine = require("../../core/collaboration/engine");
+const ExecutiveOrchestrator = require("../../core/executive/orchestrator");
 const log = require("../../core/logging");
 const { installCrashGuards } = require("../../core/logging/crashGuard");
 
@@ -47,6 +48,11 @@ seedFromAgents(agents);
 const departments = loadDepartments(agents);
 
 const collaboration = new CollaborationEngine(departments);
+
+// Backs the manual pursue()/report()/run-next routes below. Constructed
+// with this process's real, already-loaded departments -- same
+// reasoning as `collaboration` above.
+const orchestrator = new ExecutiveOrchestrator({ departments });
 
 
 // Reads every department's activity.log (JSON lines), merges, and
@@ -175,6 +181,8 @@ const ROUTES = {
     "GET /api/executive/consolidations": () => executive.consolidationHistory(),
 
     "GET /api/executive/self-monitor": () => executive.selfMonitorHistory(),
+
+    "GET /api/executive/report": () => orchestrator.report(),
 
     "GET /api/companies": () => executive.listCompanies(),
 
@@ -489,6 +497,46 @@ function createServer(){
                 }
 
                 return sendJSON(res, 200, executive.plan(goal));
+
+            }
+
+            // Plans AND decomposes a goal in one call -- the "objective ->
+            // plan -> department assignment" half of the executive flow,
+            // in one round trip instead of a plan then a separate decompose
+            // call. Execution itself still only happens via the autonomous
+            // "execute-tasks" job or the manual /run-next trigger below --
+            // pursuing a goal never immediately dispatches real work.
+            if(parsed.pathname === "/api/executive/pursue" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const goal = JSON.parse((await readBody(req)) || "{}");
+
+                if(!goal.title){
+                    return sendJSON(res, 400, { error: "title is required" });
+                }
+
+                return sendJSON(res, 200, await orchestrator.pursue(goal));
+
+            }
+
+            // Manually runs exactly one ready task right now, instead of
+            // waiting for the "execute-tasks" schedule -- the same bounded,
+            // one-task-per-call unit of work the automation job calls on
+            // its own interval (see core/automation/jobs.js).
+            if(parsed.pathname === "/api/executive/run-next" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                return sendJSON(res, 200, await orchestrator.runNextReadyTask());
 
             }
 

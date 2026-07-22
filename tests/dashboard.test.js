@@ -541,6 +541,8 @@ const ALL_POST_ROUTES = [
     "/api/memory/reindex-embeddings",
     "/api/sync/import",
     "/api/executive/plan",
+    "/api/executive/pursue",
+    "/api/executive/run-next",
     "/api/executive/consolidate",
     "/api/executive/self-check",
     "/api/learning/recommend",
