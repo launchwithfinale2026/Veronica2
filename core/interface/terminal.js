@@ -102,6 +102,8 @@ memory.view
 
 memory.search <term>
 
+memory.overview
+
 memory.semanticSearch <term>
 
 memory.reindexEmbeddings
@@ -322,6 +324,14 @@ rl.on("line", async (input) => {
             const term = command.substring(14).trim();
 
             console.log(memory.retrieve(term));
+
+        }
+
+
+        // MEMORY CLASS BREAKDOWN (episodic/semantic/procedural/organizational)
+        else if (command === "memory.overview") {
+
+            console.log(memory.overview());
 
         }
 
@@ -846,6 +856,8 @@ agents.list
 departments.list
 memory.view
 memory.search <term>
+
+memory.overview
 memory.semanticSearch <term>
 memory.reindexEmbeddings
 remember <memory>

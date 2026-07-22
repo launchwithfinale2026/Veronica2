@@ -1,6 +1,7 @@
 const store = require("./store");
 const bus = require("../bus");
 const EmbeddingIndex = require("./embeddings");
+const classification = require("./classification");
 
 const embeddingIndex = new EmbeddingIndex();
 
@@ -67,6 +68,17 @@ module.exports = {
 
     semanticSearch(query, options){
         return embeddingIndex.search(query, store.recall(), options);
+    },
+
+    // Memory evolution (episodic/semantic/procedural/organizational
+    // classes -- see core/memory/classification.js): a reporting layer
+    // over the same entries/types, not a second store.
+    classify(type){
+        return classification.classify(type);
+    },
+
+    overview(){
+        return classification.overview(store.recall());
     }
 
 };

@@ -119,7 +119,7 @@ test("identity.hasPermission() matches permissionsForRole()", () => {
 
 });
 
-test("registry loads all 47 tools with real handlers", () => {
+test("registry loads all 48 tools with real handlers", () => {
 
     const list = tools.list();
     const ids = list.map(t => t.id).sort();
@@ -162,6 +162,7 @@ test("registry loads all 47 tools with real handlers", () => {
         "learning.recommend",
         "learning.recommendations",
         "learning.toolPerformance",
+        "memory.overview",
         "memory.recall",
         "memory.reindexEmbeddings",
         "memory.remember",
@@ -236,6 +237,19 @@ test("memory.remember tool persists via the real memory system", async () => {
     );
 
     assert.ok(found.some(m => m.content.includes("QWERTY")));
+
+});
+
+test("memory.overview tool reports a real class breakdown that accounts for every entry", async () => {
+
+    const overview = await tools.run("memory.overview", {}, { role: "agent" });
+
+    const allEntries = await tools.run("memory.recall", {}, { role: "agent" });
+
+    assert.strictEqual(overview.total, allEntries.length);
+
+    const summed = Object.values(overview.byClass).reduce((sum, n) => sum + n, 0);
+    assert.strictEqual(summed, overview.total);
 
 });
 

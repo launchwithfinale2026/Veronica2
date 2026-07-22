@@ -16,6 +16,8 @@ module.exports = {
 
     },
 
-    "memory.reindexEmbeddings": () => memory.reindexEmbeddings()
+    "memory.reindexEmbeddings": () => memory.reindexEmbeddings(),
+
+    "memory.overview": () => memory.overview()
 
 };

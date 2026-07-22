@@ -10,7 +10,7 @@
           "content": { "type": "string", "description": "The memory content to store" },
           "type": {
             "type": "string",
-            "enum": ["personal", "projects", "businesses", "technical knowledge", "preferences", "decisions", "goals", "general"],
+            "enum": ["personal", "projects", "businesses", "technical knowledge", "preferences", "decisions", "goals", "workflow", "general"],
             "description": "Memory category; defaults to \"general\" if omitted"
           },
           "importance": { "type": "integer", "minimum": 1, "maximum": 5, "description": "1 (low) to 5 (high); defaults to 3" },
@@ -46,6 +46,12 @@
       "id": "memory.reindexEmbeddings",
       "description": "Batch-embed every memory entry that's new or changed since the last reindex, enabling memory.semanticSearch. Requires OPENAI_API_KEY.",
       "permission": "manage_agents",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "memory.overview",
+      "description": "Aggregate count of every memory entry grouped by memory class (episodic, semantic, procedural, organizational). See core/memory/classification.js.",
+      "permission": "read_memory",
       "inputSchema": { "type": "object", "properties": {} }
     },
     {

@@ -177,6 +177,8 @@ const ROUTES = {
 
     "GET /api/memory/semantic-search-status": () => ({ available: memory.semanticSearchAvailable() }),
 
+    "GET /api/memory/overview": () => memory.overview(),
+
     "GET /api/executive/roadmap": () => executive.roadmap(),
 
     "GET /api/executive/deadlines": () => executive.evaluateDeadlines(),

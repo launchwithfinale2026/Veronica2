@@ -20,6 +20,7 @@ const TYPES = [
     "preferences",
     "decisions",
     "goals",
+    "workflow",
     "general"
 ];
 
