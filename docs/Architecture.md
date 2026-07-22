@@ -1559,3 +1559,59 @@ not embeddings specifically. Built 2026-07-22.
   with thousands of small files would still create thousands of memory
   entries in one `indexDirectory()` call — no concrete case yet for a
   workspace that large).
+
+---
+
+## v1 release audit (2026-07-22)
+
+**Decision:** before a public release, audited the whole repository
+(not just this milestone's own additions) for duplicated code, dead
+code, security posture, and performance waste, with a hard constraint
+of zero behavior change and one commit per fix. Five fixes landed,
+each its own commit:
+
+1. Extracted the JSON-fence-strip-then-parse logic duplicated verbatim
+   across `GoalDecomposer`, `MemoryConsolidation`, `LearningEngine`,
+   and `CollaborationEngine` into `core/brain/parseJsonResponse.js`.
+2. Removed `core/memory/context.js` (`MemoryContext`) — a pass-through
+   wrapper around `core/memory/store.js` with one dead method
+   (`remember()`, no callers) and one method (`retrieve()`) only ever
+   reached through `core/memory/index.js`, which now calls `store`
+   directly.
+3. Removed `Agent.process()` (`core/agents/base.js`) and its dedicated
+   test. This reverses the "keep it as a possible offline fallback"
+   call made when `DepartmentManager.run()` was wired to real
+   reasoning (see "Real Brain Reasoning" above) — its only remaining
+   caller was its own test, so for a public release it's dead code
+   rather than a kept capability.
+4. `AutomationEngine.checkSchedules()` no longer writes state to disk
+   on every idle tick (default every 30s) when no schedule fired.
+5. Added a regression test sweeping every mutating dashboard route to
+   assert it enforces `checkApiAuth()` — previously true only by direct
+   code inspection, not guarded going forward. Also fixed one flaky
+   test (`AutomationEngine` history-ordering) found while re-running
+   the suite, caused by two ticks tying on millisecond-resolution
+   timestamps.
+
+**Found and deliberately left alone**, with reasoning:
+- **Symlink-based sandbox escape**: the four path-sandboxed modules
+  (filesystem tool, Obsidian, Vision, File Intelligence) all validate
+  with `path.resolve()` + a `startsWith(root + sep)` check, which does
+  not follow symlinks before comparing. In principle a symlink planted
+  inside the sandboxed root pointing outside it could defeat the
+  check. Not fixed: nothing in VERONICA's current tool surface can
+  create a symlink, and this is a single-local-user system, not a
+  multi-tenant one — adding `fs.realpathSync` resolution (and handling
+  the "target doesn't exist yet" case for writes) is real complexity
+  against a threat with no actual path to exploitation today. Worth
+  revisiting if a tool is ever added that can create arbitrary
+  filesystem entries, or if VERONICA ever runs on behalf of more than
+  one user.
+- **Large files**: `core/interface/terminal.js` (~880 lines),
+  `dashboard/backend/server.js` (~950 lines), and
+  `dashboard/frontend/app.js` (~1280 lines) are all long, but each is a
+  flat sequence of well-commented, independent command/route/render
+  blocks, not entangled logic — splitting them would be a purely
+  cosmetic reorganization with real risk of introducing a mistake for
+  no behavioral benefit, which conflicts with this pass's own "zero
+  behavior change" constraint. Left alone.
