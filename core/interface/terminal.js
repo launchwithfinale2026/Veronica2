@@ -120,6 +120,8 @@ tools.run <id> <json args>
 
 device.identity
 
+device.capabilities
+
 device.known
 
 executive.roadmap
@@ -418,9 +420,19 @@ rl.on("line", async (input) => {
 
 
         // DEVICE IDENTITY
-        else if (command === "device.identity") {
+        else if (command === "device.identity
+
+device.capabilities") {
 
             console.log(device.currentIdentity());
+
+        }
+
+
+        // DEVICE CAPABILITIES (what this device role can physically/functionally do)
+        else if (command === "device.capabilities") {
+
+            console.log(device.capabilities());
 
         }
 
@@ -866,6 +878,8 @@ knowledge.find <name>
 tools.list
 tools.run <id> <json args>
 device.identity
+
+device.capabilities
 device.known
 executive.roadmap
 executive.deadlines

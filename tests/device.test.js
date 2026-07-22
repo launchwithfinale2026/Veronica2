@@ -66,3 +66,26 @@ test("permissions() reflects the current device's role", () => {
     assert.deepStrictEqual(device.permissions(), device.permissionsForDeviceRole("phone"));
 
 });
+
+
+test("capabilitiesForDeviceRole() reflects registry/devices.json and is distinct from permissions", () => {
+
+    const phoneCaps = device.capabilitiesForDeviceRole("phone");
+    assert.ok(phoneCaps.includes("camera"));
+    assert.ok(!phoneCaps.includes("always_on"));
+
+    const serverCaps = device.capabilitiesForDeviceRole("server");
+    assert.ok(serverCaps.includes("always_on"));
+    assert.ok(!serverCaps.includes("camera"));
+
+    assert.strictEqual(device.capabilitiesForDeviceRole("not-a-real-role").length, 0);
+
+});
+
+
+test("capabilities() reflects the current device's role", () => {
+
+    device.setRole("desktop");
+    assert.deepStrictEqual(device.capabilities(), device.capabilitiesForDeviceRole("desktop"));
+
+});

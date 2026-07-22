@@ -38,6 +38,20 @@ function permissionsForDeviceRole(roleId){
 }
 
 
+// Capabilities describe what a device role can physically/functionally
+// do (has a screen, can run vision, is always reachable) -- distinct
+// from permissions, which gate what actions are ALLOWED. A phone has
+// different capabilities than a desktop for reasons that have nothing to
+// do with authorization (it has a camera; it isn't always on).
+function capabilitiesForDeviceRole(roleId){
+
+    const role = loadDeviceRoles().find(r => r.id === roleId);
+
+    return role ? (role.capabilities || []) : [];
+
+}
+
+
 // Best-effort default: a headless Linux box with no display is far more
 // likely to be a server than a laptop. There's no reliable way to detect
 // "phone" from Node itself — that role is for a caller to set explicitly.
@@ -100,6 +114,13 @@ function permissions(){
 }
 
 
+function capabilities(){
+
+    return capabilitiesForDeviceRole(currentIdentity().role);
+
+}
+
+
 module.exports = {
 
     currentIdentity,
@@ -109,6 +130,10 @@ module.exports = {
     permissions,
 
     permissionsForDeviceRole,
+
+    capabilities,
+
+    capabilitiesForDeviceRole,
 
     loadDeviceRoles,
 

@@ -3,22 +3,26 @@
     {
       "id": "laptop",
       "name": "Laptop",
-      "permissions": ["read_memory", "write_memory", "execute_tools", "sync"]
+      "permissions": ["read_memory", "write_memory", "execute_tools", "sync"],
+      "capabilities": ["gui", "vision", "large_storage"]
     },
     {
       "id": "desktop",
       "name": "Desktop",
-      "permissions": ["read_memory", "write_memory", "execute_tools", "sync"]
+      "permissions": ["read_memory", "write_memory", "execute_tools", "sync"],
+      "capabilities": ["gui", "vision", "large_storage", "always_on"]
     },
     {
       "id": "phone",
       "name": "Phone",
-      "permissions": ["read_memory", "sync"]
+      "permissions": ["read_memory", "sync"],
+      "capabilities": ["push_notifications", "camera", "gps"]
     },
     {
       "id": "server",
       "name": "Server",
-      "permissions": ["read_memory", "write_memory", "execute_tools", "manage_agents", "sync"]
+      "permissions": ["read_memory", "write_memory", "execute_tools", "manage_agents", "sync"],
+      "capabilities": ["headless", "always_on", "large_storage"]
     }
   ]
 }

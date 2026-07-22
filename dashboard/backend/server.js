@@ -174,6 +174,8 @@ const ROUTES = {
 
     "GET /api/device": () => device.currentIdentity(),
 
+    "GET /api/device/capabilities": () => device.capabilities(),
+
     "GET /api/device/known": () => sync.knownDevices(),
 
     "GET /api/memory/semantic-search-status": () => ({ available: memory.semanticSearchAvailable() }),
