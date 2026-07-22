@@ -40,10 +40,12 @@ const departments = loadDepartments(agents);
 
 const collaboration = new CollaborationEngine(departments);
 
-// Backs the executive.pursue/report/runNext commands below. Constructed
-// with this session's real departments -- same reasoning as
-// `collaboration` above.
-const orchestrator = new ExecutiveOrchestrator({ departments });
+// Wires the autonomous task-execution job to this session's real
+// departments, and reuses the returned ExecutiveOrchestrator for the
+// executive.pursue/report/runNext commands below. Registering the job
+// here doesn't start it running -- see the "automation.start" command --
+// this only makes it exist and be scheduled.
+const orchestrator = automation.registerExecutionJob(departments);
 
 const context = new ContextEngine();
 

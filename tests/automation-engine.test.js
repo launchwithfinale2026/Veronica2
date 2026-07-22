@@ -270,3 +270,31 @@ test("requiring the real core/automation facade registers all three built-in job
     assert.ok(["consolidate", "learning-recommend", "self-monitor"].every(name => jobNames.includes(name)));
 
 });
+
+
+test("automation.registerExecutionJob() wires the autonomous task-execution job to real departments, opt-in only", () => {
+
+    delete require.cache[require.resolve("../core/automation")];
+    const automation = require("../core/automation");
+
+    // Not called for us -- confirms the three always-on jobs from the
+    // test above don't include this one until a host explicitly wires
+    // its own departments in (see core/automation/jobs.js for why).
+    assert.ok(!automation.engine.handlers.has("execute-tasks"));
+
+    const fakeDepartments = [{ id: "themis" }, { id: "orion" }];
+
+    const orchestrator = automation.registerExecutionJob(fakeDepartments);
+
+    assert.ok(automation.engine.handlers.has("execute-tasks"));
+
+    const schedule = automation.status().schedules.find(s => s.jobName === "execute-tasks");
+    assert.ok(schedule);
+    assert.ok(Number.isFinite(schedule.intervalMs));
+
+    // Returns the live ExecutiveOrchestrator so a host can also call
+    // pursue()/report() directly without constructing a second one wired
+    // to the same departments.
+    assert.deepStrictEqual(orchestrator.departments, fakeDepartments);
+
+});

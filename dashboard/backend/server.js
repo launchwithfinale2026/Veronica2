@@ -49,10 +49,13 @@ const departments = loadDepartments(agents);
 
 const collaboration = new CollaborationEngine(departments);
 
-// Backs the manual pursue()/report()/run-next routes below. Constructed
-// with this process's real, already-loaded departments -- same
-// reasoning as `collaboration` above.
-const orchestrator = new ExecutiveOrchestrator({ departments });
+// Wires the autonomous task-execution job to this process's real,
+// already-loaded departments (see core/automation/jobs.js for why this
+// is opt-in rather than automatic on require("../automation")), and
+// reuses the same ExecutiveOrchestrator instance for the manual
+// pursue()/report()/run-next routes below instead of constructing a
+// second one against the same departments.
+const orchestrator = automation.registerExecutionJob(departments);
 
 
 // Reads every department's activity.log (JSON lines), merges, and

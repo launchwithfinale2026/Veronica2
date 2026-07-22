@@ -8,7 +8,7 @@
 // background timer nobody asked for.
 
 const AutomationEngine = require("./engine");
-const { registerBuiltInJobs } = require("./jobs");
+const { registerBuiltInJobs, registerExecutionJob } = require("./jobs");
 
 const engine = new AutomationEngine();
 
@@ -17,6 +17,14 @@ registerBuiltInJobs(engine);
 module.exports = {
 
     engine,
+
+    // Opt-in: wires the autonomous task-execution job to a host's real,
+    // already-loaded departments. See core/automation/jobs.js for why
+    // this isn't part of registerBuiltInJobs() above. Returns the
+    // ExecutiveOrchestrator instance so the host can also use it
+    // directly (pursue()/report()/runNextReadyTask()) without building a
+    // second one.
+    registerExecutionJob: (departments) => registerExecutionJob(engine, departments),
 
     enqueue: (jobName, options) => engine.enqueue(jobName, options),
 
