@@ -321,6 +321,20 @@ function formatCollaborationEntry(entry){
 }
 
 
+async function loadIntegrationsStatus(){
+
+    const overview = await fetchJSON("/api/integrations");
+
+    renderList(
+        "integrations-status",
+        overview.integrations,
+        "No integrations registered.",
+        integration => `${integration.id} — ${integration.implemented ? (integration.configured ? "configured" : "not configured") : "placeholder"} — ${integration.note}`
+    );
+
+}
+
+
 async function loadCollaborationHistory(){
 
     const history = await fetchJSON("/api/collaboration/history");
@@ -405,6 +419,7 @@ async function loadDashboard(){
             loadAutomationSchedules(),
             loadAutomationHistory(),
             loadCollaborationHistory(),
+            loadIntegrationsStatus(),
             loadSemanticSearchStatus(),
             loadCompanies()
         ]);

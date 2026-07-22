@@ -9,6 +9,7 @@
 const obsidian = require("../../integrations/obsidian");
 const externalHttp = require("../../integrations/http");
 const fileIntelligence = require("../../integrations/fileIntelligence");
+const integrationRegistry = require("../../integrations/registry");
 
 module.exports = {
 
@@ -68,6 +69,8 @@ module.exports = {
 
         return fileIntelligence.searchFiles(query);
 
-    }
+    },
+
+    "integrations.status": () => integrationRegistry.overview()
 
 };

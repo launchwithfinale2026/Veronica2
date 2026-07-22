@@ -511,6 +511,12 @@
         },
         "required": ["query"]
       }
+    },
+    {
+      "id": "integrations.status",
+      "description": "Lists every integration connector (Obsidian, HTTP, file intelligence, GitHub, Discord, Calendar, Email, Cloud storage) and whether each is configured.",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
     }
   ]
 }

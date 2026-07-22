@@ -119,7 +119,7 @@ test("identity.hasPermission() matches permissionsForRole()", () => {
 
 });
 
-test("registry loads all 48 tools with real handlers", () => {
+test("registry loads all 49 tools with real handlers", () => {
 
     const list = tools.list();
     const ids = list.map(t => t.id).sort();
@@ -155,6 +155,7 @@ test("registry loads all 48 tools with real handlers", () => {
         "files.search",
         "filesystem.readFile",
         "filesystem.writeFile",
+        "integrations.status",
         "knowledge.query",
         "learning.agentPerformance",
         "learning.departmentPerformance",
@@ -263,6 +264,16 @@ test("knowledge.query tool reads via the real knowledge graph", async () => {
 
     assert.ok(Array.isArray(result.entities));
     assert.ok(Array.isArray(result.relationships));
+
+});
+
+test("integrations.status tool reports every registered connector", async () => {
+
+    const overview = await tools.run("integrations.status", {}, { role: "agent" });
+
+    assert.ok(overview.total >= 8);
+    assert.ok(overview.integrations.some(i => i.id === "github"));
+    assert.ok(overview.integrations.some(i => i.id === "obsidian"));
 
 });
 

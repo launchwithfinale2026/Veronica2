@@ -26,6 +26,7 @@ const automation = require("../../core/automation");
 const bus = require("../../core/bus");
 const CollaborationEngine = require("../../core/collaboration/engine");
 const ExecutiveOrchestrator = require("../../core/executive/orchestrator");
+const integrationRegistry = require("../../core/integrations/registry");
 const log = require("../../core/logging");
 const { installCrashGuards } = require("../../core/logging/crashGuard");
 
@@ -206,6 +207,8 @@ const ROUTES = {
     "GET /api/automation/history": () => automation.history(),
 
     "GET /api/collaboration/history": () => collaboration.history(),
+
+    "GET /api/integrations": () => integrationRegistry.overview(),
 
     "GET /api/logs/errors": () => log.readErrors()
 
