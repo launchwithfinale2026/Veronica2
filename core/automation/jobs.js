@@ -46,6 +46,10 @@ const EXECUTE_TASKS_INTERVAL_MS = 5 * 60 * 1000;
 // without hammering the API on every tick.
 const GITHUB_POLL_INTERVAL_MS = 15 * 60 * 1000;
 
+// Same reasoning as GitHub's poll interval above -- Gmail/Calendar/
+// Drive's own rate limits comfortably tolerate this cadence.
+const GOOGLE_POLL_INTERVAL_MS = 15 * 60 * 1000;
+
 
 function registerBuiltInJobs(engine){
 
@@ -81,6 +85,12 @@ function registerBuiltInJobs(engine){
     // means this tick is a cheap no-op, not a startup failure.
     engine.registerJob("github-poll", () => pollWatchedGithubRepos());
 
+    // Same fail-closed-inside-the-job-body posture as github-poll above --
+    // core/integrations/google/poll.js's pollAll() itself checks
+    // oauth.isAuthorized() and returns a clean, non-throwing result when
+    // Google isn't authorized yet.
+    engine.registerJob("google-poll", () => require("../integrations/google/poll").pollAll());
+
     engine.schedule("consolidate", CONSOLIDATE_INTERVAL_MS);
     engine.schedule("learning-recommend", RECOMMEND_INTERVAL_MS);
     engine.schedule("self-monitor", SELF_MONITOR_INTERVAL_MS);
@@ -88,6 +98,7 @@ function registerBuiltInJobs(engine){
     engine.schedule("weekly-report", WEEKLY_REPORT_INTERVAL_MS);
     engine.schedule("daily-review", DAILY_REVIEW_INTERVAL_MS);
     engine.schedule("github-poll", GITHUB_POLL_INTERVAL_MS);
+    engine.schedule("google-poll", GOOGLE_POLL_INTERVAL_MS);
 
 }
 
