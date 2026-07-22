@@ -57,13 +57,41 @@ pattern in full.
    to authenticate; VERONICA has no GitHub identity of its own.
    *Action*: create a token at github.com (Settings → Developer
    settings → Personal access tokens) and add it to `.env`. *Unlocks*:
-   real repo/issue read and issue creation from VERONICA.
+   real repo/issue read, issue creation (via approval), branch/commit/PR
+   monitoring, and the repository health summary. Optionally also set
+   `GITHUB_WATCHED_REPOS` (comma-separated `owner/repo`, not a
+   credential) to enable the `github-poll` automation job.
 
 3. **`DISCORD_WEBHOOK_URL`** (a Discord incoming webhook) — *why not
    alone*: same reasoning, Discord-side. *Action*: in a Discord server
    you admin, Server Settings → Integrations → Webhooks → New Webhook,
    copy its URL into `.env`. *Unlocks*: real message posting from
    VERONICA.
+
+3a. **`DISCORD_BOT_TOKEN`** (Phase 19, a real Discord bot, distinct
+   from the webhook above) — *why not alone*: VERONICA has no Discord
+   application identity of its own. *Action*: create an application +
+   bot user at discord.com/developers/applications, copy its token into
+   `.env` as `DISCORD_BOT_TOKEN`, invite the bot to your server, and
+   optionally also set `DISCORD_CLIENT_ID` (the application id) to
+   enable slash command registration. *Unlocks*: `/status`/`/approvals`
+   slash commands, incoming commands becoming VERONICA events, and a
+   real connected/latency/guild-count dashboard status.
+
+3b. **`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_REDIRECT_URI`**
+   (Phase 19, Gmail/Calendar/Drive) — *why not alone*: VERONICA has no
+   Google identity of its own, and completing OAuth consent requires a
+   real human clicking "Allow" in a real browser — no code path in this
+   codebase can do that step. *Action*: create an OAuth client in Google
+   Cloud Console (set the redirect URI to this VERONICA instance's
+   `/api/integrations/google/callback`), add the three values to `.env`,
+   restart, then visit `GET /api/integrations/google/auth-url` in a
+   browser and complete Google's consent screen — Google will redirect
+   back to the callback route automatically, completing the exchange.
+   *Unlocks*: real Gmail/Calendar/Drive reading and the `google-poll`
+   automation job. This is a two-step dependency (configure, then
+   authorize) — setting the three env vars alone is not enough; see
+   `docs/EXTERNAL_INTEGRATIONS.md`'s "Authorization flow" section.
 
 4. **Fill in `core/profile/veronica.profile.json`** — *why not alone*:
    preferences/working style/relationships/objectives are facts about
@@ -99,13 +127,15 @@ pattern in full.
 
 ---
 
-## Status at the point this was written
+## Status as of Phase 19
 
-- **Current phase**: Phase 18 (Real World Readiness Audit) — complete.
-- **Tests passing**: 324 / 324.
-- **Commits created this session**: 9 (Phases 12 through 17, plus this
-  Phase 18 audit).
-- **First human dependency reached**: setting `API_TOKEN` (see above)
-  — not a blocker to further *development*, but the first point where
-  continuing to build more features would outpace what the operator
-  can actually exercise through the interfaces already built.
+- **Current phase**: Phase 19 (External Integration & Operational
+  Deployment) — complete. See `docs/EXTERNAL_INTEGRATIONS.md` for full
+  connector detail.
+- **Tests passing**: 375 / 375.
+- **First human dependency reached**: still setting `API_TOKEN` (see
+  above) — unchanged by this phase. Phase 19 added real GitHub/Discord
+  bot/Google connectors, all of which are genuinely blocked on their own
+  real credentials (items 2/3a/3b above) and, for Google specifically, a
+  real human completing OAuth consent in a browser — none of which
+  VERONICA can do for itself, by design.

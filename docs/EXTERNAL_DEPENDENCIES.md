@@ -39,25 +39,40 @@ Needs a third-party account and a real credential from it.
 1. **`OPENAI_API_KEY`** — semantic memory search. Optional: keyword
    search already works without it.
 2. **`GITHUB_TOKEN`** — `core/integrations/github.js` is real and
-   functional (get repo, list/create issues); needs a GitHub account +
-   personal access token.
+   functional (get repo, list/create issues, branch/commit/PR
+   monitoring, repository health summary, and a polling automation job
+   as of Phase 19); needs a GitHub account + personal access token.
 3. **`DISCORD_WEBHOOK_URL`** — `core/integrations/discord.js` is real
    and functional (send a message); needs a Discord server + an
    incoming webhook.
-4. **A Calendar provider** (Google Calendar, Microsoft Graph, or
-   CalDAV) — `core/integrations/calendar.js` is interface-only; needs
-   the provider DECISION before its credential is even the next
-   question.
-5. **An Email provider** (SMTP, SendGrid, SES, etc.) —
-   `core/integrations/email.js` is interface-only, same as above. Note:
-   a raw-SMTP implementation would need a new dependency (Node has no
-   built-in SMTP client) — a transactional-API provider would not,
-   reusing the existing `core/integrations/http.js`.
-6. **A Cloud Storage provider** (S3, GCS, Dropbox) —
-   `core/integrations/cloudStorage.js` is interface-only. Dropbox fits
-   this codebase's "no new dependencies" convention best (plain bearer
-   token over HTTPS); S3/GCS need request-signing a plain HTTP client
-   doesn't provide for free.
+3a. **`DISCORD_BOT_TOKEN`** (+ optional `DISCORD_CLIENT_ID`, Phase 19)
+   — `core/integrations/discordBot.js` is a real `discord.js` bot
+   (slash commands, incoming-command-as-event, real connected/latency/
+   guild-count status); needs a Discord application + bot user, distinct
+   from the webhook above.
+3b. **`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_REDIRECT_URI`**
+   (Phase 19) — `core/integrations/google/` is real and functional
+   (Gmail/Calendar/Drive read access, polling), built on a hand-rolled
+   OAuth2 flow (no `googleapis` dependency); needs a Google Cloud
+   Console OAuth client AND a human completing the real consent flow in
+   a browser (see `docs/EXTERNAL_INTEGRATIONS.md`'s "Authorization
+   flow" — this is a two-step dependency, not just three env vars).
+4. **A Calendar provider OTHER than Google** (Microsoft Graph, CalDAV)
+   — `core/integrations/calendar.js` (the generic, provider-agnostic
+   placeholder) is still interface-only; Google Calendar specifically is
+   now real via 3b above.
+5. **An Email provider for SENDING** (SMTP, SendGrid, SES, etc.) —
+   `core/integrations/email.js` is still interface-only, and Gmail
+   reading (3b) does not include sending. Note: a raw-SMTP
+   implementation would need a new dependency (Node has no built-in
+   SMTP client) — a transactional-API provider would not, reusing the
+   existing `core/integrations/http.js`.
+6. **A Cloud Storage provider OTHER than Drive** (S3, GCS, Dropbox) —
+   `core/integrations/cloudStorage.js` (the generic placeholder) is
+   still interface-only; Google Drive reading is now real via 3b above.
+   Dropbox fits this codebase's "no new dependencies" convention best
+   (plain bearer token over HTTPS); S3/GCS need request-signing a plain
+   HTTP client doesn't provide for free.
 
 ## DEVICE REQUIRED
 
@@ -90,11 +105,12 @@ risk tolerance, or values, not on more engineering.
    no company-level scoping at all today. Low priority for a
    single-operator system; a real question before any multi-company
    deployment with genuinely adversarial isolation requirements.
-2. **Should `ActionProposalEngine` ever gain an action kind that
-   reaches outside VERONICA's own data** (e.g., "approve and this posts
-   to Discord/GitHub for real")? The approval gate is built and would
-   hold; whether to build that first *external* action at all is a
-   trust/scope decision, not an engineering one.
+2. ~~Should `ActionProposalEngine` ever gain an action kind that
+   reaches outside VERONICA's own data~~ — **decided and built, Phase
+   19**: `create_github_issue` and `post_discord_message` are real,
+   approval-gated external actions now. Sending email, merging a PR,
+   pushing code, and deleting a file remain open — not yet decided
+   *and* not yet possible (no connector implements those writes).
 3. **Which Calendar/Email/Cloud-storage provider** (see API REQUIRED
    above) — a preference/cost/vendor-lock-in call, not something
    inferable from the codebase.

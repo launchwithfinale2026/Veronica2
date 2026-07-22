@@ -186,8 +186,23 @@ requirements.
    purged before treating this repository as safe to make public or
    share broadly, even though current content isn't seriously
    sensitive.
-4. **Calendar/Email/Cloud storage connectors are interface-only**
-   (from Phase 9) — not a security issue, but not functional either.
+4. **Generic Calendar/Email/Cloud storage connectors remain
+   interface-only** (from Phase 9) — not a security issue, but not
+   functional either. Phase 19 made Google Calendar/Gmail/Drive real
+   (`core/integrations/google/`), so this now only applies to a
+   *different* provider choice (Microsoft Graph, CalDAV, SMTP/SendGrid,
+   S3/GCS/Dropbox) if one is ever wanted alongside Google.
+4a. **Real external write capability is deliberately narrow** (Phase
+   19): `create_github_issue` and `post_discord_message` are the only
+   two external actions `ActionProposalEngine` can execute, both gated
+   behind human approval. Sending email, merging a PR, pushing code, and
+   deleting a file have **no connector implementation at all** yet — not
+   a security gap (there's nothing to exploit), just unbuilt capability.
+4b. **Completing Google's OAuth consent flow requires a real human in a
+   real browser** (Phase 19) — `isConfigured()` (env vars present) and
+   `isAuthorized()` (a human has clicked "Allow") are different states by
+   design; no automated test or background process can complete the
+   second one, which is the entire point of OAuth.
 5. **Autonomous execution has no operator-facing pause control** beyond
    not registering the job or stopping automation entirely — acceptable
    for single-operator personal use, not for a setting where someone
@@ -225,14 +240,30 @@ requirements.
   action are all validated before a department ever runs a company-scoped
   task, and a restricted company's `allowedRoles` is now actually
   enforced by the pipeline that executes its work (§2.1).
-- 240 tests passing, covering every subsystem plus the 4 end-to-end
-  workflows and the 10 new access-control tests above.
+- **External integrations are real, not fabricated** (Phase 19):
+  GitHub (REST, monitoring + health summary + polling), Discord (both
+  the pre-existing outgoing webhook and a new real `discord.js` bot),
+  and Google Workspace (a hand-built OAuth2 flow plus real Gmail/
+  Calendar/Drive read access) all authenticate for real, fail closed
+  without their credentials, and never crash VERONICA's boot when a
+  credential is missing (`credentialManager.validateStartup()`).
+  Every connector event flows through one shared, existing pipeline
+  (`core/integrations/eventIngestion.js` → Phase 12's `memory.remember()`
+  — not a second memory system), and is now visible in the daily
+  briefing, evening review, and weekly report. See
+  `docs/EXTERNAL_INTEGRATIONS.md`.
+- 375 tests passing (up from 240 at the point this section was last
+  written), covering every subsystem plus the 4 end-to-end workflows,
+  the access-control tests, and Phase 19's connector/ingestion/
+  approval-pipeline coverage.
 
 ## 5. Recommended next phase
 
 1. Decide on the git-history question (2.1) before any wider sharing of
    this repository.
-2. Pick a concrete provider for at least one placeholder integration.
+2. A concrete provider is now real for Calendar/Gmail/Drive (Google, via
+   Phase 19); Email *sending* and Cloud Storage remain unimplemented if
+   ever needed.
 3. If multi-operator or untrusted-input use is ever planned, close the
    knowledge-graph isolation gap (§2.2) and add the symlink-escape
    hardening already flagged in the v1 release audit
@@ -241,3 +272,8 @@ requirements.
    (not just "the system acting for itself"), a login/session concept
    would need to exist before `authorizeExecution()`'s identity check
    means much more than it does today.
+5. Complete the human side of Phase 19's real external dependencies (see
+   `docs/NEXT_HUMAN_ACTIONS.md`): set `GITHUB_TOKEN`/`DISCORD_BOT_TOKEN`/
+   `GOOGLE_CLIENT_ID`+`SECRET`+`REDIRECT_URI`, and for Google specifically,
+   complete the real OAuth consent flow in a browser
+   (`GET /api/integrations/google/auth-url`).

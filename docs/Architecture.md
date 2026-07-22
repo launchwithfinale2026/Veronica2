@@ -2191,3 +2191,200 @@ instance confirming every new route, and cross-checking every new
 element id against `index.html`, same verification level as prior
 dashboard-only phases (no headless browser available in this
 environment).
+
+## Phase 18 — Real World Readiness Audit
+
+Audit-only, no code. Documented (in `docs/REAL_WORLD_READINESS.md`,
+`docs/EXTERNAL_DEPENDENCIES.md`, `docs/NEXT_HUMAN_ACTIONS.md`) what
+VERONICA could and couldn't do alone at that point, and the first
+ordered human action (`API_TOKEN`). Test count unchanged (324).
+
+## Phase 19 — External Integration & Operational Deployment
+
+**Goal:** connect VERONICA to the real world (GitHub, Discord, Google
+Workspace) by extending the existing connector/approval/memory/
+executive architecture — explicitly not redesigning it or building a
+second parallel system anywhere. Full connector-level detail lives in
+the new `docs/EXTERNAL_INTEGRATIONS.md`; this section covers the
+architectural decisions.
+
+**Audit first.** Before writing any code, the existing pieces this
+phase would extend were read end to end: `core/integrations/` (github.js/
+discord.js were already real; calendar.js/email.js/cloudStorage.js were
+interface-only placeholders), `core/integrations/registry.js` (the
+dashboard's one status-aggregation point), `core/executive/actionProposal.js`
+(the existing pending→approved→executed pipeline — internal roadmap
+actions only, until this phase), `core/automation/jobs.js` (the
+interval-based job registration pattern every new polling job follows),
+`core/memory/index.js`'s `remember()` (Phase 12's classification/
+scoring/lifecycle — the "existing memory ingestion pipeline" this
+phase's own instructions said to reuse, not rebuild), and `.env`
+(confirmed, without ever printing a value, that none of `GITHUB_TOKEN`/
+`DISCORD_BOT_TOKEN`/`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/
+`GOOGLE_REDIRECT_URI` were set — real credentials were never a
+precondition for building real, tested code, per the same reasoning
+Phase 7 already established for GitHub/Discord).
+
+**Credential Manager** (`core/integrations/credentialManager.js`, new):
+one static map of every credential this system knows about (10
+connectors: claude, openai, github, discord webhook, discord bot,
+google, calendar/email/cloudStorage placeholders), `validateStartup()`
+(logs which vars are missing, by NAME only, never a value; disables only
+that connector; never throws), `statusFor()`/`isConfigured()`/`overview()`.
+Every existing connector's own `isConfigured()` was refactored to
+delegate here instead of independently repeating
+`Boolean(process.env.X)` — a pure internal refactor, same env vars, same
+true/false results, one source of truth instead of five.
+
+**GitHub extended**, not replaced: `listBranches()`/`listCommits()`/
+`listPullRequests()` (new real REST endpoints, same bearer-token
+pattern as the pre-existing `getRepo()`/`listIssues()`/`createIssue()`),
+`repositoryHealthSummary()` (combines repo/issues/pulls into one
+snapshot — open counts, default branch, a `stale` flag off `pushed_at`),
+and `pollRepository()` — ingests new open PRs/issues as external events
+via the new shared ingestion pipeline (below), deduped by a synthetic
+`externalId` (`pr:owner/repo#N` / `issue:owner/repo#N`) so a job that
+runs on an interval never re-ingests the same item. `GITHUB_WATCHED_REPOS`
+(a new, plain — not secret — comma-separated env var) tells the new
+`github-poll` automation job (15 min interval) which repos to watch;
+absent, the job is a clean no-op, never an error.
+
+**Discord: two connectors, deliberately not merged.** The pre-existing
+`core/integrations/discord.js` (an outgoing webhook, `DISCORD_WEBHOOK_URL`)
+is untouched except for delegating to credentialManager and adding
+connect/error logging. A genuinely different capability — real-time
+slash commands, a persistent bidirectional session — needed a different
+mechanism entirely, and here this phase hit its one real architecture
+fork: a Discord bot needs either a persistent Gateway connection or a
+publicly-reachable HTTPS Interactions endpoint, and this project's
+standing "no new npm dependencies beyond `@anthropic-ai/sdk`/`dotenv`/
+`openai`" principle doesn't have a way to build either without either
+(a) a public HTTPS endpoint this VERONICA instance doesn't have by
+default (`DASHBOARD_HOST` defaults to `127.0.0.1`), or (b) hand-rolling
+Discord's own Gateway wire protocol using Node's built-in `WebSocket` —
+both real options, both weighed. Presented as an explicit
+`AskUserQuestion` (a new dependency being exactly the kind of decision
+this session's standing instructions require surfacing rather than
+deciding unilaterally); the project owner chose the third option —
+**add `discord.js` as a real, explicit exception** to the no-new-
+dependencies principle. `core/integrations/discordBot.js` is the result:
+real login via `DISCORD_BOT_TOKEN`, slash command registration via
+`DISCORD_CLIENT_ID` (optional — the bot still logs in and sends messages
+without it), every incoming slash-command interaction ingested as a
+VERONICA event and replied to directly. `start()` takes an injectable
+`clientFactory` specifically so tests exercise the real event-handling/
+ingestion/status logic against a fake, event-emitter-shaped stand-in
+without ever opening a real Gateway connection — no test in this
+codebase makes a real network call to Discord.
+
+**Google Workspace** (`core/integrations/google/`, new): a hand-built
+OAuth2 authorization-code flow (`oauth.js`) rather than the `googleapis`
+package — Google's OAuth and Gmail/Calendar/Drive REST APIs are plain
+HTTPS + JSON, no different in kind from the GitHub REST API
+`github.js` already talks to directly with the existing `http.js`
+primitive. Introduces a two-state model this project hadn't needed
+before: `isConfigured()` (env vars present — an app registration exists)
+is explicitly distinct from `isAuthorized()` (a real human has completed
+Google's own consent screen in a real browser and a real refresh token
+is on disk) — unlike GitHub/Discord's simple bearer-token model, where
+"configured" and "usable" are the same thing, Google's flow has a
+step in the middle only a human can complete, and no code path in this
+codebase can complete it (that's the entire point of OAuth). Read-only
+Gmail (`gmail.js`)/Calendar (`calendar.js`)/Drive (`drive.js`)
+connectors and a polling module (`poll.js`, feeding the same shared
+ingestion pipeline, gated on `isAuthorized()` not just `isConfigured()`)
+complete the connector; a new `google-poll` automation job (15 min)
+runs it. Real tokens persist to `core/integrations/google/tokens.json`
+— gitignored, the most sensitive file this project has generated, never
+logged, never committed.
+
+Two real bugs found and fixed during this work, both via test-driven
+discovery (a failing test was investigated as a real bug, not adjusted
+to match broken behavior, per this project's established practice):
+(1) `tokens.expires_in || 3600` treated an explicit `expires_in: 0` (an
+already-expired token, deliberately used in a test) as "not provided,"
+silently defaulting to a full extra hour of assumed validity — fixed to
+`Number.isFinite(tokens.expires_in) ? tokens.expires_in : 3600`.
+(2) `gmail.js`'s `getMessage()`/`getAttachment()` and `drive.js`'s
+`getFileMetadata()` were plain (non-`async`) functions whose own
+validation (`if(!id) throw ...`) threw synchronously rather than as a
+promise rejection — the exact bug class already fixed once for
+`http.js`'s `request()` in Phase 7 — fixed by declaring all three
+`async`, so any throw inside automatically becomes a rejection.
+
+**Event ingestion pipeline** (`core/integrations/eventIngestion.js`,
+new): the one normalization point every connector event flows through —
+a GitHub commit/PR, a Discord message, a Gmail email, a Calendar event,
+a Drive file — each tagged `external-event`/`source:<connector>`/
+`kind:<event kind>` and handed to the **existing** `memory.remember()`
+(Phase 12's classification/importance-scoring/lifecycle). This phase's
+own instructions were explicit — "use existing memory evolution
+architecture, do not build another memory system" — so every ingested
+event is a completely ordinary memory entry, indistinguishable in
+storage from anything else `remember()` already handles.
+`recentEvents()` gives executive code one place to ask "what's new from
+outside" without knowing about each connector individually.
+
+**Approval pipeline extended, not duplicated.** This phase's own
+instructions required reusing the existing framework: "VERONICA may
+observe/recommend/prepare actions but may NOT send email, push code,
+merge PR, delete files, modify repositories, or post externally unless
+explicitly approved." `core/executive/actionProposal.js` gained
+`proposeExternalAction()`/`executeExternal()` — the same memory-backed
+pending/approved/rejected/executed status machine as the existing
+`fromRecommendation()`/`execute()`, same unconditional "must be
+approved" gate, but kept as a **separate async method** rather than
+making `execute()`/`performAction()` themselves `async`: those are
+exercised synchronously by every existing internal action kind
+(`unblock_task`/`resolve_deadlock`/`revisit_stalled_goal`/`high_urgency`)
+and by tests using `assert.throws()`/plain synchronous returns — changing
+that signature would have broken passing tests for no behavioral gain.
+Only two external actions are wired to a real connector call:
+`create_github_issue` (→ `github.createIssue()`) and
+`post_discord_message` (→ the webhook connector's `sendMessage()`).
+`send_email`/`push_code`/`merge_pr`/`delete_file` are deliberately
+**not** in the action vocabulary at all — no connector in this codebase
+can perform those writes yet, and fabricating an approval path for a
+capability that doesn't exist would violate this phase's explicit "do
+not create placeholders pretending to work" instruction.
+
+**Executive awareness extended.** `DailyBriefingEngine.generate()`
+(last 24h), `DailyReviewEngine.generate()` (today), and
+`WeeklyOperatingReport.generate()` (7-day window, grouped by source)
+each gained an `externalEvents`/`externalEventsToday`/
+`externalEventsThisWindow` field, all reading through
+`eventIngestion.recentEvents()` — a pure read-side addition, no change
+to how any of the three persist their own artifacts.
+
+**Registry and boot sequence.** `core/integrations/registry.js` gained
+two entries (`discordBot`, `google`) alongside the existing eight — `GET
+/api/integrations` now reports 10 connectors, real status only. Both
+`dashboard/backend/server.js` and `core/interface/terminal.js` call
+`credentialManager.validateStartup()` at real boot (guarded behind
+`require.main === module`/module-load respectively, so requiring either
+file from a test never logs startup noise or starts anything). The
+dashboard's real boot path also calls `discordBot.start()`
+(non-blocking `.catch()` — a bad token or network outage logs an error
+and leaves the bot disconnected, it never crashes the dashboard). Two
+new dashboard routes complete Google's OAuth flow end to end:
+`GET /api/integrations/google/auth-url` (step 1) and
+`GET /api/integrations/google/callback` (step 2 — deliberately NOT
+gated behind `API_TOKEN`, since Google's own redirect carries no bearer
+token and completing consent in a real browser IS the human-authorized
+action).
+
+51 new tests (324 → 375): credential presence/absence/multi-var
+reporting, Google OAuth's full flow (configure → auth URL → exchange →
+auto-refresh → three-state `status()`), GitHub monitoring/health-
+summary/polling with dedupe, a fully faked (never network-connecting)
+Discord bot client exercising real event-handling/ingestion/status/
+send logic, the shared event ingestion pipeline (validation, defaults,
+scoping, sorting, limiting), the two new external `ActionProposal`
+kinds end to end (propose → approve → execute → real connector call,
+including a real connector failure surfacing as a rejection rather than
+a false "executed" status), Google Workspace polling with dedupe across
+all three services, the two new dashboard OAuth routes, and the three
+executive-awareness extensions. All pre-existing tests continue to
+pass unmodified except where a test's own exact-match assertion needed
+updating to account for new registry entries (e.g. the connector-count/
+id-list assertions in `tests/integrations-connectors.test.js`).

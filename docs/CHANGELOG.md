@@ -373,23 +373,128 @@ now properly backed up/restored in `tests/dashboard.test.js`.
 
 4 new tests covering the new/extended routes.
 
+## Phase 18 -- Real World Readiness Audit
+
+Audit-only, no code changes. Created `docs/REAL_WORLD_READINESS.md`
+(what VERONICA can do alone vs. what needs a user account/hardware/
+permission/human approval), `docs/EXTERNAL_DEPENDENCIES.md` (the same
+gaps, categorized as USER REQUIRED / API REQUIRED / DEVICE REQUIRED /
+BUSINESS DECISION REQUIRED), and `docs/NEXT_HUMAN_ACTIONS.md` (the
+first, ordered, human-only action -- setting `API_TOKEN` -- and what
+follows it). No test count change (324, same as end of Phase 17).
+
+## Phase 19 -- External Integration & Operational Deployment
+
+Full design reasoning and connector-by-connector detail in
+`docs/EXTERNAL_INTEGRATIONS.md` (new). Audited first (per this phase's
+own mandate): the existing connector architecture (`core/integrations/`),
+AI provider architecture, dashboard integration points, approval
+pipeline (`core/executive/actionProposal.js`), automation scheduler,
+memory ingestion, executive orchestrator, and env var loading -- then
+extended rather than redesigned.
+
+- **`core/integrations/credentialManager.js`** (new): one centralized
+  map of every credential this system knows about (10 connectors),
+  `validateStartup()` (logs names of missing vars only, never crashes),
+  `statusFor()`/`isConfigured()`/`overview()`. Every existing connector's
+  own `isConfigured()` now delegates to it instead of duplicating
+  `Boolean(process.env.X)`.
+- **GitHub** (`core/integrations/github.js`, extended): `listBranches()`,
+  `listCommits()`, `listPullRequests()`, `repositoryHealthSummary()`,
+  and `pollRepository()` (ingests new open PRs/issues as external
+  events, deduped by externalId). A new `github-poll` automation job
+  (every 15 min) polls every repo in the optional `GITHUB_WATCHED_REPOS`
+  env var.
+- **Discord bot** (`core/integrations/discordBot.js`, new): a real
+  `discord.js` bot -- login, slash commands (`/status`, `/approvals`),
+  incoming interactions become VERONICA events, real
+  connected/latency/guildCount status. Kept entirely separate from the
+  pre-existing outgoing-webhook connector (different credential,
+  different capability). **Explicit, user-approved exception** to this
+  project's "no new npm dependencies" principle -- a real-time Discord
+  bot genuinely needs a persistent Gateway connection or a public HTTPS
+  endpoint, and hand-rolling either was weighed against `discord.js` and
+  rejected as needlessly fragile (see the actual decision point in this
+  phase's own commit history).
+- **Google Workspace** (`core/integrations/google/`, new): a hand-built
+  OAuth2 authorization-code flow (`oauth.js`, no `googleapis`
+  dependency -- built on the existing `http.js`), plus real, read-only
+  Gmail (`gmail.js`), Calendar (`calendar.js`), and Drive (`drive.js`)
+  connectors, and a polling module (`poll.js`) wired into a new
+  `google-poll` automation job. `isConfigured()` (env vars present) is
+  explicitly distinct from `isAuthorized()` (a human has completed
+  Google's real consent screen) -- the dashboard exposes both halves of
+  the flow (`GET /api/integrations/google/auth-url`,
+  `GET /api/integrations/google/callback`).
+- **`core/integrations/eventIngestion.js`** (new): the one shared
+  normalization point every connector event flows through -- tags
+  `external-event`/`source:X`/`kind:Y` and hands off to the **existing**
+  `memory.remember()` (Phase 12's classification/scoring/lifecycle),
+  never a second memory system.
+- **`core/executive/actionProposal.js`** (extended): `proposeExternalAction()`/
+  `executeExternal()` alongside the existing recommendation-derived
+  `fromRecommendation()`/`execute()` -- same memory-backed pending/
+  approved/rejected/executed status machine, same unconditional
+  "must be approved" gate. Only `create_github_issue` and
+  `post_discord_message` are wired to a real connector call; nothing
+  else (send_email, push_code, merge_pr, delete_file) has connector
+  support yet, so nothing else was added to avoid fabricating capability
+  that doesn't exist.
+- **Executive awareness** (`dailyBriefing.js`/`dailyReview.js`/
+  `weeklyReport.js`, extended): each now surfaces external connector
+  events (last 24h / today / this week respectively) via
+  `eventIngestion.recentEvents()` -- a new email, GitHub PR, Discord
+  command, calendar meeting, or Drive document now reaches the same
+  morning briefing, evening review, and weekly report an operator
+  already reads.
+- **`core/integrations/registry.js`** extended with the two new
+  connectors (discordBot, google) -- `GET /api/integrations` now reports
+  10 connectors total, real status only, no fake values.
+- **Boot sequence**: both `dashboard/backend/server.js` and
+  `core/interface/terminal.js` now call
+  `credentialManager.validateStartup()` at real boot; the dashboard also
+  starts the Discord bot (non-blocking -- a bad token or network outage
+  never crashes the dashboard).
+
+A real, fixed bug found and corrected along the way: `expires_in: 0`
+(an already-expired token) was being treated as "not provided" by
+`tokens.expires_in || 3600`, silently defaulting to a full extra hour of
+(incorrectly) assumed validity -- fixed to
+`Number.isFinite(tokens.expires_in) ? tokens.expires_in : 3600`. Also
+fixed the same synchronous-throw-instead-of-promise-rejection class of
+bug (previously fixed once for `http.js` in Phase 7) in three new Gmail/
+Drive methods.
+
+51 new tests (324 -> 375), covering: credential presence/absence
+reporting, Google OAuth's full authorization-code flow (configure ->
+auth URL -> exchange -> auto-refresh), GitHub monitoring/health-summary/
+polling with dedupe, a fully faked (never network-connecting) Discord
+bot client exercising real event-handling/ingestion/status logic, the
+shared event ingestion pipeline, the two new external `ActionProposal`
+kinds end to end (approve -> execute -> real connector call, including
+a real failure surfacing as a rejection rather than a false "executed"),
+Google Workspace polling with dedupe, the two new dashboard OAuth
+routes, and the three executive-awareness extensions.
+
 ## Totals
 
-- 18 commits across Phases 10-17 combined with the earlier 9, each with
-  `npm test` green before committing.
+- 18 commits across Phases 10-17 combined with the earlier 9, plus 12
+  more across Phase 19, each with `npm test` green before committing.
 - Test count: 210 -> 222 (end of the original 9-phase pass) -> 240 (end
   of Phase 10) -> 267 (end of Phase 11) -> 291 (end of Phase 12) -> 300
   (end of Phase 13) -> 307 (end of Phase 14) -> 313 (end of Phase 15)
-  -> 320 (end of Phase 16) -> 324 (end of Phase 17), all passing
+  -> 320 (end of Phase 16) -> 324 (end of Phase 17) -> 324 (end of
+  Phase 18, audit-only) -> 375 (end of Phase 19), all passing
   throughout.
 - No existing test broken; no existing public API removed or changed
   incompatibly.
 
 ## Remaining limitations / future work
 
-- **Calendar/Email/Cloud storage connectors** are interface-only --
-  real implementations need a concrete provider decision (see each
-  file's header comment for the tradeoffs).
+- **Generic Calendar/Email/Cloud storage connectors** (the pre-Phase-19
+  provider-agnostic placeholders) remain interface-only -- Google
+  Calendar/Gmail/Drive are now real (Phase 19); a different provider,
+  or Gmail *sending*/Drive *uploading*, would still need to be built.
 - **Autonomous execution** only picks the single next ready task per
   5-minute tick; there's no priority preemption mid-cycle, no
   parallelism across departments, and no operator-facing "pause
@@ -404,9 +509,13 @@ now properly backed up/restored in `tests/dashboard.test.js`.
 - **No visual/browser-based UI testing** was performed for the new
   dashboard widgets in this environment -- endpoint- and syntax-level
   verification only.
-- **Recommended next phase:** wiring the orchestrator's `pursue()` into
-  a true "one-shot user objective" entry point that also chooses
-  whether to run the resulting tasks immediately vs. waiting for the
-  autonomous loop, plus picking a concrete provider for at least one of
-  the placeholder integrations (Discord and GitHub are already real end
-  to end and could serve as a template).
+- **External write capability remains narrow by design** (Phase 19):
+  only `create_github_issue`/`post_discord_message` can be executed
+  through the approval pipeline; email sending, PR merging, code
+  pushing, and file deletion have no connector implementation at all.
+- **Recommended next phase:** see `docs/EXTERNAL_INTEGRATIONS.md`'s
+  "Future expansion" section -- a dedicated "External Systems" dashboard
+  panel (the data already exists via `GET /api/integrations`), a GitHub
+  webhook receiver (needs public HTTPS reachability), and extending
+  Discord's approval-gated posting to the real bot's channels instead of
+  only the webhook.
