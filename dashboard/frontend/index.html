@@ -59,6 +59,14 @@
   </section>
 
   <section class="panel">
+    <h2>Memory</h2>
+    <div class="widget-group">
+      <h3>Classes (episodic / semantic / procedural / organizational)</h3>
+      <div id="memory-overview" class="widget"></div>
+    </div>
+  </section>
+
+  <section class="panel">
     <h2>Business</h2>
     <div class="widget-group">
       <h3>Companies</h3>
@@ -88,6 +96,35 @@
     <div class="widget-group">
       <h3>Deadlines</h3>
       <div id="executive-deadlines" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Progress report</h3>
+      <div id="executive-report" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Pursue an objective</h3>
+      <p class="hint">
+        Plans AND decomposes a goal in one call (title required; department,
+        description, deadline, priority optional). Doesn't execute anything
+        by itself -- see "Run next task" below, or the autonomous
+        execute-tasks job in the Automation panel.
+      </p>
+      <form id="pursue-form" class="inline-form">
+        <input type="text" id="pursue-goal-json" placeholder='{"title": "..."}' required>
+        <button type="submit">Pursue (calls Claude)</button>
+      </form>
+      <p id="pursue-result" class="hint"></p>
+    </div>
+    <div class="widget-group">
+      <h3>Run next ready task</h3>
+      <p class="hint">
+        Manually runs the same bounded, one-task unit of work the autonomous
+        execute-tasks job runs every 5 minutes.
+      </p>
+      <form id="run-next-form" class="inline-form">
+        <button type="submit">Run next ready task now (calls Claude)</button>
+      </form>
+      <p id="run-next-result" class="hint"></p>
     </div>
     <div class="widget-group">
       <h3>Project detail</h3>

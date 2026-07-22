@@ -123,6 +123,36 @@ async function loadExecutiveRoadmap(){
 }
 
 
+async function loadExecutiveReport(){
+
+    const report = await fetchJSON("/api/executive/report");
+
+    const container = document.getElementById("executive-report");
+
+    container.innerHTML = "";
+
+    container.appendChild(el("p", {
+        textContent: `${report.totalProjects} projects — ${report.byStatus.planned} planned, ${report.byStatus.in_progress} in progress, ${report.byStatus.blocked} blocked, ${report.byStatus.completed} completed — ${report.averageProgress}% average progress`
+    }));
+
+}
+
+
+async function loadMemoryOverview(){
+
+    const overview = await fetchJSON("/api/memory/overview");
+
+    const container = document.getElementById("memory-overview");
+
+    container.innerHTML = "";
+
+    container.appendChild(el("p", {
+        textContent: `${overview.total} entries — ${overview.byClass.episodic} episodic, ${overview.byClass.semantic} semantic, ${overview.byClass.procedural} procedural, ${overview.byClass.organizational} organizational`
+    }));
+
+}
+
+
 async function loadExecutiveDeadlines(){
 
     const grouped = await fetchJSON("/api/executive/deadlines");
@@ -363,6 +393,8 @@ async function loadDashboard(){
             loadKnowledge(),
             loadExecutiveRoadmap(),
             loadExecutiveDeadlines(),
+            loadExecutiveReport(),
+            loadMemoryOverview(),
             loadConsolidationHistory(),
             loadSelfMonitorHistory(),
             loadLearningOverview(),
@@ -747,6 +779,83 @@ function setupConsolidateForm(){
             const run = await authedFetch("/api/executive/consolidate", { method: "POST" });
 
             result.textContent = run.summary;
+
+            loadDashboard();
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupPursueForm(){
+
+    const form = document.getElementById("pursue-form");
+    const result = document.getElementById("pursue-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const raw = document.getElementById("pursue-goal-json").value;
+
+        let goal;
+
+        try {
+            goal = JSON.parse(raw);
+        } catch(error){
+            result.textContent = `Invalid JSON: ${error.message}`;
+            return;
+        }
+
+        result.textContent = "Pursuing (plans and decomposes, calls Claude, may take a few seconds)...";
+
+        try {
+
+            const outcome = await authedFetch("/api/executive/pursue", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(goal)
+            });
+
+            result.textContent = `Planned "${outcome.project.title}" (${outcome.project.id}) with ${outcome.decomposition.milestones.length} milestone(s).`;
+
+            loadDashboard();
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupRunNextForm(){
+
+    const form = document.getElementById("run-next-form");
+    const result = document.getElementById("run-next-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        result.textContent = "Running next ready task (calls Claude, may take a few seconds)...";
+
+        try {
+
+            const outcome = await authedFetch("/api/executive/run-next", { method: "POST" });
+
+            result.textContent = outcome.ranTask
+                ? `Ran task ${outcome.task} via ${outcome.department} -- outcome: ${outcome.outcome}.`
+                : "No ready task found.";
 
             loadDashboard();
 
@@ -1261,6 +1370,8 @@ document.addEventListener("DOMContentLoaded", () => {
     setupArtifactForm();
     setupProjectLookupForm();
     setupConsolidateForm();
+    setupPursueForm();
+    setupRunNextForm();
     setupSelfCheckForm();
     setupRecommendForm();
     setupAutomationRunForm();
