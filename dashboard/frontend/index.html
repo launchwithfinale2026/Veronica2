@@ -109,6 +109,19 @@
       </form>
       <p id="consolidate-result" class="hint"></p>
     </div>
+    <div class="widget-group">
+      <h3>Self-monitoring</h3>
+      <p class="hint">
+        Hourly: checks for overdue projects and a high failure rate, and
+        (only if something's found) generates recommendations --
+        detection and recommendation only, no automatic remediation.
+      </p>
+      <div id="self-monitor-history" class="widget"></div>
+      <form id="self-check-form" class="inline-form">
+        <button type="submit">Run self-check now</button>
+      </form>
+      <p id="self-check-result" class="hint"></p>
+    </div>
   </section>
 
   <section class="panel">

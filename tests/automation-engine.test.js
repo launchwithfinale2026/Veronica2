@@ -234,3 +234,33 @@ test("history() returns completed/failed entries, most recent first", async () =
     assert.ok(secondIndex < firstIndex);
 
 });
+
+test("requiring the real core/automation facade registers all three built-in jobs (including self-monitor) without a circular-require crash", () => {
+
+    // Regression test for the exact risk documented in
+    // core/executive/selfMonitor.js's constructor comment and
+    // core/automation/jobs.js: registerBuiltInJobs(engine) constructs a
+    // SelfMonitor with the live engine instance passed directly, instead
+    // of self-monitor requiring("../automation") itself (which would
+    // re-enter this very module mid-load). If that wiring were ever
+    // reverted to use require("../automation") internally, this either
+    // throws or `automation.status()` reflects a broken/incomplete
+    // engine -- this test exists so that regression fails loudly here
+    // instead of surfacing as a mysterious runtime crash later.
+    delete require.cache[require.resolve("../core/automation")];
+
+    const automation = require("../core/automation");
+
+    const status = automation.status();
+
+    // Not a strict-equal check on the whole list -- this test file's
+    // earlier tests share the same on-disk state.json (by design, same
+    // as every other file exercising this instrumentation) and may have
+    // left their own schedule entries there too; this only needs to
+    // confirm the three real built-in jobs are present and correctly
+    // wired, not that nothing else exists in shared state.
+    const jobNames = status.schedules.map(s => s.jobName);
+
+    assert.ok(["consolidate", "learning-recommend", "self-monitor"].every(name => jobNames.includes(name)));
+
+});

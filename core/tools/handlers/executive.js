@@ -74,6 +74,10 @@ module.exports = {
 
     "executive.consolidate": () => require("../../executive").consolidate(),
 
-    "executive.consolidationHistory": ({ limit } = {}) => require("../../executive").consolidationHistory(limit)
+    "executive.consolidationHistory": ({ limit } = {}) => require("../../executive").consolidationHistory(limit),
+
+    "executive.runSelfCheck": () => require("../../executive").runSelfCheck(),
+
+    "executive.selfMonitorHistory": ({ limit } = {}) => require("../../executive").selfMonitorHistory(limit)
 
 };

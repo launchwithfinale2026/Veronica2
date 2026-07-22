@@ -146,6 +146,10 @@ executive.consolidate
 
 executive.consolidations
 
+executive.selfCheck
+
+executive.selfMonitorHistory
+
 learning.overview
 
 learning.departments
@@ -599,6 +603,22 @@ rl.on("line", async (input) => {
         }
 
 
+        // RUN THE SELF-MONITORING LOOP NOW
+        else if (command === "executive.selfCheck") {
+
+            console.log(await executive.runSelfCheck());
+
+        }
+
+
+        // SELF-MONITORING HISTORY
+        else if (command === "executive.selfMonitorHistory") {
+
+            console.log(executive.selfMonitorHistory());
+
+        }
+
+
         // LEARNING OVERVIEW
         else if (command === "learning.overview") {
 
@@ -812,6 +832,8 @@ company.relationship <companyId> <json>
 company.communication <companyId> <summary>
 executive.consolidate
 executive.consolidations
+executive.selfCheck
+executive.selfMonitorHistory
 learning.overview
 learning.departments
 learning.agents

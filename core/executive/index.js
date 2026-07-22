@@ -14,12 +14,27 @@ const GoalDecomposer = require("./decomposer");
 const ProjectManager = require("./projectManager");
 const CompanyManager = require("./companyManager");
 const MemoryConsolidation = require("./consolidation");
+const SelfMonitor = require("./selfMonitor");
 
 const planner = new ExecutivePlanner();
 const decomposer = new GoalDecomposer({ planner });
 const projectManager = new ProjectManager({ planner });
 const companyManager = new CompanyManager({ planner });
 const consolidation = new MemoryConsolidation();
+
+// SelfMonitor's constructor would otherwise default `executive` to
+// require("../executive") -- this exact file, still mid-load right now.
+// Passed a minimal object exposing just the one method it actually calls
+// instead, sidestepping the self-reference. `learning` has no such issue
+// (core/learning doesn't depend on core/executive), so it's required
+// directly. No automationEngine here -- this facade instance is for
+// read access/manual triggers only; the real scheduled job (core/
+// automation/jobs.js) constructs its own SelfMonitor with the live engine
+// instance attached, so its automation-health check actually works.
+const selfMonitor = new SelfMonitor({
+    executive: { evaluateDeadlines: () => planner.evaluateDeadlines() },
+    learning: require("../learning")
+});
 
 module.exports = {
 
@@ -57,6 +72,13 @@ module.exports = {
 
     consolidate: () => consolidation.run(),
 
-    consolidationHistory: (limit) => consolidation.history(limit)
+    consolidationHistory: (limit) => consolidation.history(limit),
+
+    // Manual trigger/read access -- the real scheduled self-monitor job
+    // (with automation-health checking attached) lives in
+    // core/automation/jobs.js; see core/executive/selfMonitor.js.
+    runSelfCheck: () => selfMonitor.runSelfCheck(),
+
+    selfMonitorHistory: (limit) => selfMonitor.history(limit)
 
 };

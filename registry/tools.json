@@ -306,6 +306,23 @@
       }
     },
     {
+      "id": "executive.runSelfCheck",
+      "description": "Run the self-monitoring loop now: check for overdue projects and a high failure rate, and (only if something was found) generate optimization recommendations. Detection and recommendation only -- takes no remediating action.",
+      "permission": "manage_agents",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "executive.selfMonitorHistory",
+      "description": "List past self-monitoring runs that found at least one issue, most recent first.",
+      "permission": "read_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": { "type": "integer", "description": "Max runs to return; defaults to 10" }
+        }
+      }
+    },
+    {
       "id": "learning.overview",
       "description": "System-wide execution stats: total/successful/failed department runs and tool calls, and average execution time.",
       "permission": "read_memory",

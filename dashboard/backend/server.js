@@ -174,6 +174,8 @@ const ROUTES = {
 
     "GET /api/executive/consolidations": () => executive.consolidationHistory(),
 
+    "GET /api/executive/self-monitor": () => executive.selfMonitorHistory(),
+
     "GET /api/companies": () => executive.listCompanies(),
 
     "GET /api/learning/overview": () => learning.overview(),
@@ -499,6 +501,18 @@ function createServer(){
                 }
 
                 return sendJSON(res, 200, await executive.consolidate());
+
+            }
+
+            if(parsed.pathname === "/api/executive/self-check" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                return sendJSON(res, 200, await executive.runSelfCheck());
 
             }
 

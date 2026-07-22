@@ -152,6 +152,20 @@ async function loadConsolidationHistory(){
 }
 
 
+async function loadSelfMonitorHistory(){
+
+    const runs = await fetchJSON("/api/executive/self-monitor");
+
+    renderList(
+        "self-monitor-history",
+        runs,
+        "No issues found by any self-check yet.",
+        run => `[${new Date(run.created).toLocaleString()}] ${run.content}`
+    );
+
+}
+
+
 async function loadLearningOverview(){
 
     const overview = await fetchJSON("/api/learning/overview");
@@ -350,6 +364,7 @@ async function loadDashboard(){
             loadExecutiveRoadmap(),
             loadExecutiveDeadlines(),
             loadConsolidationHistory(),
+            loadSelfMonitorHistory(),
             loadLearningOverview(),
             loadLearningDepartments(),
             loadLearningTools(),
@@ -732,6 +747,38 @@ function setupConsolidateForm(){
             const run = await authedFetch("/api/executive/consolidate", { method: "POST" });
 
             result.textContent = run.summary;
+
+            loadDashboard();
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupSelfCheckForm(){
+
+    const form = document.getElementById("self-check-form");
+    const result = document.getElementById("self-check-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        result.textContent = "Checking...";
+
+        try {
+
+            const outcome = await authedFetch("/api/executive/self-check", { method: "POST" });
+
+            result.textContent = outcome.issuesFound
+                ? `Found ${outcome.issuesFound} issue(s) -- recommendations generated.`
+                : "No issues found.";
 
             loadDashboard();
 
@@ -1214,6 +1261,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupArtifactForm();
     setupProjectLookupForm();
     setupConsolidateForm();
+    setupSelfCheckForm();
     setupRecommendForm();
     setupAutomationRunForm();
     setupCollabMessageForm();

@@ -55,6 +55,13 @@
       "module": "core/memory/embeddings.js",
       "status": "active",
       "description": "Embedding-based (OpenAI) semantic memory search, additive to keyword search. Requires OPENAI_API_KEY and an explicit reindex; falls back to keyword search everywhere (including the Persistent Context Engine) when unconfigured or on any embedding-call failure."
+    },
+    {
+      "id": "self-monitor",
+      "name": "Self-Monitoring Loop",
+      "module": "core/executive/selfMonitor.js",
+      "status": "active",
+      "description": "Hourly automation job: checks for overdue projects (ExecutivePlanner) and a high failure rate (LearningEngine), and only if something's found, generates optimization recommendations. Detection and recommendation only -- no autonomous remediating action."
     }
   ]
 }

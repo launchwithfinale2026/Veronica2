@@ -1365,3 +1365,79 @@ got built, not a rebuild of what already worked. Built 2026-07-22
   embedding provider (only OpenAI; Claude has no embeddings API to fall
   back to, and adding a second provider without a concrete second need is
   the same premature-complexity trap this project avoids everywhere else).
+
+---
+
+## Autonomous Operations (`core/executive/selfMonitor.js`)
+
+**Decision:** a self-monitoring loop that detects problems and generates
+recommendations about them, and deliberately stops there — no autonomous
+remediating action. Built 2026-07-22 (Intelligence Layer milestone, Phase
+15 of 18, and the last phase this milestone specified by number; Phases
+16+ are this project's own judgment about what a genuine AI operating
+system still needs, continued in later sections below).
+
+- **Scoping the "autonomous" part carefully, on purpose**: "planning,"
+  "task execution," and most of "improvement loops" already existed
+  going into this phase (`ExecutivePlanner`/`GoalDecomposer`, department
+  runs, `core/automation`'s job execution, `LearningEngine`'s
+  recommendations). The one genuinely new piece is tying them into a
+  periodic *self-check* — and the standing instruction for this entire
+  autonomous run was explicit: stop for anything destructive or requiring
+  human approval. Autonomously *detecting* a problem and *asking for a
+  recommendation* about it (calling `LearningEngine.recommend()`, which
+  already existed and does nothing destructive) is safe to run on a
+  schedule with nobody watching. Autonomously *acting* on that
+  recommendation — reassigning a project, canceling a job, changing
+  anything — is a real decision with real consequences and stays a human
+  one. `SelfMonitor.runSelfCheck()` never calls `reassignDepartment()`,
+  `updateStatus()`, or any other mutating executive method; it only
+  reads, flags, and (via the pre-existing recommend()) suggests.
+- **Three checks, thresholded to avoid noise**: overdue projects
+  (`ExecutivePlanner.evaluateDeadlines()` — any overdue project is worth
+  flagging, no threshold needed), a high failure rate
+  (`LearningEngine.overview()`, >30% failures, but only once at least 5
+  executions have been logged — flagging "100% failure rate" off a
+  sample of one execution would be a false alarm, not a signal), and
+  repeated permanent job failures (`AutomationEngine.history()`, ≥3
+  failed runs). Below every threshold, `runSelfCheck()` finds nothing and
+  skips the real `recommend()` API call entirely — the same cost-
+  conscious "skip when there's nothing to report" posture
+  `MemoryConsolidation`/`LearningEngine` already established.
+- **The automation-health check needed the live engine instance, not a
+  require()**: `SelfMonitor`'s constructor takes an `automationEngine`
+  parameter with *no* default via `require("../automation")` — unlike
+  `executive`/`learning`, which default to their ordinary facade
+  requires safely. The real scheduled self-monitor job is registered from
+  inside `core/automation/jobs.js`'s `registerBuiltInJobs(engine)`, which
+  runs *during* `core/automation/index.js`'s own top-level execution
+  (module.exports not yet assigned) — if `SelfMonitor` called
+  `require("../automation")` itself at that moment, it would re-enter
+  that exact module mid-load and get back an incomplete object, the same
+  circular-require bug class documented repeatedly since "Goal
+  Decomposition Engine." Fixed by passing the already-constructed
+  `engine` parameter directly instead. A dedicated regression test
+  (`tests/automation-engine.test.js`) requires the real
+  `core/automation` facade fresh and asserts all three built-in jobs
+  (including `self-monitor`) come back correctly scheduled, specifically
+  so a future revert of this wiring fails loudly here instead of
+  surfacing as a runtime crash.
+- **The facade's own `SelfMonitor` instance** (`core/executive/index.js`,
+  for manual triggers/read access via terminal/dashboard/tools) hit the
+  identical self-reference risk one level up: constructing it inside
+  `core/executive/index.js` itself, while *that* module is still
+  mid-load, means `executive: require("../executive")` would resolve to
+  the same incomplete object. Fixed by passing a minimal inline object
+  exposing only the one method (`evaluateDeadlines`) `SelfMonitor`
+  actually calls, rather than the full facade. This facade instance has
+  no `automationEngine` attached, so its automation-health check is a
+  no-op there by design — full self-monitoring (all three checks) is
+  only available through the real scheduled job.
+- Not built: any autonomous remediation (see above — the standing
+  instruction not to automate destructive/consequential decisions is a
+  hard boundary here, not a "future work" placeholder), configurable
+  thresholds (the three constants are fixed, not exposed via env
+  vars/config yet — no concrete need shown for tuning them per-
+  installation), and expanding the checks beyond these three signals
+  (e.g. company financial health, knowledge graph staleness) without a
+  concrete case for what "unhealthy" means there yet.
