@@ -20,6 +20,7 @@
 
 const memory = require("../memory");
 const learningLog = require("../learning/log");
+const eventIngestion = require("../integrations/eventIngestion");
 const ExecutivePlanner = require("./planner");
 const ProjectManager = require("./projectManager");
 const GoalDecomposer = require("./decomposer");
@@ -118,6 +119,24 @@ class DailyReviewEngine {
     }
 
 
+    // Phase 19: everything ingested from an external connector today --
+    // reuses core/integrations/eventIngestion.js's recentEvents() rather
+    // than re-reading memory directly.
+    externalEventsToday(){
+
+        return eventIngestion.recentEvents({})
+            .filter(entry => isToday(entry.metadata.occurredAt))
+            .map(entry => ({
+                id: entry.id,
+                source: entry.metadata.source,
+                kind: entry.metadata.kind,
+                summary: entry.content,
+                occurredAt: entry.metadata.occurredAt
+            }));
+
+    }
+
+
     // A same-day preview of what tomorrow's morning briefing will open
     // with -- reuses Phase 11's live priority ranking rather than a
     // second calculation.
@@ -138,7 +157,8 @@ class DailyReviewEngine {
             failed: this.failedToday(),
             learned: this.learnedToday(),
             newMemoriesCount: this.newMemoriesToday(),
-            tomorrowPriorities: this.tomorrowPriorities()
+            tomorrowPriorities: this.tomorrowPriorities(),
+            externalEvents: this.externalEventsToday()
         };
 
     }

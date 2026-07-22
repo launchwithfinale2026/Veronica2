@@ -17,6 +17,7 @@
 // history to look back over -- not a live-only view.
 
 const memory = require("../memory");
+const eventIngestion = require("../integrations/eventIngestion");
 const ExecutivePlanner = require("./planner");
 const ProjectManager = require("./projectManager");
 const PriorityRanking = require("./priorityRanking");
@@ -29,6 +30,14 @@ const BRIEFING_TAG = "executive-briefing";
 // How many top-ranked items the briefing surfaces -- an operator's
 // morning read should be short, not the entire roadmap.
 const TOP_PRIORITIES_LIMIT = 5;
+
+// Phase 19: everything ingested from an external connector since
+// yesterday's briefing -- a new email, GitHub PR, Discord command,
+// calendar meeting, Drive document. Same 24h window as this briefing's
+// own daily cadence (see DAILY_BRIEFING_INTERVAL_MS in
+// core/automation/jobs.js).
+const EXTERNAL_EVENTS_WINDOW_MS = 24 * 60 * 60 * 1000;
+const EXTERNAL_EVENTS_LIMIT = 20;
 
 
 class DailyBriefingEngine {
@@ -68,6 +77,26 @@ class DailyBriefingEngine {
     }
 
 
+    // "Executive awareness" of external connector activity (Phase 19) --
+    // reuses core/integrations/eventIngestion.js's recentEvents() rather
+    // than re-reading memory directly, same "one shared read path" this
+    // pipeline exists for.
+    externalEvents(){
+
+        return eventIngestion.recentEvents({
+            since: new Date(Date.now() - EXTERNAL_EVENTS_WINDOW_MS).toISOString(),
+            limit: EXTERNAL_EVENTS_LIMIT
+        }).map(entry => ({
+            id: entry.id,
+            source: entry.metadata.source,
+            kind: entry.metadata.kind,
+            summary: entry.content,
+            occurredAt: entry.metadata.occurredAt
+        }));
+
+    }
+
+
     // Assembles the briefing's contents WITHOUT persisting -- exposed
     // separately so a caller (or a test) can inspect what would be
     // generated without adding to the daily history.
@@ -91,7 +120,8 @@ class DailyBriefingEngine {
             // standalone executive.recommendations() call are always
             // computed identically -- persisted separately below via
             // recommendationEngine.run(), not duplicated here.
-            recommendations: this.recommendationEngine.generate()
+            recommendations: this.recommendationEngine.generate(),
+            externalEvents: this.externalEvents()
         };
 
     }

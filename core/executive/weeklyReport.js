@@ -15,6 +15,7 @@
 // memory entry, tagged "executive-weekly-report".
 
 const memory = require("../memory");
+const eventIngestion = require("../integrations/eventIngestion");
 const ExecutivePlanner = require("./planner");
 const GoalDecomposer = require("./decomposer");
 const ProjectManager = require("./projectManager");
@@ -130,6 +131,26 @@ class WeeklyOperatingReport {
     }
 
 
+    // Phase 19: every external connector event ingested within the
+    // window, grouped by source -- reuses
+    // core/integrations/eventIngestion.js's recentEvents() rather than
+    // re-reading memory directly.
+    externalEventsThisWindow(sinceTime){
+
+        const events = eventIngestion.recentEvents({ since: new Date(sinceTime).toISOString() });
+
+        const bySource = {};
+
+        for(const event of events){
+            const source = event.metadata.source;
+            bySource[source] = (bySource[source] || 0) + 1;
+        }
+
+        return { total: events.length, bySource };
+
+    }
+
+
     // Reuses already-persisted history rather than re-running anything
     // -- a weekly report describes what already happened, it doesn't
     // trigger new consolidation/self-monitor/briefing runs itself.
@@ -148,6 +169,7 @@ class WeeklyOperatingReport {
         const completed = this.completedThisWindow(sinceTime);
         const newProjects = this.newProjectsThisWindow(sinceTime);
         const blockersEncountered = this.blockersEncounteredThisWindow(sinceTime);
+        const externalEvents = this.externalEventsThisWindow(sinceTime);
 
         const briefingsThisWeek = this.withinWindow(this.dailyBriefingEngine.history(50), sinceTime);
         const recommendationsThisWeek = this.withinWindow(this.recommendationEngine.history(50), sinceTime);
@@ -166,6 +188,7 @@ class WeeklyOperatingReport {
             completed,
             newProjects,
             blockersEncountered,
+            externalEvents,
 
             briefingsGenerated: briefingsThisWeek.length,
 

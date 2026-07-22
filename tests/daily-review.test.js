@@ -43,6 +43,7 @@ const PriorityRanking = require("../core/executive/priorityRanking");
 const ExecutiveRecommendationEngine = require("../core/executive/executiveRecommendations");
 const DailyReviewEngine = require("../core/executive/dailyReview");
 const DailyCycleEngine = require("../core/executive/dailyCycle");
+const eventIngestion = require("../core/integrations/eventIngestion");
 
 function scopedPlanner(realPlanner, allowedIds){
     return {
@@ -137,6 +138,26 @@ test("newMemoriesToday() counts at least the entries created in this test run (d
     const after = review.newMemoriesToday();
 
     assert.strictEqual(after, before + 1);
+
+});
+
+
+test("externalEventsToday() surfaces today's ingested external connector events (Phase 19 executive awareness)", () => {
+
+    const review = new DailyReviewEngine({ planner: new ExecutivePlanner() });
+
+    eventIngestion.ingest({
+        source: "discord",
+        kind: "command",
+        summary: "Discord command /status XQZREV6"
+    });
+
+    const events = review.externalEventsToday();
+    const match = events.find(e => e.summary.includes("XQZREV6"));
+
+    assert.ok(match);
+    assert.strictEqual(match.source, "discord");
+    assert.strictEqual(match.kind, "command");
 
 });
 

@@ -26,6 +26,7 @@ const ExecutivePlanner = require("../core/executive/planner");
 const GoalDecomposer = require("../core/executive/decomposer");
 const ProjectManager = require("../core/executive/projectManager");
 const WeeklyOperatingReport = require("../core/executive/weeklyReport");
+const eventIngestion = require("../core/integrations/eventIngestion");
 
 function scopedPlanner(realPlanner, allowedIds){
     return {
@@ -78,6 +79,23 @@ test("newProjectsThisWindow() reflects only projects created within the window (
 
     assert.strictEqual(newProjects.length, 1);
     assert.strictEqual(newProjects[0].id, project.id);
+
+});
+
+
+test("externalEventsThisWindow() counts ingested external events within the window, grouped by source (Phase 19 executive awareness)", () => {
+
+    const report = new WeeklyOperatingReport({ planner: new ExecutivePlanner() });
+    const since = report.windowStart().getTime();
+
+    eventIngestion.ingest({ source: "github", kind: "issue", summary: "Issue XQZWEEK6" });
+    eventIngestion.ingest({ source: "gmail", kind: "email", summary: "Email XQZWEEK6" });
+
+    const result = report.externalEventsThisWindow(since);
+
+    assert.ok(result.total >= 2);
+    assert.ok(result.bySource.github >= 1);
+    assert.ok(result.bySource.gmail >= 1);
 
 });
 

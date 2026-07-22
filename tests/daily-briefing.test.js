@@ -29,6 +29,7 @@ const GoalMonitor = require("../core/executive/goalMonitor");
 const BlockerDetector = require("../core/executive/blockerDetection");
 const ExecutiveRecommendationEngine = require("../core/executive/executiveRecommendations");
 const DailyBriefingEngine = require("../core/executive/dailyBriefing");
+const eventIngestion = require("../core/integrations/eventIngestion");
 
 function scopedPlanner(realPlanner, allowedIds){
     return {
@@ -76,6 +77,30 @@ test("generate() assembles a roadmap summary, top priorities, goal issues, block
     assert.ok(Array.isArray(result.goalIssues.stalledProjects));
     assert.ok(Array.isArray(result.blockers.deadlockedProjects));
     assert.ok(Array.isArray(result.recommendations));
+
+});
+
+
+test("generate() surfaces recent external connector events (Phase 19 executive awareness)", () => {
+
+    const realPlanner = new ExecutivePlanner();
+    const project = realPlanner.plan({ title: "Briefing external-events project XQZBRIEF5", department: "ares", priority: 3 });
+
+    const scoped = scopedPlanner(realPlanner, [project.id]);
+    const briefing = makeBriefingEngine(scoped);
+
+    eventIngestion.ingest({
+        source: "github",
+        kind: "pull_request",
+        summary: "New PR XQZBRIEF5: fix flaky test"
+    });
+
+    const result = briefing.generate();
+
+    const match = result.externalEvents.find(e => e.summary.includes("XQZBRIEF5"));
+    assert.ok(match);
+    assert.strictEqual(match.source, "github");
+    assert.strictEqual(match.kind, "pull_request");
 
 });
 
