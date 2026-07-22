@@ -272,6 +272,32 @@
     </div>
   </section>
 
+  <section class="panel panel-wide">
+    <h2>Mission Engine (Phase 31)</h2>
+    <p class="hint">"I want a $5,000/month online business" -- define an objective, VERONICA creates a real project, decomposes it into milestones/tasks (a real, billed LLM call), and runs a real capability-gap analysis.</p>
+    <div class="widget-group">
+      <h3>Define a mission</h3>
+      <form id="mission-define-form" class="stacked-form">
+        <input type="text" id="mission-objective" placeholder="Objective" required>
+        <input type="text" id="mission-department" placeholder="Department id (default: ares)">
+        <button type="submit">Define mission</button>
+      </form>
+      <pre id="mission-define-result" class="hint"></pre>
+    </div>
+    <div class="widget-group">
+      <h3>Mission history</h3>
+      <div id="mission-history" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Mission status</h3>
+      <form id="mission-status-form" class="stacked-form">
+        <input type="text" id="mission-status-id" placeholder="Mission id" required>
+        <button type="submit">Check status</button>
+      </form>
+      <pre id="mission-status-result" class="hint"></pre>
+    </div>
+  </section>
+
   <section class="panel">
     <h2>Learning</h2>
     <div class="widget-group">

@@ -768,7 +768,8 @@ async function loadDashboard(){
             loadCapabilityMarketplace(),
             loadSemanticSearchStatus(),
             loadCompanies(),
-            loadResearchHistory()
+            loadResearchHistory(),
+            loadMissionHistory()
         ]);
 
     } catch(error){
@@ -1985,6 +1986,78 @@ function setupSelfImprovementButton(){
 }
 
 
+async function loadMissionHistory(){
+
+    const missions = await fetchJSON("/api/executive/missions");
+
+    renderList(
+        "mission-history",
+        missions,
+        "No missions defined yet.",
+        mission => `[${new Date(mission.created).toLocaleString()}] ${mission.objective} (id ${mission.id}, project ${mission.projectId})`
+    );
+
+}
+
+
+function setupMissionDefineForm(){
+
+    const form = document.getElementById("mission-define-form");
+    const result = document.getElementById("mission-define-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const objective = document.getElementById("mission-objective").value;
+        const department = document.getElementById("mission-department").value || undefined;
+
+        result.textContent = "Defining mission (real project + real decomposition + capability analysis)...";
+
+        try {
+
+            const mission = await authedFetch("/api/executive/missions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ objective, department })
+            });
+
+            result.textContent = `Mission ${mission.id} created. Project ${mission.projectId}. Domain: ${mission.capabilityAnalysis.domain || "none matched"}. Estimated: ${mission.timeline.totalEstimatedDays} day(s).`;
+
+            await loadMissionHistory();
+
+        } catch(error){
+            result.textContent = `Error: ${error.message}`;
+        }
+
+    });
+
+}
+
+
+function setupMissionStatusForm(){
+
+    const form = document.getElementById("mission-status-form");
+    const result = document.getElementById("mission-status-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const id = document.getElementById("mission-status-id").value;
+
+        try {
+            const status = await fetchJSON(`/api/executive/missions/${encodeURIComponent(id)}/status`);
+            result.textContent = JSON.stringify(status, null, 2);
+        } catch(error){
+            result.textContent = `Error: ${error.message}`;
+        }
+
+    });
+
+}
+
+
 // --- Live updates (Server-Sent Events) ------------------------------------
 //
 // Replaces interval polling: GET /api/events streams memory/knowledge
@@ -2127,6 +2200,8 @@ document.addEventListener("DOMContentLoaded", () => {
     setupCapabilityBuildForm();
     setupResearchForm();
     setupSelfImprovementButton();
+    setupMissionDefineForm();
+    setupMissionStatusForm();
 
     populateDepartmentSelect("department-select");
     populateDepartmentSelect("plan-department", { includeAuto: true });

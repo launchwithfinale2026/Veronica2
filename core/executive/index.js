@@ -24,6 +24,7 @@ const WeeklyOperatingReport = require("./weeklyReport");
 const DailyReviewEngine = require("./dailyReview");
 const DailyCycleEngine = require("./dailyCycle");
 const ActionProposalEngine = require("./actionProposal");
+const MissionEngine = require("./missionEngine");
 
 const planner = new ExecutivePlanner();
 const decomposer = new GoalDecomposer({ planner });
@@ -50,6 +51,11 @@ const dailyCycle = new DailyCycleEngine({ briefingEngine: dailyBriefingEngine, r
 // Proposal -> Approval -> Execution. No autonomous external action
 // without approval; see actionProposal.js's own header comment.
 const actionProposalEngine = new ActionProposalEngine({ planner, projectManager, recommendationEngine, blockerDetector });
+
+// Phase 31 (Mission Engine) -- composes the SAME planner/projectManager/
+// decomposer/recommendationEngine instances this facade already
+// constructed above, rather than each mission building its own.
+const missionEngine = new MissionEngine({ planner, projectManager, decomposer, recommendationEngine });
 
 // SelfMonitor's constructor would otherwise default `executive` to
 // require("../executive") -- this exact file, still mid-load right now.
@@ -166,6 +172,15 @@ module.exports = {
     // See core/executive/actionProposal.js's executeExternal() for why
     // this is a separate method rather than making execute() itself
     // async.
-    executeExternalProposal: (id) => actionProposalEngine.executeExternal(id)
+    executeExternalProposal: (id) => actionProposalEngine.executeExternal(id),
+
+    // Phase 31 -- Mission Engine.
+    defineMission: (objective, options) => missionEngine.defineMission(objective, options),
+
+    missionStatus: (id) => missionEngine.status(id),
+
+    missionRecommendations: (id) => missionEngine.recommendNextActions(id),
+
+    missionHistory: (limit) => missionEngine.history(limit)
 
 };

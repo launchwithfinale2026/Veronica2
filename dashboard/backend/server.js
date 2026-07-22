@@ -250,6 +250,8 @@ const ROUTES = {
 
     "GET /api/executive/proposals": (searchParams) => executive.listProposals(searchParams.get("status") || undefined),
 
+    "GET /api/executive/missions": (searchParams) => executive.missionHistory(Number(searchParams.get("limit")) || 10),
+
     "GET /api/executive/report": () => orchestrator.report(),
 
     "GET /api/companies": () => executive.listCompanies(),
@@ -783,6 +785,41 @@ function createServer(){
 
                 return sendJSON(res, 200, executive.dailyReview());
 
+            }
+
+            // Phase 31 (Mission Engine): "I want a $5,000/month online
+            // business" -> a real project + real decomposition + real
+            // capability-gap analysis + a rough timeline, one persisted
+            // mission. A real, billed LLM call (decomposition) -- gated
+            // like every other action with a real cost.
+            if(parsed.pathname === "/api/executive/missions" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { objective, department, priority, deadline } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!objective){
+                    return sendJSON(res, 400, { error: "objective is required" });
+                }
+
+                return sendJSON(res, 200, await executive.defineMission(objective, { department, priority, deadline }));
+
+            }
+
+            const missionStatusMatch = parsed.pathname.match(/^\/api\/executive\/missions\/([^/]+)\/status$/);
+
+            if(missionStatusMatch && req.method === "GET"){
+                return sendJSON(res, 200, executive.missionStatus(decodeURIComponent(missionStatusMatch[1])));
+            }
+
+            const missionRecommendMatch = parsed.pathname.match(/^\/api\/executive\/missions\/([^/]+)\/recommendations$/);
+
+            if(missionRecommendMatch && req.method === "GET"){
+                return sendJSON(res, 200, executive.missionRecommendations(decodeURIComponent(missionRecommendMatch[1])));
             }
 
             // Phase 15 -- Controlled Autonomy: Observation ->
