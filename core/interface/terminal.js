@@ -193,6 +193,14 @@ executive.weeklyOperatingReport
 
 executive.weeklyOperatingReportHistory
 
+executive.dailyReview
+
+executive.dailyReviewHistory
+
+executive.runMorningCycle
+
+executive.runEveningCycle
+
 learning.overview
 
 learning.departments
@@ -817,6 +825,38 @@ Recommended focus: ${summary.recommendedFocus ? `${summary.recommendedFocus.titl
         }
 
 
+        // PHASE 14 -- GENERATE + PERSIST TODAY'S EVENING REVIEW
+        else if (command === "executive.dailyReview") {
+
+            console.log(executive.dailyReview());
+
+        }
+
+
+        // PHASE 14 -- DAILY REVIEW HISTORY
+        else if (command === "executive.dailyReviewHistory") {
+
+            console.log(executive.dailyReviewHistory());
+
+        }
+
+
+        // PHASE 14 -- RUN THE MORNING HALF OF THE DAILY CYCLE ON DEMAND
+        else if (command === "executive.runMorningCycle") {
+
+            console.log(executive.runMorningCycle());
+
+        }
+
+
+        // PHASE 14 -- RUN THE EVENING HALF OF THE DAILY CYCLE ON DEMAND
+        else if (command === "executive.runEveningCycle") {
+
+            console.log(executive.runEveningCycle());
+
+        }
+
+
         // LEARNING OVERVIEW
         else if (command === "learning.overview") {
 
@@ -1087,6 +1127,10 @@ executive.dailyBriefingHistory
 executive.weeklyOperatingReport
 
 executive.weeklyOperatingReportHistory
+executive.dailyReview
+executive.dailyReviewHistory
+executive.runMorningCycle
+executive.runEveningCycle
 learning.overview
 learning.departments
 learning.agents

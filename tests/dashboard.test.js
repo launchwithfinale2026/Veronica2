@@ -548,6 +548,7 @@ const ALL_POST_ROUTES = [
     "/api/executive/recommendations",
     "/api/executive/daily-briefing",
     "/api/executive/weekly-report",
+    "/api/executive/daily-review",
     "/api/learning/recommend",
     "/api/automation/jobs/test-job/run",
     "/api/collaboration/message",

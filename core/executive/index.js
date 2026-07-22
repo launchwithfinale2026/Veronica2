@@ -21,6 +21,8 @@ const BlockerDetector = require("./blockerDetection");
 const ExecutiveRecommendationEngine = require("./executiveRecommendations");
 const DailyBriefingEngine = require("./dailyBriefing");
 const WeeklyOperatingReport = require("./weeklyReport");
+const DailyReviewEngine = require("./dailyReview");
+const DailyCycleEngine = require("./dailyCycle");
 
 const planner = new ExecutivePlanner();
 const decomposer = new GoalDecomposer({ planner });
@@ -37,6 +39,11 @@ const blockerDetector = new BlockerDetector({ planner, projectManager });
 const recommendationEngine = new ExecutiveRecommendationEngine({ planner, projectManager, priorityRanking, goalMonitor, blockerDetector });
 const dailyBriefingEngine = new DailyBriefingEngine({ planner, projectManager, priorityRanking, goalMonitor, blockerDetector, recommendationEngine });
 const weeklyReport = new WeeklyOperatingReport({ planner, projectManager, dailyBriefingEngine, recommendationEngine, consolidation });
+
+// Phase 14 (Daily Operating System) -- the evening half of the daily
+// cycle, plus a thin orchestrator over both halves.
+const dailyReviewEngine = new DailyReviewEngine({ planner, projectManager, priorityRanking, recommendationEngine });
+const dailyCycle = new DailyCycleEngine({ briefingEngine: dailyBriefingEngine, reviewEngine: dailyReviewEngine });
 
 // SelfMonitor's constructor would otherwise default `executive` to
 // require("../executive") -- this exact file, still mid-load right now.
@@ -124,6 +131,16 @@ module.exports = {
 
     weeklyOperatingReport: () => weeklyReport.run(),
 
-    weeklyOperatingReportHistory: (limit) => weeklyReport.history(limit)
+    weeklyOperatingReportHistory: (limit) => weeklyReport.history(limit),
+
+    // Phase 14 -- Daily Operating System. dailyBriefing() above IS the
+    // morning half; these add the evening half and a combined view.
+    dailyReview: () => dailyReviewEngine.run(),
+
+    dailyReviewHistory: (limit) => dailyReviewEngine.history(limit),
+
+    runMorningCycle: () => dailyCycle.runMorning(),
+
+    runEveningCycle: () => dailyCycle.runEvening()
 
 };

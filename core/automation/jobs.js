@@ -25,6 +25,14 @@ const SELF_MONITOR_INTERVAL_MS = 60 * 60 * 1000; // hourly -- cheap to run (skip
 const DAILY_BRIEFING_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const WEEKLY_REPORT_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 
+// Phase 14 (Daily Operating System) -- the evening half of the daily
+// cycle. Same 24h cadence as daily-briefing: core/automation/engine.js's
+// scheduler is purely interval-based (no time-of-day concept), so there
+// is no real "morning" vs. "evening" clock distinction to wire yet --
+// both just run every 24h from whenever each was first registered. See
+// core/executive/dailyCycle.js's header comment.
+const DAILY_REVIEW_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
 // Every 5 minutes -- unlike the three jobs above, each run of this one
 // can make a real, billed department.run() call (a genuine LLM
 // reasoning pass) if any task is ready. Conservative on purpose: this is
@@ -49,6 +57,7 @@ function registerBuiltInJobs(engine){
     engine.registerJob("learning-recommend", () => learning.recommend());
     engine.registerJob("daily-briefing", () => executive.dailyBriefing());
     engine.registerJob("weekly-report", () => executive.weeklyOperatingReport());
+    engine.registerJob("daily-review", () => executive.dailyReview());
 
     // `engine` here is the live AutomationEngine instance this very
     // function was called with -- passed directly to SelfMonitor rather
@@ -65,6 +74,7 @@ function registerBuiltInJobs(engine){
     engine.schedule("self-monitor", SELF_MONITOR_INTERVAL_MS);
     engine.schedule("daily-briefing", DAILY_BRIEFING_INTERVAL_MS);
     engine.schedule("weekly-report", WEEKLY_REPORT_INTERVAL_MS);
+    engine.schedule("daily-review", DAILY_REVIEW_INTERVAL_MS);
 
 }
 

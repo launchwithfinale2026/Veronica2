@@ -313,6 +313,28 @@ async function loadWeeklyReport(){
 }
 
 
+async function loadDailyReview(){
+
+    const history = await fetchJSON("/api/executive/daily-reviews");
+    const latest = history[0];
+
+    const container = document.getElementById("daily-review");
+    container.innerHTML = "";
+
+    if(!latest){
+        container.appendChild(el("p", { className: "empty", textContent: "No daily review generated yet." }));
+        return;
+    }
+
+    const topPriority = latest.tomorrowPriorities[0];
+
+    container.appendChild(el("p", {
+        textContent: `[${new Date(latest.date).toLocaleDateString()}] ${latest.completed.length} completed, ${latest.failed.length} failed, ${latest.learned.length} learned, ${latest.newMemoriesCount} new memories -- tomorrow's top priority: ${topPriority ? topPriority.title : "(none)"}`
+    }));
+
+}
+
+
 async function loadLearningOverview(){
 
     const overview = await fetchJSON("/api/learning/overview");
@@ -535,6 +557,7 @@ async function loadDashboard(){
             loadExecutiveRecommendations(),
             loadDailyBriefing(),
             loadWeeklyReport(),
+            loadDailyReview(),
             loadLearningOverview(),
             loadLearningDepartments(),
             loadLearningTools(),
@@ -1101,6 +1124,36 @@ function setupWeeklyReportForm(){
 }
 
 
+function setupDailyReviewForm(){
+
+    const form = document.getElementById("daily-review-form");
+    const result = document.getElementById("daily-review-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        result.textContent = "Generating...";
+
+        try {
+
+            const review = await authedFetch("/api/executive/daily-review", { method: "POST" });
+
+            result.textContent = review.summary;
+
+            loadDashboard();
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
 function setupSelfCheckForm(){
 
     const form = document.getElementById("self-check-form");
@@ -1607,6 +1660,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupRecommendationsForm();
     setupDailyBriefingForm();
     setupWeeklyReportForm();
+    setupDailyReviewForm();
     setupRecommendForm();
     setupAutomationRunForm();
     setupCollabMessageForm();

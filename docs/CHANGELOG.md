@@ -291,13 +291,31 @@ verified by actually booting the terminal.
 
 9 new tests. Wired into tools/dashboard/terminal.
 
+## Phase 14 -- Daily Operating System
+
+Full design reasoning in `docs/Architecture.md`'s "Phase 14 -- Daily
+Operating System". Adds the evening half of the daily cycle Phase 11's
+morning briefing was always one half of: `core/executive/dailyReview.js`'s
+`DailyReviewEngine` (completed/failed/learned today, new memories
+today, tomorrow's top-priority preview) and
+`core/executive/dailyCycle.js`'s thin `DailyCycleEngine` orchestrator
+over both halves.
+
+Documented, not faked: `AutomationEngine`'s scheduler has no time-of-day
+concept, so `daily-briefing` and the new `daily-review` job both run on
+the same 24h interval rather than at real "morning"/"evening" clock
+times -- noted explicitly rather than pretended around.
+
+7 new tests. Wired into the executive facade, 4 new tools, dashboard,
+the `daily-review` automation job, and terminal commands.
+
 ## Totals
 
-- 14 commits across Phases 10-13 combined with the earlier 9, each with
+- 15 commits across Phases 10-14 combined with the earlier 9, each with
   `npm test` green before committing.
 - Test count: 210 -> 222 (end of the original 9-phase pass) -> 240 (end
   of Phase 10) -> 267 (end of Phase 11) -> 291 (end of Phase 12) -> 300
-  (end of Phase 13), all passing throughout.
+  (end of Phase 13) -> 307 (end of Phase 14), all passing throughout.
 - No existing test broken; no existing public API removed or changed
   incompatibly.
 

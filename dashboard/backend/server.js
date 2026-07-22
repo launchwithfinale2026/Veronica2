@@ -207,6 +207,8 @@ const ROUTES = {
 
     "GET /api/executive/weekly-reports": () => executive.weeklyOperatingReportHistory(),
 
+    "GET /api/executive/daily-reviews": () => executive.dailyReviewHistory(),
+
     "GET /api/executive/report": () => orchestrator.report(),
 
     "GET /api/companies": () => executive.listCompanies(),
@@ -631,6 +633,19 @@ function createServer(){
                 }
 
                 return sendJSON(res, 200, executive.weeklyOperatingReport());
+
+            }
+
+            // Phase 14 -- Daily Operating System (evening half).
+            if(parsed.pathname === "/api/executive/daily-review" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                return sendJSON(res, 200, executive.dailyReview());
 
             }
 

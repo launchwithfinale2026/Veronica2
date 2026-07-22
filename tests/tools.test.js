@@ -119,7 +119,7 @@ test("identity.hasPermission() matches permissionsForRole()", () => {
 
 });
 
-test("registry loads all 63 tools with real handlers", () => {
+test("registry loads all 67 tools with real handlers", () => {
 
     const list = tools.list();
     const ids = list.map(t => t.id).sort();
@@ -143,6 +143,8 @@ test("registry loads all 63 tools with real handlers", () => {
         "executive.consolidationHistory",
         "executive.dailyBriefing",
         "executive.dailyBriefingHistory",
+        "executive.dailyReview",
+        "executive.dailyReviewHistory",
         "executive.deadlines",
         "executive.decompose",
         "executive.goalIssues",
@@ -153,6 +155,8 @@ test("registry loads all 63 tools with real handlers", () => {
         "executive.recommendationHistory",
         "executive.recommendations",
         "executive.roadmap",
+        "executive.runEveningCycle",
+        "executive.runMorningCycle",
         "executive.runSelfCheck",
         "executive.selfMonitorHistory",
         "executive.updateStatus",

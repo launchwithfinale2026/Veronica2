@@ -1991,3 +1991,48 @@ affected commands end to end.
 9 new tests (`tests/personal-context-engine.test.js`). Wired into the
 personal-context/tool/dashboard/terminal surfaces the same way every
 prior phase's capabilities were.
+
+---
+
+## Phase 14 — Daily Operating System
+
+**Goal:** the morning half of the daily cycle already existed (Phase
+11's `DailyBriefingEngine`) — this adds the evening half
+(`core/executive/dailyReview.js`'s `DailyReviewEngine`) and a thin
+orchestrator over both (`core/executive/dailyCycle.js`'s
+`DailyCycleEngine`), rather than rebuilding the morning side.
+
+**`DailyReviewEngine`** looks backward at today and one step forward to
+tomorrow: `completedToday()`/scans project/milestone/task history for
+`to === "completed"` transitions today (same technique
+`weeklyReport.js`'s `blockersEncounteredThisWindow()` already
+established); `failedToday()` reads real execution failures from
+`core/learning/log.js`'s raw telemetry (not memory — see that file's
+own header comment for why); `learnedToday()` surfaces today's actual
+recommendation details (Phase 11) rather than a fabricated "insight";
+`newMemoriesToday()` counts today's memory creations; `tomorrowPriorities()`
+reuses Phase 11's live priority ranking. Persisted with `type: "personal"`
+and tagged both `"daily-review"` and `"organizational"` — this phase's
+own framing said "organizational/personal," and a daily review is
+genuinely both: the operator's own end-of-day reflection, covering
+organizational activity.
+
+**`DailyCycleEngine`** is intentionally thin — `runMorning()`/`runEvening()`
+just delegate to the briefing/review engines. **Documented limitation,
+not a fake solution**: `core/automation/engine.js`'s scheduler is purely
+interval-based ("every N ms since last run"), with no time-of-day
+concept at all — there's no real "run at 8am" vs. "run at 6pm" to wire
+morning/evening into yet. Both `daily-briefing` and the new
+`daily-review` automation jobs run on the same 24h interval, just from
+whenever each was first registered. Real clock-time scheduling would
+need to be added to `AutomationEngine` itself; noted here rather than
+pretended around.
+
+7 new tests (`tests/daily-review.test.js`), covering every field
+(including the "presence"/"delta" assertion style for the two
+genuinely global scans — `failedToday()` over the shared execution log,
+`newMemoriesToday()` over the shared memory store — the same lesson
+learned in Phase 11's blocker detection tests) plus the cycle
+orchestrator. Wired into the executive facade, 4 new tools, dashboard
+(route + widget + trigger form), the `daily-review` automation job, and
+terminal commands.

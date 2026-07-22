@@ -97,6 +97,15 @@ module.exports = {
 
     "executive.weeklyOperatingReport": () => require("../../executive").weeklyOperatingReport(),
 
-    "executive.weeklyOperatingReportHistory": ({ limit } = {}) => require("../../executive").weeklyOperatingReportHistory(limit)
+    "executive.weeklyOperatingReportHistory": ({ limit } = {}) => require("../../executive").weeklyOperatingReportHistory(limit),
+
+    // Phase 14 -- Daily Operating System.
+    "executive.dailyReview": () => require("../../executive").dailyReview(),
+
+    "executive.dailyReviewHistory": ({ limit } = {}) => require("../../executive").dailyReviewHistory(limit),
+
+    "executive.runMorningCycle": () => require("../../executive").runMorningCycle(),
+
+    "executive.runEveningCycle": () => require("../../executive").runEveningCycle()
 
 };
