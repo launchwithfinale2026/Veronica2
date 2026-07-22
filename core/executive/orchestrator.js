@@ -24,15 +24,56 @@
 // consistent with planner.js's own reasoning for why department
 // assignment/prioritization is rule-based: cheap, synchronous,
 // deterministic, no extra network call or brain mock needed in tests.
+//
+// Access control (added to close the gap docs/PRODUCTION_READINESS.md
+// flagged: "CompanyContext's allowedRoles restriction is not enforced
+// by the main executive pipeline"): every executeTask() call now
+// authorizes itself before dispatching, validating four things --
+// companyId (does it name a real company, via CompanyManager.context()
+// throwing if not), identity (which role and which device is performing
+// this execution), role permissions (does that role hold
+// "execute_tools" at all -- see identity/roles.json), and the requested
+// action (a known, explicit action string, not free text) -- and, if
+// the task is company-scoped, the company's own allowedRoles
+// restriction (reusing core/executive/companyContext.js's existing
+// enforcement rather than duplicating it). A denial marks the task
+// "blocked" and returns a distinct "denied" outcome, the same shape
+// executeTask() already uses for a thrown department error, so callers
+// don't need special-case handling to tell "couldn't run" from
+// "wasn't allowed to run."
 
 const memory = require("../memory");
+const identity = require("../identity");
+const device = require("../device");
 const ExecutivePlanner = require("./planner");
 const GoalDecomposer = require("./decomposer");
 const ProjectManager = require("./projectManager");
+const CompanyManager = require("./companyManager");
+
+// The only action this pipeline performs today. Kept as an explicit,
+// validated set (rather than accepting any string) so a future action
+// must be deliberately added here, not silently accepted.
+const VALID_ACTIONS = ["execute_task"];
+
+// Default actor for autonomous/self-triggered execution (the automation
+// job, or a dashboard/terminal call that doesn't specify one): "the
+// system itself, acting in its executive capacity, from this device" --
+// there's no human login/session system for a more specific identity to
+// come from. An explicit `actor` (role and/or deviceRole) can always
+// override either half.
+function resolveActor(actor = {}){
+
+    return {
+        role: actor.role || "executive",
+        deviceRole: actor.deviceRole || device.currentIdentity().role
+    };
+
+}
+
 
 class ExecutiveOrchestrator {
 
-    constructor({ departments, planner, decomposer, projectManager } = {}){
+    constructor({ departments, planner, decomposer, projectManager, companyManager } = {}){
 
         if(!departments || !departments.length){
             throw new Error("ExecutiveOrchestrator requires real departments");
@@ -42,6 +83,48 @@ class ExecutiveOrchestrator {
         this.planner = planner || new ExecutivePlanner();
         this.decomposer = decomposer || new GoalDecomposer({ planner: this.planner });
         this.projectManager = projectManager || new ProjectManager({ planner: this.planner });
+        this.companyManager = companyManager || new CompanyManager({ planner: this.planner });
+
+    }
+
+
+    // The four validations docs/PRODUCTION_READINESS.md called for.
+    // Throws (rather than returning false) so the caller's existing
+    // try/catch dispatch pattern in executeTask() can treat a denial
+    // exactly like any other pre-dispatch failure -- one error path, not
+    // two.
+    authorizeExecution({ companyId, role, deviceRole, action }){
+
+        // Requested action: must be a known, explicit action.
+        if(!VALID_ACTIONS.includes(action)){
+            throw new Error(`Unknown action: "${action}"`);
+        }
+
+        // Role permissions: the acting role must hold execute_tools at
+        // all (see identity/roles.json) -- independent of any company
+        // scope.
+        if(!identity.hasPermission(role, "execute_tools")){
+            throw new Error(`Role "${role}" does not have "execute_tools" permission`);
+        }
+
+        // User/device identity: the executing device's own role must
+        // also hold execute_tools (see registry/devices.json) -- a
+        // phone-role device, for example, is read-only by design.
+        if(!device.permissionsForDeviceRole(deviceRole).includes("execute_tools")){
+            throw new Error(`Device role "${deviceRole}" does not have "execute_tools" permission`);
+        }
+
+        // companyId: if the task is company-scoped, companyManager.context()
+        // throws for an unknown company (validating companyId itself),
+        // and requirePermission() enforces that company's own
+        // allowedRoles restriction, if any (see companyContext.js) --
+        // the actual gap this closes. A task with no company at all
+        // (companyId undefined) has nothing further to check here.
+        if(companyId){
+            this.companyManager.context(companyId).requirePermission(role);
+        }
+
+        return true;
 
     }
 
@@ -129,7 +212,12 @@ class ExecutiveOrchestrator {
     // Dispatches one task to its assigned department, evaluates the
     // result, updates status, and cascades completion up to the
     // milestone/project if this was their last remaining task.
-    async executeTask(task){
+    //
+    // `actor` (optional) is who's performing this execution --
+    // { role, deviceRole }, defaulting per resolveActor() above.
+    // Authorization happens BEFORE the department is even looked up, so
+    // a denied task never reaches department.run() at all.
+    async executeTask(task, actor = {}){
 
         const departmentId = task.tags.find(tag => this.departments.some(dept => dept.id === tag));
 
@@ -137,16 +225,33 @@ class ExecutiveOrchestrator {
             throw new Error(`Task "${task.id}" has no department tag`);
         }
 
-        const department = this.findDepartment(departmentId);
-
-        this.projectManager.updateStatus(task.id, "in_progress", `Dispatched to ${departmentId}`);
-
         // Company-scoped tasks (see decomposer.js's persistTask()) get a
         // company-scoped reasoning context -- see core/context/engine.js's
         // searchMemories() for why this matters: without it, this
         // dispatch would reason over the ENTIRE shared memory store
         // regardless of which company (if any) the task belongs to.
         const companyId = task.metadata.company || undefined;
+
+        const { role, deviceRole } = resolveActor(actor);
+
+        try {
+            this.authorizeExecution({ companyId, role, deviceRole, action: "execute_task" });
+        } catch(authError){
+
+            this.projectManager.updateStatus(task.id, "blocked", `Access denied: ${authError.message}`);
+
+            return {
+                task: task.id,
+                department: departmentId,
+                outcome: "denied",
+                error: authError.message
+            };
+
+        }
+
+        const department = this.findDepartment(departmentId);
+
+        this.projectManager.updateStatus(task.id, "in_progress", `Dispatched to ${departmentId}`);
 
         let result;
 
@@ -237,7 +342,7 @@ class ExecutiveOrchestrator {
     // unbounded synchronous loop, and the automation engine's own
     // recurring schedule already provides the cadence for picking up the
     // next one.
-    async runNextReadyTask(){
+    async runNextReadyTask(actor = {}){
 
         const next = this.nextReadyTask();
 
@@ -245,7 +350,7 @@ class ExecutiveOrchestrator {
             return { ranTask: false };
         }
 
-        const outcome = await this.executeTask(next.task);
+        const outcome = await this.executeTask(next.task, actor);
 
         return { ranTask: true, project: next.project.id, ...outcome };
 

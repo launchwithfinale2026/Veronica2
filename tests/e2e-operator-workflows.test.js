@@ -119,6 +119,13 @@ function mockDecomposerBrain(decomposer, responseObj){
     decomposer.intelligence.brain.provider.active = "claude";
 }
 
+// Explicit actor for every runNextReadyTask() call below -- deliberately
+// not relying on resolveActor()'s default (this machine's real, ambient
+// device.local.json role), so these workflows stay deterministic
+// regardless of what device role happens to be configured wherever they
+// run.
+const TEST_ACTOR = { role: "executive", deviceRole: "laptop" };
+
 // Same test-isolation technique as tests/executive-orchestrator.test.js:
 // a thin planner double scoping roadmap()/evaluateDeadlines() to just
 // this scenario's own project ids, so nextReadyTask()/report() (which
@@ -190,18 +197,18 @@ test("Workflow 1: an operator's goal moves from planning through decomposed, dep
     const beforeAnySend = orchestrator.nextReadyTask();
     assert.strictEqual(beforeAnySend.task.content, "Draft newsletter copy XQZE2E1");
 
-    const firstRun = await orchestrator.runNextReadyTask();
+    const firstRun = await orchestrator.runNextReadyTask(TEST_ACTOR);
     assert.strictEqual(firstRun.outcome, "success");
 
     // Second task is now unblocked -- re-mock the brain for its own response.
     mockDepartmentBrain(hermes, "Newsletter sent to the full list XQZE2E1");
-    const secondRun = await orchestrator.runNextReadyTask();
+    const secondRun = await orchestrator.runNextReadyTask(TEST_ACTOR);
     assert.strictEqual(secondRun.outcome, "success");
 
     // Pipeline's end state: nothing left ready, project cascaded to
     // completed, 100% progress, both responses persisted as artifacts,
     // both real memory entries updated to "completed".
-    const thirdRun = await orchestrator.runNextReadyTask();
+    const thirdRun = await orchestrator.runNextReadyTask(TEST_ACTOR);
     assert.strictEqual(thirdRun.ranTask, false);
 
     const finalProject = projectManager.getProject(project.id);
@@ -281,7 +288,7 @@ test("Workflow 2: a full company lifecycle -- staffed, projected, executed, and 
     const orchestrator = new ExecutiveOrchestrator({ departments: [hermes], planner: scoped, projectManager });
 
     mockDepartmentBrain(hermes, "Acme workspace provisioned XQZE2E2");
-    const run = await orchestrator.runNextReadyTask();
+    const run = await orchestrator.runNextReadyTask(TEST_ACTOR);
     assert.strictEqual(run.outcome, "success");
 
     // The operator's real company-detail view -- what GET /api/companies/:id
@@ -386,7 +393,7 @@ test("Workflow 4: the real automation engine drives task execution through regis
     // process-wide one, so this stays deterministic regardless of any
     // real pending work in the live system.
     const engine = new AutomationEngine();
-    engine.registerJob("execute-tasks", () => orchestrator.runNextReadyTask());
+    engine.registerJob("execute-tasks", () => orchestrator.runNextReadyTask(TEST_ACTOR));
 
     const firstTick = await engine.runNow("execute-tasks");
     assert.strictEqual(firstTick.ranTask, true);

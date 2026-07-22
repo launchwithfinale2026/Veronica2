@@ -149,6 +149,14 @@ function scopedPlanner(realPlanner, allowedIds){
 
 }
 
+// Explicit actor for every executeTask()/runNextReadyTask() call below
+// that isn't specifically testing authorization -- deliberately not
+// relying on resolveActor()'s default (which falls back to this
+// machine's real, ambient device.local.json role), so these tests stay
+// deterministic regardless of what device role happens to be configured
+// wherever they run.
+const TEST_ACTOR = { role: "executive", deviceRole: "laptop" };
+
 function makeHarness(){
 
     const themis = makeDepartment("themis", "DIKE");
@@ -251,7 +259,7 @@ test("executeTask() dispatches to the assigned department, completes the task, a
     const [task] = projectManager.tasksForProject(project.id);
     assert.strictEqual(task.metadata.status, "planned");
 
-    const outcome = await orchestrator.executeTask(task);
+    const outcome = await orchestrator.executeTask(task, TEST_ACTOR);
 
     assert.strictEqual(outcome.outcome, "success");
     assert.strictEqual(outcome.department, "themis");
@@ -287,6 +295,10 @@ test("executeTask() propagates a company-scoped task's company id to department.
 
     const { themis, orion, realPlanner } = makeHarness();
 
+    const CompanyManager = require("../core/executive/companyManager");
+    const companyManager = new CompanyManager({ planner: realPlanner });
+    const company = companyManager.createCompany({ name: "Audit Co XQZORCH7" });
+
     const { project, projectManager } = await planAndDecompose(realPlanner, {
         milestones: [
             {
@@ -296,16 +308,17 @@ test("executeTask() propagates a company-scoped task's company id to department.
                 ]
             }
         ]
-    }, { company: "xqz-audit-company-7" });
+    }, { company: company.id });
 
     const [task] = projectManager.tasksForProject(project.id);
 
-    assert.ok(task.tags.includes("company:xqz-audit-company-7"));
-    assert.strictEqual(task.metadata.company, "xqz-audit-company-7");
+    assert.ok(task.tags.includes(`company:${company.id}`));
+    assert.strictEqual(task.metadata.company, company.id);
 
-    // executeTask() only touches departments/projectManager, not planner
-    // -- omitted here (the constructor doesn't require it for this call).
-    const orchestrator = new ExecutiveOrchestrator({ departments: [themis, orion], projectManager });
+    // executeTask() only touches departments/projectManager/companyManager,
+    // not planner -- omitted here (the constructor doesn't require it
+    // for this call).
+    const orchestrator = new ExecutiveOrchestrator({ departments: [themis, orion], projectManager, companyManager });
 
     mockDepartmentBrain(themis, "Task XQZORCH7 completed by DIKE");
 
@@ -316,9 +329,9 @@ test("executeTask() propagates a company-scoped task's company id to department.
         return originalRun(taskText, context, options);
     };
 
-    await orchestrator.executeTask(task);
+    await orchestrator.executeTask(task, { role: "executive", deviceRole: "laptop" });
 
-    assert.deepStrictEqual(capturedOptions, { companyId: "xqz-audit-company-7" });
+    assert.deepStrictEqual(capturedOptions, { companyId: company.id });
 
 });
 
@@ -348,7 +361,7 @@ test("executeTask() marks the task blocked and returns a failure outcome when th
 
     const [task] = projectManager.tasksForProject(project.id);
 
-    const outcome = await orchestrator.executeTask(task);
+    const outcome = await orchestrator.executeTask(task, TEST_ACTOR);
 
     assert.strictEqual(outcome.outcome, "failure");
     assert.match(outcome.error, /simulated department failure XQZORCH4/);
@@ -422,7 +435,7 @@ test("nextReadyTask()/runNextReadyTask() respect dependency order and execute ex
     assert.strictEqual(first.task.content, "Task A XQZORCH5");
     assert.strictEqual(first.project.id, project.id);
 
-    const firstRun = await orchestrator.runNextReadyTask();
+    const firstRun = await orchestrator.runNextReadyTask(TEST_ACTOR);
     assert.strictEqual(firstRun.ranTask, true);
     assert.strictEqual(firstRun.outcome, "success");
 
@@ -430,12 +443,12 @@ test("nextReadyTask()/runNextReadyTask() respect dependency order and execute ex
     assert.ok(second);
     assert.strictEqual(second.task.content, "Task B XQZORCH5");
 
-    const secondRun = await orchestrator.runNextReadyTask();
+    const secondRun = await orchestrator.runNextReadyTask(TEST_ACTOR);
     assert.strictEqual(secondRun.ranTask, true);
 
     // Both tasks (this project's only milestone/tasks) are now completed,
     // so nothing is left ready within this test's scoped roadmap.
-    const thirdRun = await orchestrator.runNextReadyTask();
+    const thirdRun = await orchestrator.runNextReadyTask(TEST_ACTOR);
     assert.strictEqual(thirdRun.ranTask, false);
 
 });

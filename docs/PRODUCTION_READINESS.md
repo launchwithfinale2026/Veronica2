@@ -7,6 +7,15 @@ audit of permissions, company isolation, and tools. No new capabilities
 were added in this phase — everything below either validates existing
 behavior or fixes a bug found while validating it.
 
+**Update (Phase 10 follow-up):** the one finding in §2.2 below that
+called for a real fix rather than a documentation-only note —
+`CompanyContext`'s `allowedRoles` not being enforced by the main
+executive pipeline — has been fixed. See §2.1's new entry and
+`docs/Architecture.md`'s "Company access control in the executive
+pipeline" for the design. §2.2/§3 below are left in their original,
+"found but not yet fixed" form for the record, with a note pointing to
+the fix.
+
 **Verdict: ready for continued single-operator personal use. Not yet
 ready for multi-user or adversarial-input use** — see "Not production
 ready" below for the specific, load-bearing reasons why.
@@ -33,8 +42,9 @@ engine.
 
 Combined with the existing suite (unit/integration tests for every
 subsystem — executive, memory, knowledge, departments, collaboration,
-learning, automation, integrations, device, vision), the full test
-count is **230, all passing**.
+learning, automation, integrations, device, vision) and the 10
+company-access-control tests from the Phase 10 follow-up (§2.1), the
+full test count is **240, all passing**.
 
 ---
 
@@ -84,25 +94,47 @@ this audit.
 **Dead file removed.** `core/memory/memory.json` — no code referenced
 it; superseded by `database.json` long ago.
 
-### 2.2 Documented, not fixed (deliberately, and why)
+**`CompanyContext`'s `allowedRoles` restriction was not enforced by the
+main executive pipeline (fixed in a Phase 10 follow-up).**
+`ExecutivePlanner`, `GoalDecomposer`, `ProjectManager`, and
+`ExecutiveOrchestrator` all read/write memory directly — none of them
+routed through `CompanyManager.context()`, so a company created with
+`allowedRoles` restricted access *only* for a caller that deliberately
+constructed a `CompanyContext` itself, not the ordinary `executive.*`
+API a real operator session (or the autonomous execution job) actually
+uses. Fixed by `ExecutiveOrchestrator.authorizeExecution()`, called at
+the top of every `executeTask()` — before the department is even looked
+up — validating companyId (an unknown company throws), identity (the
+acting role and device role, resolved from an explicit `actor` or
+defaulting to `{ role: "executive", deviceRole:
+device.currentIdentity().role }`), role permissions
+(`identity.hasPermission(role, "execute_tools")`, and separately the
+device role's own), and the requested action (a small explicit set,
+`["execute_task"]` today, not an arbitrary string) — then, if the task
+is company-scoped, reuses the existing `CompanyContext.requirePermission()`
+check rather than duplicating it. A denial is caught and returned as a
+distinct `{ outcome: "denied" }` (marking the task `"blocked"`, not a
+permanent dead end — a retry with a permitted actor succeeds normally),
+the same shape a thrown `department.run()` error already produced for
+`"failure"`. See `docs/Architecture.md`'s "Company access control in
+the executive pipeline" for the full design, and
+`tests/company-access-control.test.js`'s 10 tests (every denial path
+independently, the allow paths, and two integration tests confirming a
+denial never reaches `department.run()`, verified with a spy).
 
-**`CompanyContext`'s `allowedRoles` restriction is not enforced by the
-main executive pipeline.** `ExecutivePlanner`, `GoalDecomposer`,
-`ProjectManager`, and `ExecutiveOrchestrator` all read/write memory
-directly — none of them route through `CompanyManager.context()`.
-`executive.companyContext(companyId)` is reachable from the facade but
-has **zero callers** anywhere in `dashboard/backend/server.js`,
-`core/interface/terminal.js`, or any tool handler today. In practice
-this means: creating a company with `allowedRoles` restricts access
-*only* for a caller that deliberately constructs a
-`CompanyContext` (as this audit's own tests do) — the ordinary
-`executive.*` API a real operator session actually uses enforces no
-company-level role check at all. This is a real gap, but retrofitting
-role checks across the entire executive pipeline is a structural
-change to how that pipeline works, not a bug fix — out of scope for a
-"no major features" validation phase. **Recommendation:** treat
-`allowedRoles` as not-yet-load-bearing until a follow-up phase wires it
-into the actual read/write paths, not just the standalone primitive.
+**Scope of the fix:** this closes the gap for the executive/orchestrator
+pipeline specifically (`pursue()` → `decompose()` →
+`executeTask()`/`runNextReadyTask()`) — what was actually flagged.
+Direct `DepartmentManager.run()` calls outside the orchestrator
+(`CollaborationEngine.delegate()`/`review()`/`consensus()`, the
+dashboard's direct `/api/departments/:id/run`) were never company-scoped
+in the first place, so there's nothing for this check to enforce there.
+This also doesn't add a real human-identity/session system —
+`resolveActor()`'s default (`"the system, acting for itself"`) is
+honest about what VERONICA actually models today (no login/session
+concept exists), not a stand-in for one.
+
+### 2.2 Documented, not fixed (deliberately, and why)
 
 **The knowledge graph has no company-level scoping at all.** Entities
 and relationships (`core/knowledge/index.js`) carry no company tag —
@@ -145,10 +177,8 @@ requirements.
 
 ## 3. Not production ready (specific, load-bearing reasons)
 
-1. **Company access control is a self-service primitive, not an
-   enforced boundary on the main pipeline** (2.2 above). Don't rely on
-   `allowedRoles` to actually restrict access to a company's projects/
-   tasks/status through the ordinary executive API today.
+1. ~~Company access control is a self-service primitive, not an enforced
+   boundary on the main pipeline~~ — **fixed**, see §2.1.
 2. **Knowledge graph has no company isolation.** A company's entities/
    relationships are visible to any caller that queries the graph,
    regardless of company scope.
@@ -164,6 +194,13 @@ requirements.
    other than the operator needs to be able to halt it quickly.
 6. **No browser-based visual verification** exists for the dashboard UI
    in this environment — endpoint- and syntax-level checks only.
+7. **No real human-identity/session system.** Every executive-pipeline
+   authorization (§2.1) resolves to "the system, acting for itself"
+   unless a caller explicitly passes a different actor — there's no
+   login, no per-human role assignment, and nothing in the dashboard/
+   terminal today actually supplies a non-default actor. The
+   enforcement mechanism is real; the identity behind it is still just
+   VERONICA acting on its own authority.
 
 ## 4. What IS ready
 
@@ -183,17 +220,24 @@ requirements.
   requiring `core/automation` never risks unattended execution).
 - Every dashboard write action fails closed without `API_TOKEN`; every
   outbound network call fails closed without `SERVICE_ALLOWLIST`.
-- 230 tests passing, covering every subsystem plus the 4 end-to-end
-  workflows above.
+- **Company-scoped task execution is authorized end to end**: companyId,
+  acting identity (role + device), role permissions, and the requested
+  action are all validated before a department ever runs a company-scoped
+  task, and a restricted company's `allowedRoles` is now actually
+  enforced by the pipeline that executes its work (§2.1).
+- 240 tests passing, covering every subsystem plus the 4 end-to-end
+  workflows and the 10 new access-control tests above.
 
 ## 5. Recommended next phase
 
-1. Decide whether `allowedRoles` should become load-bearing (wire
-   `CompanyContext` into the executive pipeline itself) or be removed
-   as a primitive that implies more protection than it delivers.
-2. Decide on the git-history question (2.1) before any wider sharing of
+1. Decide on the git-history question (2.1) before any wider sharing of
    this repository.
-3. Pick a concrete provider for at least one placeholder integration.
-4. If multi-operator or untrusted-input use is ever planned, close the
-   knowledge-graph isolation gap and add the symlink-escape hardening
-   already flagged in the v1 release audit (`docs/Architecture.md`).
+2. Pick a concrete provider for at least one placeholder integration.
+3. If multi-operator or untrusted-input use is ever planned, close the
+   knowledge-graph isolation gap (§2.2) and add the symlink-escape
+   hardening already flagged in the v1 release audit
+   (`docs/Architecture.md`).
+4. If VERONICA ever needs to distinguish between real human operators
+   (not just "the system acting for itself"), a login/session concept
+   would need to exist before `authorizeExecution()`'s identity check
+   means much more than it does today.

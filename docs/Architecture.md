@@ -1615,3 +1615,87 @@ each its own commit:
   cosmetic reorganization with real risk of introducing a mistake for
   no behavioral benefit, which conflicts with this pass's own "zero
   behavior change" constraint. Left alone.
+
+---
+
+## Company access control in the executive pipeline
+
+**Decision:** `docs/PRODUCTION_READINESS.md` (Phase 10) documented a
+real gap: `CompanyContext` (see "v1 release audit" above) enforces
+isolation for a caller that deliberately constructs one, but nothing in
+the actual executive pipeline — `ExecutivePlanner`, `GoalDecomposer`,
+`ProjectManager`, `ExecutiveOrchestrator` — routed through it. A
+company created with `allowedRoles` restricted nothing in practice,
+because the pipeline a real operator session (or the autonomous
+execution job) actually uses never checked it.
+
+**Fixed** by adding `ExecutiveOrchestrator.authorizeExecution({
+companyId, role, deviceRole, action })`, called at the top of
+`executeTask()` — before the department is even looked up, so a denied
+task never reaches `department.run()` at all. It validates four
+things, each independently testable and each with its own denial
+message:
+
+1. **companyId** — if the task carries one (see decomposer.js's
+   company tagging, added when the reasoning-context leak was fixed),
+   `CompanyManager.context(companyId)` is asked for it, which throws for
+   an unknown company. A task with no company at all skips this check
+   entirely — there's nothing company-specific to validate.
+2. **Identity (role + device)** — every execution has an acting role
+   and an acting device role, resolved by `resolveActor()`: an explicit
+   `actor` argument wins, otherwise it defaults to `{ role: "executive",
+   deviceRole: device.currentIdentity().role }` — "the system itself,
+   acting in its executive capacity, from this device," since there's no
+   human login/session system for a more specific identity to come from.
+3. **Role permissions** — the acting role must hold `execute_tools` at
+   all (`identity.hasPermission`, see `identity/roles.json`), and
+   separately, the acting device's role must too (`registry/
+   devices.json` — a `"phone"`-role device is read-only by design and
+   is rejected here even for an otherwise-valid role).
+4. **Requested action** — must be one of a small, explicit, validated
+   set (`VALID_ACTIONS = ["execute_task"]` today) rather than an
+   arbitrary string, so a future action has to be deliberately added
+   here rather than silently accepted.
+
+Only after all four pass does the company-specific check run: if the
+task is company-scoped, `CompanyContext.requirePermission(role)` (the
+existing enforcement primitive from the company-isolation work) is
+reused rather than duplicated — this is the actual gap closing: the
+same rule a direct `CompanyContext` caller was already subject to now
+also applies to every task the orchestrator executes.
+
+A denial doesn't throw out of `executeTask()` — it's caught the same
+way a thrown `department.run()` error already was, marks the task
+`"blocked"` with an `"Access denied: ..."` note, and returns a distinct
+`{ outcome: "denied" }` (not `"failure"`) so a caller can tell "wasn't
+allowed to run" from "ran and broke." A denied task isn't a dead end:
+running it again with a permitted actor succeeds normally, since
+`"blocked"` isn't a terminal status (only `"completed"` is — see
+`ProjectManager.updateStatus()`).
+
+**Scope note:** this closes the gap specifically for the executive/
+orchestrator pipeline (`pursue()` → `decompose()` →
+`executeTask()`/`runNextReadyTask()`), which is what
+`docs/PRODUCTION_READINESS.md` flagged and what "the primary execution
+pipeline" refers to. Direct `DepartmentManager.run()` calls outside the
+orchestrator (`CollaborationEngine.delegate()`/`review()`/`consensus()`,
+the dashboard's direct `/api/departments/:id/run`) carry no company
+scope in the first place — there's nothing for this check to enforce
+there, since those operations were never company-scoped to begin with.
+
+**Not fixed by this change** (still true, see
+`docs/PRODUCTION_READINESS.md`): the knowledge graph still has no
+company-level scoping at all, and this pass didn't add a real
+human-identity/session system — `resolveActor()`'s default is still
+"the system, acting for itself," which is honest about what VERONICA
+actually models today rather than pretending to a login system that
+doesn't exist.
+
+10 new tests (`tests/company-access-control.test.js`): every
+`authorizeExecution()` denial path independently (unknown action,
+role without permission, device role without permission, unknown
+company, restricted company with a disallowed role), the
+unrestricted/no-company allow paths, and two `executeTask()`-level
+integration tests confirming a denial never reaches `department.run()`
+(verified with a spy) and that the same task succeeds on retry with a
+permitted actor.
