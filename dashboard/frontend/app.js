@@ -538,8 +538,60 @@ async function loadIntegrationsStatus(){
         "integrations-status",
         overview.integrations,
         "No integrations registered.",
-        integration => `${integration.id} — ${integration.implemented ? (integration.configured ? "configured" : "not configured") : "placeholder"} — ${integration.note}`
+        integration => {
+
+            const state = integration.implemented ? (integration.configured ? "configured" : "not configured") : "placeholder";
+            const extras = [];
+
+            if(typeof integration.authorized === "boolean"){
+                extras.push(integration.authorized ? "authorized" : "not authorized");
+            }
+
+            if(typeof integration.connected === "boolean"){
+                extras.push(integration.connected ? "connected" : "disconnected");
+            }
+
+            if(typeof integration.latencyMs === "number"){
+                extras.push(`${integration.latencyMs}ms`);
+            }
+
+            if(typeof integration.guildCount === "number"){
+                extras.push(`${integration.guildCount} guild(s)`);
+            }
+
+            if(integration.lastSync){
+                extras.push(`last sync ${new Date(integration.lastSync).toLocaleString()}`);
+            }
+
+            const extrasText = extras.length ? ` [${extras.join(", ")}]` : "";
+
+            return `${integration.id} — ${state}${extrasText} — ${integration.note}`;
+
+        }
     );
+
+}
+
+
+async function loadCapabilities(){
+
+    const capabilities = await fetchJSON("/api/capabilities");
+
+    renderList(
+        "capabilities-status",
+        capabilities,
+        "No capabilities registered.",
+        capability => `${capability.name} v${capability.version} — ${capability.status}${capability.core ? " (built-in)" : ""} — ${capability.description}`
+    );
+
+}
+
+
+async function loadSystemReport(){
+
+    const report = await fetchJSON("/api/system/report");
+
+    document.getElementById("system-report").textContent = JSON.stringify(report, null, 2);
 
 }
 
@@ -642,6 +694,8 @@ async function loadDashboard(){
             loadAutomationHistory(),
             loadCollaborationHistory(),
             loadIntegrationsStatus(),
+            loadCapabilities(),
+            loadSystemReport(),
             loadSemanticSearchStatus(),
             loadCompanies()
         ]);
@@ -1682,6 +1736,74 @@ function setupCompanyCreateForm(){
 }
 
 
+function setupCapabilityAnalysisForm(){
+
+    const form = document.getElementById("capability-analysis-form");
+    const result = document.getElementById("capability-analysis-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const objective = document.getElementById("capability-objective").value;
+
+        result.textContent = "Analyzing...";
+
+        try {
+
+            const analysis = await authedFetch("/api/capabilities/analyze", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ objective })
+            });
+
+            result.textContent = JSON.stringify(analysis, null, 2);
+
+        } catch(error){
+            result.textContent = `Error: ${error.message}`;
+        }
+
+    });
+
+}
+
+
+function setupCapabilityInstallForm(){
+
+    const form = document.getElementById("capability-install-form");
+    const result = document.getElementById("capability-install-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const packageDir = document.getElementById("capability-package-dir").value;
+
+        result.textContent = "Installing...";
+
+        try {
+
+            const installResult = await authedFetch("/api/capabilities/install", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ packageDir })
+            });
+
+            result.textContent = installResult.pending
+                ? `Approval required -- proposal ${installResult.proposal.id} created (approve it, then run "execute-external" on it above).`
+                : `Installed "${installResult.capability.name}" v${installResult.capability.version} (${installResult.capability.status}).`;
+
+            await loadCapabilities();
+
+        } catch(error){
+            result.textContent = `Error: ${error.message}`;
+        }
+
+    });
+
+}
+
+
 // --- Live updates (Server-Sent Events) ------------------------------------
 //
 // Replaces interval polling: GET /api/events streams memory/knowledge
@@ -1818,6 +1940,8 @@ document.addEventListener("DOMContentLoaded", () => {
     setupReindexEmbeddingsForm();
     setupCompanyLookupForm();
     setupCompanyCreateForm();
+    setupCapabilityAnalysisForm();
+    setupCapabilityInstallForm();
 
     populateDepartmentSelect("department-select");
     populateDepartmentSelect("plan-department", { includeAuto: true });

@@ -263,6 +263,7 @@
           <option value="approve">Approve</option>
           <option value="reject">Reject</option>
           <option value="execute">Execute (must already be approved)</option>
+          <option value="execute-external">Execute external (GitHub/Discord/capability install -- must already be approved)</option>
         </select>
         <input type="text" id="proposal-action-note" placeholder="Note (optional, approve/reject only)">
         <button type="submit">Submit</button>
@@ -328,8 +329,42 @@
     <h2>Integrations</h2>
     <div class="widget-group">
       <h3>Connectors</h3>
-      <p class="hint">Obsidian and file intelligence need no credentials; GitHub and Discord are real, functional connectors gated on their own env vars; Calendar/Email/Cloud storage are interface-only placeholders awaiting a concrete provider choice.</p>
+      <p class="hint">Obsidian and file intelligence need no credentials; GitHub, both Discord connectors, and Google Workspace are real, functional connectors gated on their own env vars (Google also needs a human to complete OAuth consent -- see docs/EXTERNAL_INTEGRATIONS.md); Calendar/Email/Cloud storage remain interface-only placeholders for a non-Google provider.</p>
       <div id="integrations-status" class="widget"></div>
+    </div>
+  </section>
+
+  <section class="panel panel-wide">
+    <h2>Capability Center (Phase 20)</h2>
+    <div class="widget-group">
+      <h3>Installed capabilities</h3>
+      <p class="hint">Built-in systems plus anything installed from a package (see packages/example/ for the reference template). A package whose manifest requires approval shows up as a pending action proposal instead of installing immediately.</p>
+      <div id="capabilities-status" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Analyze an objective</h3>
+      <p class="hint">"VERONICA, create a trading division" -- reports which capabilities that implies and which are already installed vs. missing.</p>
+      <form id="capability-analysis-form" class="stacked-form">
+        <input type="text" id="capability-objective" placeholder="e.g. create a trading division" required>
+        <button type="submit">Analyze</button>
+      </form>
+      <pre id="capability-analysis-result" class="hint"></pre>
+    </div>
+    <div class="widget-group">
+      <h3>Install a package</h3>
+      <form id="capability-install-form" class="stacked-form">
+        <input type="text" id="capability-package-dir" placeholder="Path to package directory (e.g. packages/example)" required>
+        <button type="submit">Install</button>
+      </form>
+      <p id="capability-install-result" class="hint"></p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>System Report (Phase 24)</h2>
+    <div class="widget-group">
+      <h3>What exists / what's missing / what needs improvement</h3>
+      <pre id="system-report" class="hint"></pre>
     </div>
   </section>
 

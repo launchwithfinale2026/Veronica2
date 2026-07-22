@@ -199,6 +199,7 @@ function status(){
 
     return {
         id: "discordBot",
+        implemented: true,
         configured,
         connected,
         latencyMs: (client && client.ws && typeof client.ws.ping === "number") ? client.ws.ping : null,

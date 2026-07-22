@@ -60,6 +60,7 @@ function status(){
 
     return {
         id: "discord",
+        implemented: true,
         configured: isConfigured(),
         requiredEnv: ["DISCORD_WEBHOOK_URL"],
         note: isConfigured()

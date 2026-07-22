@@ -244,6 +244,7 @@ function status(){
 
     return {
         id: "google",
+        implemented: true,
         configured,
         authorized,
         requiredEnv: credentialManager.CONNECTORS.google.required,

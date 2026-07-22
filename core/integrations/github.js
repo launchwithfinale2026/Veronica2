@@ -258,6 +258,7 @@ function status(){
 
     return {
         id: "github",
+        implemented: true,
         configured: isConfigured(),
         requiredEnv: ["GITHUB_TOKEN"],
         note: isConfigured()
