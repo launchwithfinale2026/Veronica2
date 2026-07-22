@@ -119,7 +119,7 @@ test("identity.hasPermission() matches permissionsForRole()", () => {
 
 });
 
-test("registry loads all 41 tools with real handlers", () => {
+test("registry loads all 42 tools with real handlers", () => {
 
     const list = tools.list();
     const ids = list.map(t => t.id).sort();
@@ -166,6 +166,7 @@ test("registry loads all 41 tools with real handlers", () => {
         "obsidian.list",
         "obsidian.read",
         "obsidian.write",
+        "vision.analyzeImage",
         "web.fetch"
     ]);
 

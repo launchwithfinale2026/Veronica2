@@ -1441,3 +1441,56 @@ system still needs, continued in later sections below).
   installation), and expanding the checks beyond these three signals
   (e.g. company financial health, knowledge graph staleness) without a
   concrete case for what "unhealthy" means there yet.
+
+---
+
+## Vision (`core/vision/`)
+
+**Decision:** image understanding via Claude's native multimodal support,
+not a new OCR library or vision service. Built 2026-07-22, continuing past
+this run's own numbered Phase 15 by identifying what a real AI operating
+system still needs — this run's own judgment call, not a further
+instruction-numbered phase.
+
+- **Why this and not Communications/MCP/real web search next**: those
+  three all need something this environment doesn't have — OAuth
+  credentials for email/calendar, a concrete MCP server to connect to (a
+  generic client with nothing real to talk to is unverifiable, speculative
+  code), or a search API key for actual web search (the Phase 12 HTTP
+  connector can fetch a *known* URL, but has no way to *discover* one).
+  This run's own standing instruction was explicit: stop when credentials
+  are required rather than build something that can't actually work.
+  Vision has no such blocker — Claude's Messages API already accepts
+  image content blocks, so this needed zero new credentials and zero new
+  dependencies.
+- **Lives only on `ClaudeProvider`, not the shared `BrainProvider`
+  fallback chain**: that chain (`core/brain/provider.js`) exists for
+  text-generation resilience — falling back to `local`/`openai` when
+  Claude is unavailable. Silently falling back to a non-vision-capable
+  provider for an image task would return a confident, wrong answer
+  instead of a clear error, which is worse than just requiring Claude
+  for this one capability. `analyzeImage()` is a new method on
+  `ClaudeProvider` itself, called directly by `core/vision/engine.js`,
+  not through `generate()`.
+- **Same sandbox, same trust boundary**: images must live in
+  `data/workspace/` — the exact sandboxed root `core/tools/handlers/
+  filesystem.js` already established, with the same path-escape
+  rejection logic. No new place an agent-controlled path could reach
+  outside what's already trusted.
+- **Same "record it like everything else" treatment**: every analysis
+  becomes a `type: "technical knowledge"` memory entry (tagged `vision`)
+  plus an `image`-type knowledge entity — reachable through
+  `memory.search()`/the Persistent Context Engine and
+  `knowledge.retrieve()`, not a one-off disconnected result.
+- No dedicated dashboard routes or terminal commands — same reasoning as
+  Phase 12's `obsidian.*`/`web.fetch`: `vision.analyzeImage` is an
+  ordinary tool with no dependency needing a facade/lazy-require dance
+  beyond the one already applied to its handler file, so it's already
+  fully reachable through the existing generic `tools.run`/
+  `POST /api/tools/:id/run` mechanism.
+- Not built: video, PDF rendering-to-image, or any vision capability
+  beyond single static images (no concrete need shown yet for the
+  others), and a dedicated dashboard image-upload flow (images currently
+  need to already exist in `data/workspace/` — uploading one there is a
+  separate, unbuilt capability across every sandboxed tool, not specific
+  to vision).

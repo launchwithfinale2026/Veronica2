@@ -455,6 +455,19 @@
         },
         "required": ["url"]
       }
+    },
+    {
+      "id": "vision.analyzeImage",
+      "description": "Analyze an image (in the sandboxed workspace, data/workspace/) via Claude's native vision support -- description, OCR-style text transcription, or diagram/chart explanation.",
+      "permission": "execute_tools",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string", "description": "Relative path within the sandboxed workspace" },
+          "prompt": { "type": "string", "description": "Optional custom instruction; defaults to a general description/transcription prompt" }
+        },
+        "required": ["path"]
+      }
     }
   ]
 }

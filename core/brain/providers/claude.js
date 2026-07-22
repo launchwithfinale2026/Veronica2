@@ -57,6 +57,38 @@ class ClaudeProvider {
     }
 
 
+    // Vision (Autonomous Operations follow-on, Phase 16 of this run's own
+    // continuation): Claude's Messages API already accepts image content
+    // blocks natively -- no new dependency, no OCR library, no separate
+    // vision service. Deliberately lives only on ClaudeProvider, not the
+    // shared generate()/BrainProvider fallback chain: that chain exists
+    // for text-generation resilience (falling back to local/openai when
+    // Claude is unavailable), and silently falling back to a non-vision-
+    // capable provider for an image task would return a confidently wrong
+    // answer instead of a clear "vision isn't available" error. See
+    // core/vision/index.js, the one caller of this method.
+    async analyzeImage(base64Data, mediaType, prompt){
+
+        const response = await this.client.messages.create({
+            model: MODEL,
+            max_tokens: MAX_TOKENS,
+            messages: [{
+                role: "user",
+                content: [
+                    { type: "image", source: { type: "base64", media_type: mediaType, data: base64Data } },
+                    { type: "text", text: prompt }
+                ]
+            }]
+        });
+
+        return {
+            response: response.content[0].text,
+            provider: "claude"
+        };
+
+    }
+
+
     // Runs the real Anthropic tool-use loop: offer the tool registry,
     // execute any tool_use blocks Claude returns through the same
     // permission-checked, sandboxed core/tools registry everything else

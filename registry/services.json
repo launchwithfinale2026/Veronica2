@@ -62,6 +62,13 @@
       "module": "core/executive/selfMonitor.js",
       "status": "active",
       "description": "Hourly automation job: checks for overdue projects (ExecutivePlanner) and a high failure rate (LearningEngine), and only if something's found, generates optimization recommendations. Detection and recommendation only -- no autonomous remediating action."
+    },
+    {
+      "id": "vision",
+      "name": "Vision",
+      "module": "core/vision",
+      "status": "active",
+      "description": "Image understanding (description, OCR-style transcription, diagram/chart explanation) via Claude's native multimodal support -- no new dependency or OCR library. Sandboxed to data/workspace/, same root every other filesystem-touching tool uses. Reachable via the existing generic tool system."
     }
   ]
 }
