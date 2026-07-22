@@ -28,6 +28,7 @@ const bus = require("../../core/bus");
 const CollaborationEngine = require("../../core/collaboration/engine");
 const ExecutiveOrchestrator = require("../../core/executive/orchestrator");
 const integrationRegistry = require("../../core/integrations/registry");
+const credentialManager = require("../../core/integrations/credentialManager");
 const PersonalContextEngine = require("../../core/profile/personalContextEngine");
 const log = require("../../core/logging");
 const { installCrashGuards } = require("../../core/logging/crashGuard");
@@ -1162,6 +1163,12 @@ if(require.main === module){
     // process.exit(1) and kill the whole `npm test` run. See
     // docs/Architecture.md "Production Hardening".
     installCrashGuards("dashboard");
+
+    // Reports which connectors (Claude/OpenAI/GitHub/Discord/Google/etc.)
+    // have their required env vars present, logging only variable NAMES
+    // that are missing -- never a value. A missing credential disables
+    // that one connector; it never stops the dashboard from booting.
+    credentialManager.validateStartup();
 
     const PORT = process.env.DASHBOARD_PORT || 4000;
 

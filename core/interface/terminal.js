@@ -25,7 +25,13 @@ const automation = require("../automation");
 const CollaborationEngine = require("../collaboration/engine");
 const ExecutiveOrchestrator = require("../executive/orchestrator");
 const PersonalContextEngine = require("../profile/personalContextEngine");
+const credentialManager = require("../integrations/credentialManager");
 
+// Reports which connectors have their required env vars present, logging
+// only variable NAMES that are missing -- never a value. A missing
+// credential disables that one connector; it never stops the terminal
+// from booting (see core/integrations/credentialManager.js).
+credentialManager.validateStartup();
 
 const identity = JSON.parse(
     fs.readFileSync(
