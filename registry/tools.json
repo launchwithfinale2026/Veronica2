@@ -55,6 +55,18 @@
       "inputSchema": { "type": "object", "properties": {} }
     },
     {
+      "id": "memory.runLifecyclePromotion",
+      "description": "Phase 12: re-classifies and re-scores every memory entry (0-100, see core/memory/memoryImportanceEngine.js) and applies any due lifecycle transition (temporary -> active -> persistent, or -> archived). Returns only the entries that transitioned. Also runs automatically once per day as part of the daily briefing.",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "memory.lifecycleOverview",
+      "description": "Count of every memory entry by lifecycle stage (temporary/active/persistent/archived).",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
       "id": "knowledge.query",
       "description": "Find entities and their connections in the knowledge graph.",
       "permission": "read_memory",

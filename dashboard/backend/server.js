@@ -182,6 +182,8 @@ const ROUTES = {
 
     "GET /api/memory/overview": () => memory.overview(),
 
+    "GET /api/memory/lifecycle": () => memory.lifecycleOverview(),
+
     "GET /api/executive/roadmap": () => executive.roadmap(),
 
     "GET /api/executive/deadlines": () => executive.evaluateDeadlines(),

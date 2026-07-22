@@ -153,6 +153,21 @@ async function loadMemoryOverview(){
 }
 
 
+async function loadMemoryLifecycle(){
+
+    const overview = await fetchJSON("/api/memory/lifecycle");
+
+    const container = document.getElementById("memory-lifecycle");
+
+    container.innerHTML = "";
+
+    container.appendChild(el("p", {
+        textContent: `${overview.total} entries — ${overview.byStage.temporary} temporary, ${overview.byStage.active} active, ${overview.byStage.persistent} persistent, ${overview.byStage.archived} archived`
+    }));
+
+}
+
+
 async function loadExecutiveDeadlines(){
 
     const grouped = await fetchJSON("/api/executive/deadlines");
@@ -511,6 +526,7 @@ async function loadDashboard(){
             loadExecutiveDeadlines(),
             loadExecutiveReport(),
             loadMemoryOverview(),
+            loadMemoryLifecycle(),
             loadConsolidationHistory(),
             loadSelfMonitorHistory(),
             loadPriorityRank(),

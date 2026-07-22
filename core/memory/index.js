@@ -2,14 +2,44 @@ const store = require("./store");
 const bus = require("../bus");
 const EmbeddingIndex = require("./embeddings");
 const classification = require("./classification");
+const MemoryClassifier = require("./memoryClassifier");
+const MemoryImportanceEngine = require("./memoryImportanceEngine");
+const MemoryLifecycle = require("./memoryLifecycle");
 
 const embeddingIndex = new EmbeddingIndex();
+const classifier = new MemoryClassifier();
+const importanceEngine = new MemoryImportanceEngine();
+const lifecycle = new MemoryLifecycle({ classifier, importanceEngine });
 
 module.exports = {
 
-    remember(memory){
+    // Phase 12 (Memory Evolution): every new entry is automatically
+    // classified (episodic/semantic/procedural/organizational) and
+    // scored (0-100, see memoryImportanceEngine.js) at write time, and
+    // starts its life at the "temporary" lifecycle stage -- promotion
+    // to active/persistent happens later, in bulk, via
+    // runLifecyclePromotion() (called from the daily cycle), not here on
+    // every write. Two disk writes per remember() (store.remember() then
+    // store.update()) rather than one -- a minor, accepted cost for
+    // needing the entry's real id before classification metadata can be
+    // attached; every mutation in this system already rewrites the whole
+    // file regardless, so this isn't a new class of inefficiency.
+    remember(memoryInput){
 
-        const entry = store.remember(memory);
+        const created = store.remember(memoryInput);
+
+        const { memoryClass, reason: classificationReason } = classifier.classify(created);
+        const { score, breakdown } = importanceEngine.score(created, store.recall());
+
+        const entry = store.update(created.id, {
+            metadata: {
+                memoryClass,
+                classificationReason,
+                importanceScore: score,
+                importanceBreakdown: breakdown,
+                lifecycle: "temporary"
+            }
+        });
 
         // Live dashboard updates (Phase 9) piggyback on this one
         // chokepoint -- nearly everything that creates a memory entry
@@ -79,6 +109,19 @@ module.exports = {
 
     overview(){
         return classification.overview(store.recall());
+    },
+
+    // Phase 12 (Memory Evolution) -- the daily-cycle sweep: re-classifies
+    // and re-scores every entry and applies any due lifecycle transition
+    // (temporary -> active -> persistent, or -> archived). Returns just
+    // the entries that actually transitioned. See
+    // core/executive/dailyBriefing.js, which calls this once per run.
+    runLifecyclePromotion(){
+        return lifecycle.run();
+    },
+
+    lifecycleOverview(){
+        return lifecycle.overview();
     }
 
 };

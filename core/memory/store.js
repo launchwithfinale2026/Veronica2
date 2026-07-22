@@ -52,13 +52,24 @@ function load(){
 
     data.memories = data.memories.map(entry => {
 
-        if(entry.id){
-            return entry;
+        if(!entry.id){
+            migrated = true;
+            return migrateLegacyEntry(entry);
         }
 
-        migrated = true;
+        // Entries from before `metadata` existed at all (the very
+        // first, pre-Phase-3 bootstrap entries) have it missing or
+        // explicitly null, not `{}` -- caught by Phase 12's memory
+        // evolution code being the first to actually dereference
+        // `entry.metadata.<field>` unconditionally. Backfilling here
+        // (once, persisted) fixes it for every future reader, not just
+        // this one.
+        if(!entry.metadata || typeof entry.metadata !== "object"){
+            migrated = true;
+            return { ...entry, metadata: {} };
+        }
 
-        return migrateLegacyEntry(entry);
+        return entry;
 
     });
 

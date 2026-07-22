@@ -132,3 +132,18 @@ test("run() persists a briefing record, also persists a matching recommendation 
     assert.ok(recommendationHistory.length >= 1);
 
 });
+
+
+test("run() also runs the Phase 12 memory lifecycle sweep and records its transitions on the briefing", () => {
+
+    const realPlanner = new ExecutivePlanner();
+    const project = realPlanner.plan({ title: "Briefing memory evolution project XQZBRIEF4", department: "ares" });
+
+    const scoped = scopedPlanner(realPlanner, [project.id]);
+    const briefing = makeBriefingEngine(scoped);
+
+    const record = briefing.run();
+
+    assert.ok(Array.isArray(record.memoryEvolution));
+
+});

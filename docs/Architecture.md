@@ -1836,3 +1836,78 @@ re-do any of them:
 `tests/daily-briefing.test.js`, `tests/weekly-report.test.js`), covering
 every rule's explainability output, both the global-scan and scoped
 behaviors above, and full persist/history round trips.
+
+---
+
+## Phase 12 — Memory Evolution
+
+**Goal:** move memory from static storage (a 1-5 `importance` field,
+set once) into an adaptive system: every entry is automatically
+classified, scored 0-100 on six explainable factors, and moves through
+a lifecycle (`temporary` -> `active` -> `persistent`, or -> `archived`)
+as its value becomes clearer over time.
+
+- **`core/memory/memoryClassifier.js`**: `core/memory/classification.js`
+  already mapped `type` to one of the four classes (episodic/semantic/
+  procedural/organizational) as a read-only reporting layer.
+  `MemoryClassifier` is that same table used *automatically at write
+  time*, plus two tag-based overrides the type-only table can't see: any
+  `company:<id>` tag forces `organizational` regardless of type, and a
+  `workflow`/`process`/`howto`/`procedure` tag forces `procedural`.
+- **`core/memory/memoryImportanceEngine.js`**: a 0-100 score across six
+  independently-legible factors that sum to exactly 100 at max —
+  explicit importance (30), repetition via shared tags (15), business
+  impact via company tags or business-typed entries (15), knowledge-
+  graph connections (20, matching the entry's own `content` against
+  graph entity names — real for goals/projects/companies, whose
+  `content` literally *is* their entity name; correctly zero for
+  one-off personal notes that were never added as entities), future
+  retrieval value via type/tag-diversity proxy (10), and recency (10,
+  linear decay over 30 days). `score()` always returns the full
+  breakdown alongside the total — "explainable" isn't optional here.
+- **`core/memory/memoryLifecycle.js`**: `nextStage()` only promotes
+  (never demotes on score alone — an already-`persistent` entry stays
+  there even if a later sweep scores it lower) except one explicit rule:
+  a low-scoring entry untouched for 60+ days gets archived regardless of
+  its current stage. `run()` re-classifies and re-scores *every* entry
+  in one sweep and persists the result — this is deliberately periodic,
+  not recomputed on every `remember()`/`update()`: re-scoring one entry
+  is cheap, but scanning every entry's connections/repetition on every
+  single write would make ordinary operations
+  (`ProjectManager.updateStatus()`, etc.) pay a cost unrelated to what
+  they're doing.
+
+**Wiring (the three explicit connections this phase asked for):**
+- **Knowledge graph**: a newly-`persistent` entry gets a graph entity
+  (deduped by name, same as everywhere else) plus a `classifiedAs`
+  relationship to its memory class — persistent memories become
+  discoverable through `knowledge.retrieve()`, not just memory search.
+- **Executive intelligence / daily cycle**: `core/executive/dailyBriefing.js`'s
+  `run()` now also calls `memory.runLifecyclePromotion()` and includes
+  the transitions on the persisted briefing. This IS "the daily cycle"
+  at this point in the roadmap (Phase 14 builds the full morning/evening
+  cycle on top of it) — reusing it here means memory evolution rides
+  the same daily cadence an operator already reads, rather than needing
+  a second thing to check.
+
+**`core/memory/index.js`'s `remember()`** now does two disk writes
+(`store.remember()` then `store.update()` with the classification/score/
+`lifecycle: "temporary"`) instead of one — needs the entry's real id
+before classification metadata can be attached, and every mutation in
+this system already rewrites the whole file regardless, so this isn't a
+new class of inefficiency.
+
+**Found and fixed along the way**: the three original bootstrap memory
+entries (from the very first commit, before `metadata` existed as a
+concept at all) had `metadata: null`, not `{}` — nothing before this
+phase ever unconditionally dereferenced `entry.metadata.<field>`, so it
+was a latent gap `store.js`'s migration path never caught. Fixed by
+extending `load()`'s existing legacy-migration pass (which already
+backfills entries with no `id`) to also backfill a missing/null
+`metadata` to `{}`, persisted once and self-healing for any future
+reader, not just this one.
+
+24 new tests across three new test files
+(`tests/memory-classifier.test.js`, `tests/memory-importance-engine.test.js`,
+`tests/memory-lifecycle.test.js`), plus two integration tests added to
+`tests/daily-briefing.test.js` confirming the daily-cycle wiring.

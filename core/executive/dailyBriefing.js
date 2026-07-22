@@ -132,14 +132,21 @@ class DailyBriefingEngine {
     // Generates and persists a briefing -- also runs and persists a
     // fresh set of executive recommendations at the same time, so
     // executive.recommendationHistory() reflects every daily briefing
-    // too, not just standalone executive.recommendations() calls.
+    // too, not just standalone executive.recommendations() calls. Also
+    // runs the Phase 12 memory lifecycle sweep here -- this IS "the
+    // daily cycle" Phase 12 asked memory evolution to connect to; a
+    // fresh set of promotions lands in the same briefing an operator
+    // already reads every morning, rather than needing a second thing
+    // to check.
     run(){
 
         const briefing = this.generate();
 
         this.recommendationEngine.persist(briefing.recommendations);
 
-        return this.persist(briefing);
+        const memoryEvolution = memory.runLifecyclePromotion();
+
+        return this.persist({ ...briefing, memoryEvolution });
 
     }
 

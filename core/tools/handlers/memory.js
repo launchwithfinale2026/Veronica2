@@ -18,6 +18,11 @@ module.exports = {
 
     "memory.reindexEmbeddings": () => memory.reindexEmbeddings(),
 
-    "memory.overview": () => memory.overview()
+    "memory.overview": () => memory.overview(),
+
+    // Phase 12 -- Memory Evolution.
+    "memory.runLifecyclePromotion": () => memory.runLifecyclePromotion(),
+
+    "memory.lifecycleOverview": () => memory.lifecycleOverview()
 
 };

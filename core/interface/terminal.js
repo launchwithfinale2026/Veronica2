@@ -104,6 +104,10 @@ memory.search <term>
 
 memory.overview
 
+memory.lifecycleOverview
+
+memory.runLifecyclePromotion
+
 memory.semanticSearch <term>
 
 memory.reindexEmbeddings
@@ -349,9 +353,33 @@ rl.on("line", async (input) => {
 
 
         // MEMORY CLASS BREAKDOWN (episodic/semantic/procedural/organizational)
-        else if (command === "memory.overview") {
+        else if (command === "memory.overview
 
-            console.log(memory.overview());
+memory.lifecycleOverview
+
+memory.runLifecyclePromotion") {
+
+            console.log(memory.overview
+
+memory.lifecycleOverview
+
+memory.runLifecyclePromotion());
+
+        }
+
+
+        // PHASE 12 -- MEMORY LIFECYCLE BREAKDOWN
+        else if (command === "memory.lifecycleOverview") {
+
+            console.log(memory.lifecycleOverview());
+
+        }
+
+
+        // PHASE 12 -- RUN THE MEMORY LIFECYCLE PROMOTION SWEEP NOW
+        else if (command === "memory.runLifecyclePromotion") {
+
+            console.log(memory.runLifecyclePromotion());
 
         }
 
@@ -996,6 +1024,10 @@ memory.view
 memory.search <term>
 
 memory.overview
+
+memory.lifecycleOverview
+
+memory.runLifecyclePromotion
 memory.semanticSearch <term>
 memory.reindexEmbeddings
 remember <memory>

@@ -228,12 +228,46 @@ three surfaces every prior phase's capabilities got.
 27 new tests across 6 new test files. All passing; no existing test
 broken.
 
+## Phase 12 -- Memory Evolution
+
+Full design reasoning in `docs/Architecture.md`'s "Phase 12 -- Memory
+Evolution". Three new modules, all in `core/memory/`:
+
+- **`memoryClassifier.js`**: automatic classification at write time
+  (reuses `classification.js`'s type->class table, plus tag-based
+  overrides for company/workflow tags).
+- **`memoryImportanceEngine.js`**: 0-100 score across six explainable
+  factors (explicit importance, repetition, business impact, knowledge-
+  graph connections, future retrieval value, recency), always returned
+  with its full breakdown.
+- **`memoryLifecycle.js`**: `temporary -> active -> persistent`
+  promotion (never demotion on score alone) plus a staleness-based
+  archive rule, run as a periodic sweep (not on every write).
+
+`memory.remember()` now auto-stamps every new entry with its class/
+score/`lifecycle: "temporary"`. `dailyBriefing.run()` (Phase 11) now
+also runs the lifecycle sweep and records its transitions -- the "daily
+cycle" connection this phase asked for. A newly-persistent entry gets
+linked into the knowledge graph -- the other connection asked for.
+
+Found and fixed a real, pre-existing data-integrity gap along the way:
+the three original bootstrap memory entries had `metadata: null` (they
+predate the `metadata` field existing at all), which nothing had ever
+unconditionally dereferenced before this phase's code did. Fixed in
+`store.js`'s existing legacy-migration pass.
+
+24 new tests across 3 new test files, plus 2 more added to
+`tests/daily-briefing.test.js` for the daily-cycle wiring. Wired into
+the memory facade, 2 new tools, dashboard routes/widget, and terminal
+commands -- the same surfaces every prior phase's capabilities got.
+
 ## Totals
 
-- 11 commits across Phases 10-11 combined with the earlier 9, each with
+- 12 commits across Phases 10-12 combined with the earlier 9, each with
   `npm test` green before committing.
 - Test count: 210 -> 222 (end of the original 9-phase pass) -> 240 (end
-  of Phase 10) -> 267 (end of Phase 11), all passing throughout.
+  of Phase 10) -> 267 (end of Phase 11) -> 291 (end of Phase 12), all
+  passing throughout.
 - No existing test broken; no existing public API removed or changed
   incompatibly.
 
