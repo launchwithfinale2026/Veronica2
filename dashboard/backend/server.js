@@ -37,6 +37,7 @@ const capabilitiesPlanner = require("../../core/capabilities/planner");
 const systemReport = require("../../core/system/report");
 const capabilitiesMarketplace = require("../../core/capabilities/marketplace");
 const capabilitiesBuilder = require("../../core/capabilities/builder");
+const ResearchEngine = require("../../core/research/engine");
 const PersonalContextEngine = require("../../core/profile/personalContextEngine");
 const log = require("../../core/logging");
 const { installCrashGuards } = require("../../core/logging/crashGuard");
@@ -72,6 +73,8 @@ const orchestrator = automation.registerExecutionJob(departments);
 const personalContext = new PersonalContextEngine();
 
 const deviceManager = new DeviceManager();
+
+const researchEngine = new ResearchEngine();
 
 
 // Reads every department's activity.log (JSON lines), merges, and
@@ -297,6 +300,8 @@ const ROUTES = {
         const q = searchParams.get("q");
         return q ? capabilitiesMarketplace.search(q) : [];
     },
+
+    "GET /api/research/history": (searchParams) => researchEngine.history(searchParams.get("topic") || undefined),
 
     "GET /api/profile": () => personalContext.summary(),
 
@@ -877,6 +882,28 @@ function createServer(){
                 }
 
                 return sendJSON(res, 200, capabilitiesBuilder.buildPackage(input));
+
+            }
+
+            // Phase 29 (Research & Knowledge Engine): a real outbound
+            // fetch plus a real, billed LLM call -- gated behind
+            // API_TOKEN like every other action with a real cost, unlike
+            // the read-only analyze/search routes above.
+            if(parsed.pathname === "/api/research" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { topic, url } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!topic || !url){
+                    return sendJSON(res, 400, { error: "topic and url are required" });
+                }
+
+                return sendJSON(res, 200, await researchEngine.research(topic, { url }));
 
             }
 

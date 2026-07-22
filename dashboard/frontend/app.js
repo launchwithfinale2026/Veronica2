@@ -767,7 +767,8 @@ async function loadDashboard(){
             loadSystemReport(),
             loadCapabilityMarketplace(),
             loadSemanticSearchStatus(),
-            loadCompanies()
+            loadCompanies(),
+            loadResearchHistory()
         ]);
 
     } catch(error){
@@ -1914,6 +1915,55 @@ function setupCapabilityBuildForm(){
 }
 
 
+async function loadResearchHistory(){
+
+    const history = await fetchJSON("/api/research/history");
+
+    renderList(
+        "research-history",
+        history,
+        "No research yet.",
+        entry => `[${new Date(entry.created).toLocaleString()}] ${entry.metadata.topic} (confidence ${entry.metadata.confidence}) -- ${entry.metadata.citation}`
+    );
+
+}
+
+
+function setupResearchForm(){
+
+    const form = document.getElementById("research-form");
+    const result = document.getElementById("research-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const topic = document.getElementById("research-topic").value;
+        const url = document.getElementById("research-url").value;
+
+        result.textContent = "Researching (real fetch + real LLM call)...";
+
+        try {
+
+            const entry = await authedFetch("/api/research", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ topic, url })
+            });
+
+            result.textContent = `${entry.content}\n\nRecommendation: ${entry.metadata.implementationRecommendation}`;
+
+            await loadResearchHistory();
+
+        } catch(error){
+            result.textContent = `Error: ${error.message}`;
+        }
+
+    });
+
+}
+
+
 // --- Live updates (Server-Sent Events) ------------------------------------
 //
 // Replaces interval polling: GET /api/events streams memory/knowledge
@@ -2054,6 +2104,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupCapabilityInstallForm();
     setupCapabilitySearchForm();
     setupCapabilityBuildForm();
+    setupResearchForm();
 
     populateDepartmentSelect("department-select");
     populateDepartmentSelect("plan-department", { includeAuto: true });

@@ -463,6 +463,18 @@
       </form>
       <pre id="semantic-search-result" class="widget code-block"></pre>
     </div>
+    <div class="widget-group">
+      <h3>Research & Knowledge Engine (Phase 29)</h3>
+      <p class="hint">Fetches a real URL, extracts structured knowledge via a real LLM call, and stores it cited -- requires SERVICE_ALLOWLIST to include the URL's host.</p>
+      <form id="research-form" class="stacked-form">
+        <input type="text" id="research-topic" placeholder="Topic (e.g. a required API name)" required>
+        <input type="text" id="research-url" placeholder="https://... (real documentation URL)" required>
+        <button type="submit">Research</button>
+      </form>
+      <pre id="research-result" class="hint"></pre>
+      <h4>History</h4>
+      <div id="research-history" class="widget"></div>
+    </div>
   </section>
 
   <section class="panel panel-wide">
