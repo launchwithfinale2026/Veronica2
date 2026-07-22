@@ -353,17 +353,9 @@ rl.on("line", async (input) => {
 
 
         // MEMORY CLASS BREAKDOWN (episodic/semantic/procedural/organizational)
-        else if (command === "memory.overview
+        else if (command === "memory.overview") {
 
-memory.lifecycleOverview
-
-memory.runLifecyclePromotion") {
-
-            console.log(memory.overview
-
-memory.lifecycleOverview
-
-memory.runLifecyclePromotion());
+            console.log(memory.overview());
 
         }
 
@@ -466,9 +458,7 @@ memory.runLifecyclePromotion());
 
 
         // DEVICE IDENTITY
-        else if (command === "device.identity
-
-device.capabilities") {
+        else if (command === "device.identity") {
 
             console.log(device.currentIdentity());
 
@@ -694,45 +684,9 @@ device.capabilities") {
 
 
         // SELF-MONITORING HISTORY
-        else if (command === "executive.selfMonitorHistory
+        else if (command === "executive.selfMonitorHistory") {
 
-executive.priorityRank
-
-executive.goalIssues
-
-executive.blockers
-
-executive.recommendations
-
-executive.recommendationHistory
-
-executive.dailyBriefing
-
-executive.dailyBriefingHistory
-
-executive.weeklyOperatingReport
-
-executive.weeklyOperatingReportHistory") {
-
-            console.log(executive.selfMonitorHistory
-
-executive.priorityRank
-
-executive.goalIssues
-
-executive.blockers
-
-executive.recommendations
-
-executive.recommendationHistory
-
-executive.dailyBriefing
-
-executive.dailyBriefingHistory
-
-executive.weeklyOperatingReport
-
-executive.weeklyOperatingReportHistory());
+            console.log(executive.selfMonitorHistory());
 
         }
 
