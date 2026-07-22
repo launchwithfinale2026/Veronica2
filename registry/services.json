@@ -69,6 +69,13 @@
       "module": "core/vision",
       "status": "active",
       "description": "Image understanding (description, OCR-style transcription, diagram/chart explanation) via Claude's native multimodal support -- no new dependency or OCR library. Sandboxed to data/workspace/, same root every other filesystem-touching tool uses. Reachable via the existing generic tool system."
+    },
+    {
+      "id": "file-intelligence",
+      "name": "File Intelligence",
+      "module": "core/integrations/fileIntelligence.js",
+      "status": "active",
+      "description": "Indexes and grep-searches arbitrary text-based files in the sandboxed workspace (data/workspace/) into memory + the knowledge graph. Complements core/integrations/obsidian.js (markdown/wikilink-specific) rather than replacing it. Deliberately grep-based search, not semantic, to avoid a second embeddings namespace without a concrete need for one yet."
     }
   ]
 }

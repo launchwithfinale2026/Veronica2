@@ -1494,3 +1494,64 @@ instruction-numbered phase.
   need to already exist in `data/workspace/` — uploading one there is a
   separate, unbuilt capability across every sandboxed tool, not specific
   to vision).
+
+---
+
+## File Intelligence (`core/integrations/fileIntelligence.js`)
+
+**Decision:** closing the loop on a deferral this run made explicitly
+back in "External Integrations" (Phase 12) — "filesystem intelligence...
+deliberately deferred... no concrete need yet." Semantic memory (this
+run's own Phase 14) now exists, but this module deliberately does *not*
+reuse it (see below) — its value is indexing/searching arbitrary files,
+not embeddings specifically. Built 2026-07-22.
+
+- **Complements, doesn't replace, `core/integrations/obsidian.js`**:
+  Obsidian's indexer is markdown/wikilink-specific (extracting `[[links]]`
+  as graph relationships, scoped to one configured vault). File
+  Intelligence is generic — any indexable text-based extension
+  (`.js`/`.py`/`.json`/`.txt`/etc.), no wikilink assumption, scoped to
+  `data/workspace/` by default (the same sandboxed root every filesystem-
+  touching tool already uses) but any root can be passed explicitly.
+  Neither module was refactored to share logic with the other — they
+  solve adjacent but genuinely different problems (a vault's note-linking
+  structure vs. an arbitrary directory's file contents), and forcing a
+  shared abstraction now would be speculative generalization ahead of a
+  second concrete use case for one.
+- **Deliberately grep-based search, not semantic**: reusing `core/
+  memory/embeddings.js`'s `EmbeddingIndex` for files would require a
+  second embeddings namespace (keyed by file path, not memory entry id)
+  sharing or separate from the existing one — a real design decision
+  with no concrete need yet to resolve one way or the other. Grep-based
+  case-insensitive content search is simpler, free (no API call), and
+  already answers "which files mention X" — semantic file search is real
+  future work if keyword search proves insufficient in practice.
+  `searchFiles()` returns matching line numbers (like real `grep`), not
+  just "this file matched," so a caller can actually locate the hit.
+  `indexDirectory()`'s summaries are separate from search — indexing
+  feeds memory/the Persistent Context Engine; search is a direct,
+  synchronous file scan.
+- **Oversized files are skipped, not truncated silently**: a file over
+  200KB becomes one unreadably-huge 280-char summary if truncated
+  blindly, which would misrepresent what's actually in it — skipping it
+  (and reporting the skip count) is more honest than a summary that
+  looks complete but isn't.
+- **Found while writing tests, before it shipped**: the first draft of
+  the `indexDirectory()` test asserted `filesFound >= 3` based on a
+  miscount of the fixture files actually created in the test's temp
+  directory (one indexable `.md`, one oversized `.txt` — only 2, not 3;
+  `image.png` and the `node_modules` fixture are correctly *not*
+  indexable/indexed). The test failed immediately, caught before any
+  code shipped — corrected to match what the fixture actually contains
+  rather than loosening the assertion to something meaningless.
+- Same tool-registration treatment as `obsidian.*`/`web.fetch`/
+  `vision.analyzeImage`: no dependency on `core/intelligence`, so no
+  facade/lazy-require dance needed — reachable through the existing
+  generic `tools.run`/`POST /api/tools/:id/run` mechanism.
+- Not built: semantic file search (see above), file types requiring
+  parsing beyond plain text (PDFs, binary formats, images — vision
+  already covers the image case separately), and recursive size limits
+  on the whole indexed set (only per-file size is capped; a workspace
+  with thousands of small files would still create thousands of memory
+  entries in one `indexDirectory()` call — no concrete case yet for a
+  workspace that large).

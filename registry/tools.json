@@ -468,6 +468,42 @@
         },
         "required": ["path"]
       }
+    },
+    {
+      "id": "files.list",
+      "description": "List every indexable text-based file in the sandboxed workspace (data/workspace/).",
+      "permission": "execute_tools",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "files.read",
+      "description": "Read a file's raw content from the sandboxed workspace.",
+      "permission": "execute_tools",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string" }
+        },
+        "required": ["path"]
+      }
+    },
+    {
+      "id": "files.index",
+      "description": "Index every file in the sandboxed workspace into memory (summaries) and the knowledge graph.",
+      "permission": "execute_tools",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "files.search",
+      "description": "Grep-like case-insensitive content search across every indexable file in the sandboxed workspace.",
+      "permission": "execute_tools",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string" }
+        },
+        "required": ["query"]
+      }
     }
   ]
 }
