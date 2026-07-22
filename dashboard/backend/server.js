@@ -38,6 +38,7 @@ const systemReport = require("../../core/system/report");
 const capabilitiesMarketplace = require("../../core/capabilities/marketplace");
 const capabilitiesBuilder = require("../../core/capabilities/builder");
 const ResearchEngine = require("../../core/research/engine");
+const SelfImprovementEngine = require("../../core/system/selfImprovement");
 const PersonalContextEngine = require("../../core/profile/personalContextEngine");
 const log = require("../../core/logging");
 const { installCrashGuards } = require("../../core/logging/crashGuard");
@@ -75,6 +76,8 @@ const personalContext = new PersonalContextEngine();
 const deviceManager = new DeviceManager();
 
 const researchEngine = new ResearchEngine();
+
+const selfImprovement = new SelfImprovementEngine();
 
 
 // Reads every department's activity.log (JSON lines), merges, and
@@ -288,6 +291,14 @@ const ROUTES = {
     // / what needs improvement, read live from the real capability and
     // integration registries -- see core/system/report.js.
     "GET /api/system/report": () => systemReport.generate(),
+
+    // Phase 30 (Self Improvement Engine): what's duplicated/outdated/
+    // performing poorly, a performance/security report, and an
+    // optimization/refactor/recommendation queue -- proposals only,
+    // nothing here executes anything.
+    "GET /api/system/self-improvement": () => selfImprovement.generate(),
+
+    "GET /api/system/self-improvement/history": (searchParams) => selfImprovement.history(Number(searchParams.get("limit")) || 10),
 
     // Phase 26 (Capability Marketplace): every capability categorized
     // into Installed/Available/Disabled/Experimental/Updates Available/
@@ -904,6 +915,22 @@ function createServer(){
                 }
 
                 return sendJSON(res, 200, await researchEngine.research(topic, { url }));
+
+            }
+
+            // Phase 30: persists a self-improvement report (a real memory
+            // write, gated the same as every other executive "run" route
+            // -- e.g. /api/executive/self-check above -- even though this
+            // one makes no external/billed calls).
+            if(parsed.pathname === "/api/system/self-improvement/run" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                return sendJSON(res, 200, selfImprovement.run());
 
             }
 

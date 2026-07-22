@@ -1964,6 +1964,27 @@ function setupResearchForm(){
 }
 
 
+function setupSelfImprovementButton(){
+
+    const button = document.getElementById("self-improvement-run");
+    const result = document.getElementById("self-improvement-result");
+
+    button.addEventListener("click", async () => {
+
+        result.textContent = "Analyzing...";
+
+        try {
+            const report = await fetchJSON("/api/system/self-improvement");
+            result.textContent = JSON.stringify(report, null, 2);
+        } catch(error){
+            result.textContent = `Error: ${error.message}`;
+        }
+
+    });
+
+}
+
+
 // --- Live updates (Server-Sent Events) ------------------------------------
 //
 // Replaces interval polling: GET /api/events streams memory/knowledge
@@ -2105,6 +2126,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupCapabilitySearchForm();
     setupCapabilityBuildForm();
     setupResearchForm();
+    setupSelfImprovementButton();
 
     populateDepartmentSelect("department-select");
     populateDepartmentSelect("plan-department", { includeAuto: true });
