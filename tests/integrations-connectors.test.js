@@ -154,22 +154,22 @@ test("registry.overview() reports every connector and matches each one's own sta
 
     const overview = registry.overview();
 
-    assert.strictEqual(overview.total, 8);
+    assert.strictEqual(overview.total, 10);
     assert.strictEqual(overview.integrations.length, overview.total);
 
     const ids = overview.integrations.map(i => i.id).sort();
     assert.deepStrictEqual(ids, [
-        "calendar", "cloudStorage", "discord", "email",
-        "fileIntelligence", "github", "http", "obsidian"
+        "calendar", "cloudStorage", "discord", "discordBot", "email",
+        "fileIntelligence", "github", "google", "http", "obsidian"
     ]);
 
     // obsidian/fileIntelligence need no credentials -- always configured.
     assert.strictEqual(overview.integrations.find(i => i.id === "obsidian").configured, true);
     assert.strictEqual(overview.integrations.find(i => i.id === "fileIntelligence").configured, true);
 
-    // github/discord/calendar/email/cloudStorage are unconfigured by
-    // default in this test's clean env.
-    for(const id of ["github", "discord", "calendar", "email", "cloudStorage"]){
+    // github/discord/discordBot/google/calendar/email/cloudStorage are
+    // unconfigured by default in this test's clean env.
+    for(const id of ["github", "discord", "discordBot", "google", "calendar", "email", "cloudStorage"]){
         assert.strictEqual(overview.integrations.find(i => i.id === id).configured, false);
     }
 

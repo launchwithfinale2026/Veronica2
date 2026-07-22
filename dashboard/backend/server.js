@@ -29,6 +29,8 @@ const CollaborationEngine = require("../../core/collaboration/engine");
 const ExecutiveOrchestrator = require("../../core/executive/orchestrator");
 const integrationRegistry = require("../../core/integrations/registry");
 const credentialManager = require("../../core/integrations/credentialManager");
+const googleOAuth = require("../../core/integrations/google/oauth");
+const discordBot = require("../../core/integrations/discordBot");
 const PersonalContextEngine = require("../../core/profile/personalContextEngine");
 const log = require("../../core/logging");
 const { installCrashGuards } = require("../../core/logging/crashGuard");
@@ -257,6 +259,15 @@ const ROUTES = {
     "GET /api/collaboration/history": () => collaboration.history(),
 
     "GET /api/integrations": () => integrationRegistry.overview(),
+
+    // Step 1 of the Google OAuth flow -- the URL a human visits in a
+    // real browser to reach Google's own consent screen. Throws (-> 500,
+    // same as every other unconfigured-dependency error here) if Google
+    // isn't configured yet; the error message names exactly which env
+    // vars are missing (see oauth.js's requireConfigured()).
+    "GET /api/integrations/google/auth-url": () => ({ url: googleOAuth.getAuthUrl() }),
+
+    "GET /api/integrations/discord-bot/status": () => discordBot.status(),
 
     "GET /api/profile": () => personalContext.summary(),
 
@@ -1121,6 +1132,31 @@ function createServer(){
 
             }
 
+            // Step 2 of the Google OAuth flow (see
+            // core/integrations/google/oauth.js's header comment): Google
+            // redirects the OPERATOR's own browser here, as a plain GET,
+            // with a one-time `code` -- there is no Authorization header
+            // to check (the browser making this request has no bearer
+            // token, and shouldn't need one: completing this exchange IS
+            // the human-authorized action, performed by clicking "Allow"
+            // on Google's own consent screen, not by knowing API_TOKEN).
+            // Same localhost-by-default posture as every other endpoint
+            // here -- see DASHBOARD_HOST's own comment at this file's
+            // real-boot path below.
+            if(parsed.pathname === "/api/integrations/google/callback" && req.method === "GET"){
+
+                const code = parsed.searchParams.get("code");
+
+                if(!code){
+                    return sendJSON(res, 400, { error: "code is required" });
+                }
+
+                const tokens = await googleOAuth.exchangeCode(code);
+
+                return sendJSON(res, 200, { authorized: true, obtainedAt: tokens.obtainedAt });
+
+            }
+
             if(ROUTES[routeKey]){
                 return sendJSON(res, 200, ROUTES[routeKey](parsed.searchParams));
             }
@@ -1195,5 +1231,13 @@ if(require.main === module){
         automation.start(Number(process.env.AUTOMATION_TICK_MS) || undefined);
         console.log("[AUTOMATION] Tick loop started");
     }
+
+    // Real login attempt, but never allowed to crash the dashboard: a
+    // real discord.js Client.login() failure (bad token, network outage)
+    // rejects this promise, and .catch() here just logs it -- the
+    // dashboard keeps serving every other endpoint either way. No-ops
+    // cleanly (see discordBot.js's own start()) when DISCORD_BOT_TOKEN
+    // isn't set at all.
+    discordBot.start().catch(error => log.error("discord-bot", `Failed to start: ${error.message}`));
 
 }

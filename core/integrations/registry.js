@@ -21,6 +21,8 @@
 const http = require("./http");
 const github = require("./github");
 const discord = require("./discord");
+const discordBot = require("./discordBot");
+const googleOAuth = require("./google/oauth");
 const calendar = require("./calendar");
 const email = require("./email");
 const cloudStorage = require("./cloudStorage");
@@ -58,6 +60,8 @@ function list(){
 
         github.status(),
         discord.status(),
+        discordBot.status(),
+        googleOAuth.status(),
         calendar.status(),
         email.status(),
         cloudStorage.status()
