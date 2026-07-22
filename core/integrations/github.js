@@ -17,12 +17,13 @@
 // credentials" must be true.
 
 const http = require("./http");
+const credentialManager = require("./credentialManager");
 
 const API_ROOT = "https://api.github.com";
 
 
 function isConfigured(){
-    return Boolean(process.env.GITHUB_TOKEN);
+    return credentialManager.isConfigured("github");
 }
 
 

@@ -114,7 +114,7 @@ test("overview() returns every known connector", () => {
 
     const ids = overview.map(c => c.id).sort();
 
-    assert.deepStrictEqual(ids, ["claude", "discord", "github", "google", "openai"]);
+    assert.deepStrictEqual(ids, ["calendar", "claude", "cloudStorage", "discord", "discordWebhook", "email", "github", "google", "openai"]);
 
 });
 
@@ -132,7 +132,7 @@ test("validateStartup() never throws regardless of how many credentials are miss
     let results;
     assert.doesNotThrow(() => { results = credentialManager.validateStartup(); });
 
-    assert.strictEqual(results.length, 5);
+    assert.strictEqual(results.length, 9);
     assert.ok(results.every(r => r.configured === false));
 
 });

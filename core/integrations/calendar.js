@@ -22,11 +22,13 @@
 // superseded, just no longer the only calendar-shaped thing in this
 // directory.
 
-const REQUIRED_ENV = ["CALENDAR_PROVIDER", "CALENDAR_ACCESS_TOKEN"];
+const credentialManager = require("./credentialManager");
+
+const REQUIRED_ENV = credentialManager.CONNECTORS.calendar.required;
 
 
 function isConfigured(){
-    return REQUIRED_ENV.every(name => Boolean(process.env[name]));
+    return credentialManager.isConfigured("calendar");
 }
 
 

@@ -13,10 +13,11 @@
 // in SERVICE_ALLOWLIST for this to reach the network at all.
 
 const http = require("./http");
+const credentialManager = require("./credentialManager");
 
 
 function isConfigured(){
-    return Boolean(process.env.DISCORD_WEBHOOK_URL);
+    return credentialManager.isConfigured("discordWebhook");
 }
 
 

@@ -39,7 +39,24 @@ const CONNECTORS = {
     google: {
         required: ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI"],
         label: "Google Workspace (Gmail/Calendar/Drive)"
-    }
+    },
+
+    // Distinct from `discord` above: the existing webhook-based connector
+    // (core/integrations/discord.js) predates the Phase 19 bot and uses a
+    // different credential entirely -- a single per-channel URL, not a bot
+    // token. Kept as its own entry rather than merged, since "configured"
+    // for one says nothing about the other.
+    discordWebhook: { required: ["DISCORD_WEBHOOK_URL"], label: "Discord webhook (outgoing messages)" },
+
+    // Generic, provider-agnostic placeholders (see calendar.js/email.js/
+    // cloudStorage.js's own header comments) -- no concrete provider
+    // chosen yet, so these variable names aren't tied to any real API.
+    // Listed here anyway so validateStartup()/overview() can report their
+    // status the same way as every real connector, per this module's own
+    // purpose as the one place that answers "what's configured."
+    calendar: { required: ["CALENDAR_PROVIDER", "CALENDAR_ACCESS_TOKEN"], label: "Calendar (provider not yet chosen)" },
+    email: { required: ["EMAIL_PROVIDER", "EMAIL_API_KEY"], label: "Email (provider not yet chosen)" },
+    cloudStorage: { required: ["CLOUD_STORAGE_PROVIDER", "CLOUD_STORAGE_ACCESS_TOKEN"], label: "Cloud storage (provider not yet chosen)" }
 
 };
 

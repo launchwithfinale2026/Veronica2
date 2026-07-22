@@ -18,11 +18,13 @@
 // core/integrations/github.js does, with no new dependency at all --
 // that path is more consistent with this codebase's stated conventions.
 
-const REQUIRED_ENV = ["EMAIL_PROVIDER", "EMAIL_API_KEY"];
+const credentialManager = require("./credentialManager");
+
+const REQUIRED_ENV = credentialManager.CONNECTORS.email.required;
 
 
 function isConfigured(){
-    return REQUIRED_ENV.every(name => Boolean(process.env[name]));
+    return credentialManager.isConfigured("email");
 }
 
 

@@ -20,11 +20,13 @@
 // signing code -- worth weighing against that convention before picking
 // one of those instead.
 
-const REQUIRED_ENV = ["CLOUD_STORAGE_PROVIDER", "CLOUD_STORAGE_ACCESS_TOKEN"];
+const credentialManager = require("./credentialManager");
+
+const REQUIRED_ENV = credentialManager.CONNECTORS.cloudStorage.required;
 
 
 function isConfigured(){
-    return REQUIRED_ENV.every(name => Boolean(process.env[name]));
+    return credentialManager.isConfigured("cloudStorage");
 }
 
 
