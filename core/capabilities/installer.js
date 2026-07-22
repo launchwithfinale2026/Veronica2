@@ -136,4 +136,71 @@ function uninstall(name){
 }
 
 
-module.exports = { install, completeInstall, uninstall, healthCheck };
+// Phase 24 (VERONICA Self-Management): capability upgrades, with the
+// same backup-snapshot/health-check/rollback safety as a fresh install
+// -- upgrading is really "replace the registered entry with a newer
+// manifest," so it reuses the same validate -> register -> health-check
+// -> activate sequence, just after temporarily removing the old entry
+// (validator.validate() would otherwise reject re-registering a name
+// that's already installed). Any failure restores the snapshot taken
+// BEFORE removal, so a bad upgrade leaves the old version installed and
+// active, never half-upgraded.
+function upgrade(name, packageDir){
+
+    const existing = registry.requireCapability(name);
+
+    if(existing.core){
+        throw new Error(`Capability "${name}" is a built-in, not a package -- it cannot be upgraded`);
+    }
+
+    const manifest = manifestModule.loadManifest(packageDir);
+
+    if(manifest.name !== name){
+        throw new Error(`Package at "${packageDir}" declares name "${manifest.name}", not "${name}"`);
+    }
+
+    const snapshot = registry.snapshot();
+
+    try {
+
+        registry.remove(name);
+
+        const { valid, errors } = validator.validate(manifest, packageDir);
+
+        if(!valid){
+            throw new Error(`Cannot upgrade "${name}": ${errors.join("; ")}`);
+        }
+
+        registry.register({
+            name: manifest.name,
+            version: manifest.version,
+            description: manifest.description,
+            status: "installed",
+            source: packageDir,
+            manifest
+        });
+
+        const health = healthCheck(manifest, packageDir);
+
+        if(!health.healthy){
+            throw new Error(`Health check failed: ${health.errors.join("; ")}`);
+        }
+
+        lifecycle.activate(manifest.name, `Upgraded from v${existing.version} to v${manifest.version}`);
+
+        log.info("capabilities", `Upgraded "${name}" from v${existing.version} to v${manifest.version}`);
+
+        return registry.get(name);
+
+    } catch(error){
+
+        lifecycle.rollback(snapshot);
+        log.error("capabilities", `Upgrade of "${name}" failed, rolled back to v${existing.version}: ${error.message}`);
+        throw error;
+
+    }
+
+}
+
+
+module.exports = { install, completeInstall, uninstall, upgrade, healthCheck };

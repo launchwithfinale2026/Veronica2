@@ -34,6 +34,7 @@ const discordBot = require("../../core/integrations/discordBot");
 const capabilitiesRegistry = require("../../core/capabilities/registry");
 const installer = require("../../core/capabilities/installer");
 const capabilitiesPlanner = require("../../core/capabilities/planner");
+const systemReport = require("../../core/system/report");
 const PersonalContextEngine = require("../../core/profile/personalContextEngine");
 const log = require("../../core/logging");
 const { installCrashGuards } = require("../../core/logging/crashGuard");
@@ -277,6 +278,11 @@ const ROUTES = {
     // its real status (active/installed/disabled/error) -- real state
     // only, see core/capabilities/registry.js.
     "GET /api/capabilities": () => capabilitiesRegistry.list(),
+
+    // Phase 24 (VERONICA Self-Management): what exists / what's missing
+    // / what needs improvement, read live from the real capability and
+    // integration registries -- see core/system/report.js.
+    "GET /api/system/report": () => systemReport.generate(),
 
     "GET /api/profile": () => personalContext.summary(),
 

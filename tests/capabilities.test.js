@@ -225,6 +225,47 @@ test("installer.install() refuses to install the same package twice, and refuses
 });
 
 
+test("installer.upgrade() replaces an installed capability's version, rolling back on failure", () => {
+
+    assert.ok(registry.isInstalled("example")); // from an earlier test in this file
+    assert.strictEqual(registry.get("example").version, "1.0.0");
+
+    const upgradeDir = fs.mkdtempSync(path.join(os.tmpdir(), "veronica-example-upgrade-xqzcap10-"));
+    fs.mkdirSync(path.join(upgradeDir, "agents"));
+    fs.mkdirSync(path.join(upgradeDir, "tools"));
+    fs.writeFileSync(path.join(upgradeDir, "manifest.json"), JSON.stringify({
+        name: "example", version: "1.1.0", description: "upgraded test description"
+    }));
+
+    const upgraded = installer.upgrade("example", upgradeDir);
+
+    assert.strictEqual(upgraded.version, "1.1.0");
+    assert.strictEqual(upgraded.status, "active");
+
+    // Wrong-name package refused outright, without touching the registry.
+    const wrongNameDir = fs.mkdtempSync(path.join(os.tmpdir(), "veronica-wrong-name-xqzcap10-"));
+    fs.writeFileSync(path.join(wrongNameDir, "manifest.json"), JSON.stringify({
+        name: "not-example-xqzcap10", version: "1.0.0", description: "test"
+    }));
+    assert.throws(() => installer.upgrade("example", wrongNameDir), /declares name "not-example-xqzcap10", not "example"/);
+    assert.strictEqual(registry.get("example").version, "1.1.0"); // unchanged
+
+    // A broken upgrade rolls back to the last-good version.
+    const brokenUpgradeDir = fs.mkdtempSync(path.join(os.tmpdir(), "veronica-example-broken-upgrade-xqzcap10-"));
+    fs.mkdirSync(path.join(brokenUpgradeDir, "tools"));
+    fs.writeFileSync(path.join(brokenUpgradeDir, "manifest.json"), JSON.stringify({
+        name: "example", version: "2.0.0", description: "test", tools: [{ id: "broken.xqzcap10" }]
+    }));
+    fs.writeFileSync(path.join(brokenUpgradeDir, "tools", "broken.xqzcap10.js"), "not valid js {{{");
+
+    assert.throws(() => installer.upgrade("example", brokenUpgradeDir), /Health check failed/);
+    assert.strictEqual(registry.get("example").version, "1.1.0"); // rolled back, not lost
+
+    assert.throws(() => installer.upgrade("memory", EXAMPLE_PACKAGE_DIR), /built-in, not a package/);
+
+});
+
+
 test("installer.install() creates a pending ActionProposal for an approvalRequired package, and only installs once approved", () => {
 
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "veronica-approval-package-xqzcap8-"));
