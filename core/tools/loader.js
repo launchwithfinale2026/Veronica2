@@ -3,6 +3,11 @@ const path = require("path");
 
 const Tool = require("./base");
 
+// Phase 25: see core/agents/loader.js's own comment on this same require --
+// zero active packages means packageToolConfigs() returns [], a pure
+// addition otherwise.
+const activation = require("../capabilities/activation");
+
 const HANDLER_MODULES = [
     require("./handlers/memory"),
     require("./handlers/knowledge"),
@@ -31,7 +36,7 @@ function loadTools(){
 
     const handlers = Object.assign({}, ...HANDLER_MODULES);
 
-    return registry.tools.map(config => {
+    const baseTools = registry.tools.map(config => {
 
         const handler = handlers[config.id];
 
@@ -44,6 +49,23 @@ function loadTools(){
         return new Tool({ ...config, handler });
 
     });
+
+    const packageTools = activation.packageToolConfigs().map(({ toolConfig, handlerPath, packageName }) => {
+
+        const handlerModule = require(handlerPath);
+        const handler = handlerModule[toolConfig.id];
+
+        if(!handler){
+            throw new Error(
+                `Package "${packageName}" declares tool "${toolConfig.id}" but ${handlerPath} does not export it`
+            );
+        }
+
+        return new Tool({ ...toolConfig, handler });
+
+    });
+
+    return [...baseTools, ...packageTools];
 
 }
 

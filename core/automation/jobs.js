@@ -11,6 +11,16 @@
 
 const SelfMonitor = require("../executive/selfMonitor");
 const ExecutiveOrchestrator = require("../executive/orchestrator");
+const log = require("../logging");
+
+// Phase 25: a package's automations aren't hardcoded here -- see
+// core/capabilities/activation.js's packageAutomationConfigs().
+const activation = require("../capabilities/activation");
+
+// Default cadence for a package automation that doesn't specify its own
+// intervalMs -- hourly, the same conservative default this file already
+// uses for self-monitor.
+const DEFAULT_PACKAGE_AUTOMATION_INTERVAL_MS = 60 * 60 * 1000;
 
 const CONSOLIDATE_INTERVAL_MS = 24 * 60 * 60 * 1000; // nightly, per the milestone's own framing
 const RECOMMEND_INTERVAL_MS = 24 * 60 * 60 * 1000;
@@ -91,6 +101,8 @@ function registerBuiltInJobs(engine){
     // Google isn't authorized yet.
     engine.registerJob("google-poll", () => require("../integrations/google/poll").pollAll());
 
+    registerPackageJobs(engine);
+
     engine.schedule("consolidate", CONSOLIDATE_INTERVAL_MS);
     engine.schedule("learning-recommend", RECOMMEND_INTERVAL_MS);
     engine.schedule("self-monitor", SELF_MONITOR_INTERVAL_MS);
@@ -99,6 +111,42 @@ function registerBuiltInJobs(engine){
     engine.schedule("daily-review", DAILY_REVIEW_INTERVAL_MS);
     engine.schedule("github-poll", GITHUB_POLL_INTERVAL_MS);
     engine.schedule("google-poll", GOOGLE_POLL_INTERVAL_MS);
+
+}
+
+
+// Registers (and schedules) every automation an ACTIVE, installed
+// capability package declares in its manifest -- "Automations
+// Registered" from Phase 25's own activation pipeline. A handler
+// module that fails to load, or doesn't export a function under the
+// declared name, is logged and skipped rather than crashing the whole
+// boot -- one broken package automation should never take down every
+// other job.
+function registerPackageJobs(engine){
+
+    for(const { automationConfig, handlerPath, packageName } of activation.packageAutomationConfigs()){
+
+        let handler;
+
+        try {
+            const handlerModule = require(handlerPath);
+            handler = handlerModule[automationConfig.name];
+        } catch(error){
+            log.error("capabilities", `Package "${packageName}" automation "${automationConfig.name}" failed to load: ${error.message}`);
+            continue;
+        }
+
+        if(typeof handler !== "function"){
+            log.error("capabilities", `Package "${packageName}" automation "${automationConfig.name}" does not export a function named "${automationConfig.name}" from ${handlerPath} -- skipped`);
+            continue;
+        }
+
+        const jobName = `pkg:${packageName}:${automationConfig.name}`;
+
+        engine.registerJob(jobName, handler);
+        engine.schedule(jobName, automationConfig.intervalMs || DEFAULT_PACKAGE_AUTOMATION_INTERVAL_MS);
+
+    }
 
 }
 
