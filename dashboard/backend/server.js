@@ -27,6 +27,7 @@ const bus = require("../../core/bus");
 const CollaborationEngine = require("../../core/collaboration/engine");
 const ExecutiveOrchestrator = require("../../core/executive/orchestrator");
 const integrationRegistry = require("../../core/integrations/registry");
+const PersonalContextEngine = require("../../core/profile/personalContextEngine");
 const log = require("../../core/logging");
 const { installCrashGuards } = require("../../core/logging/crashGuard");
 
@@ -57,6 +58,8 @@ const collaboration = new CollaborationEngine(departments);
 // pursue()/report()/run-next routes below instead of constructing a
 // second one against the same departments.
 const orchestrator = automation.registerExecutionJob(departments);
+
+const personalContext = new PersonalContextEngine();
 
 
 // Reads every department's activity.log (JSON lines), merges, and
@@ -225,6 +228,8 @@ const ROUTES = {
     "GET /api/collaboration/history": () => collaboration.history(),
 
     "GET /api/integrations": () => integrationRegistry.overview(),
+
+    "GET /api/profile": () => personalContext.summary(),
 
     "GET /api/logs/errors": () => log.readErrors()
 

@@ -12,7 +12,8 @@ const HANDLER_MODULES = [
     require("./handlers/learning"),
     require("./handlers/automation"),
     require("./handlers/integrations"),
-    require("./handlers/vision")
+    require("./handlers/vision"),
+    require("./handlers/profile")
 ];
 
 

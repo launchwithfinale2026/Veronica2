@@ -55,3 +55,10 @@ core/memory/memory.json
 # content. Backups of real data should never be committed; keep them
 # local instead.
 backups/
+
+# Real operator profile data (Phase 13: identity, preferences, working
+# style, relationships, objectives) -- same "real personal data, not
+# source" treatment as core/memory/database.json above, applied from the
+# start this time. core/profile/personalContextEngine.js bootstraps a
+# default file if one doesn't exist.
+core/profile/veronica.profile.json

@@ -1911,3 +1911,83 @@ reader, not just this one.
 (`tests/memory-classifier.test.js`, `tests/memory-importance-engine.test.js`,
 `tests/memory-lifecycle.test.js`), plus two integration tests added to
 `tests/daily-briefing.test.js` confirming the daily-cycle wiring.
+
+---
+
+## Phase 13 — Personal Operating Profile
+
+**Goal:** VERONICA understands the operator specifically, not just the
+roadmap in the abstract. `core/profile/personalContextEngine.js`'s
+`PersonalContextEngine` is deliberately distinct from
+`core/context/engine.js`'s `ContextEngine` (per-query reasoning context)
+— this is about the operator, persisted across every call, split
+between explicit facts (`core/profile/veronica.profile.json`: identity,
+preferences, working style, important relationships, long-term
+objectives — settable via `set(path, value)`/`add(field, value)`) and
+things already derivable live from systems this codebase already built
+rather than duplicated into the static file: active goals
+(`ExecutivePlanner.roadmap()`), important context (Phase 12's
+`persistent`-lifecycle memories, VERONICA's own already-computed
+judgment of what matters), recent decisions (`type: "decisions"` memory
+entries), and recommended focus (Phase 11's `PriorityRanking.rank()`
+top item).
+
+**`resolvedIdentity()`** doesn't fabricate an operator identity: an
+explicit `profile.identity.name` always wins; failing that, it checks
+whether the knowledge graph has *exactly one* `"person"`-type entity —
+if so, that's a real, already-recorded fact worth surfacing as a
+default (not a guess invented here), source-tagged
+`"derived from knowledge graph"` so it's clear where it came from. More
+than one person entity is ambiguous (could be a client/employee, not
+the operator) and is left unset for the operator to state explicitly.
+
+**`veronica.profile.json` is gitignored from the start** (added to
+`.gitignore` in the same commit that introduces the file) — this is
+real, personal operator data, and Phase 10's security audit already
+established why that class of file shouldn't be tracked; no reason to
+repeat that mistake for a new file when the lesson is already learned.
+
+**Terminal**: the phase brief's literal wording was `veronica profile`
+(space-separated), but every other command in this terminal uses dot
+notation (`executive.plan`, `memory.overview`, etc.) — `veronica.profile`
+matches the codebase's own established convention instead, plus
+`veronica.profileSet <path> <value>` / `veronica.profileAdd <field>
+<value>` for editing. Output format matches exactly what was asked:
+`Current mission: / Active goals: / Important context: / Recent
+decisions: / Recommended focus:`.
+
+**Found and fixed a real, more serious bug while wiring this in**:
+`core/tools/handlers/profile.js`'s first draft required
+`PersonalContextEngine` at module top level. `PersonalContextEngine`
+depends on `PriorityRanking` -> `ProjectManager` -> `GoalDecomposer` ->
+`core/intelligence` -> `core/brain` -> `ClaudeProvider` -> `core/tools`
+— a top-level require closed that exact circular loop while
+`core/tools` was still mid-load, the same bug class documented
+repeatedly in "Goal Decomposition Engine" above. Fixed the same way
+`core/tools/handlers/executive.js` already does: the require moves
+inside a lazy getter, only ever actually executed once a tool is
+invoked, long after module loading has finished.
+
+**Also found and fixed, unrelated**: three help-text updates across
+Phases 11 and 12 (`memory.overview`, `device.identity`,
+`executive.selfMonitorHistory`) had used `replace_all` on a short bare
+command name to insert new lines into the terminal's help listing. Each
+of those same bare strings also appeared inside that command's own
+`command === "..."` handler condition, which `replace_all` doesn't
+distinguish from "the line in the help list" — it corrupted all three
+handlers by inserting the multi-line replacement text inside their
+string literals, breaking the closing quote. This shipped across two
+prior commits without being caught, because nothing in the test suite
+requires or executes `core/interface/terminal.js` at all (it's a CLI
+entry point, not a module anything imports) — `npm test` staying green
+never actually verified this file parses. Caught only while touching
+this file again for Phase 13, via `node --check` (which should be, and
+now is, run after every edit to this file, not just assumed fine
+because the rest of the suite passed). Fixed by restoring each
+corrupted handler to its single-line form, verified both with
+`node --check` and by actually booting the terminal and running the
+affected commands end to end.
+
+9 new tests (`tests/personal-context-engine.test.js`). Wired into the
+personal-context/tool/dashboard/terminal surfaces the same way every
+prior phase's capabilities were.

@@ -261,13 +261,43 @@ unconditionally dereferenced before this phase's code did. Fixed in
 the memory facade, 2 new tools, dashboard routes/widget, and terminal
 commands -- the same surfaces every prior phase's capabilities got.
 
+## Phase 13 -- Personal Operating Profile
+
+Full design reasoning in `docs/Architecture.md`'s "Phase 13 -- Personal
+Operating Profile". `core/profile/personalContextEngine.js`'s
+`PersonalContextEngine` tracks the operator specifically (distinct from
+`core/context/engine.js`'s per-query reasoning context): identity,
+preferences, working style, relationships, and objectives, split
+between an explicit profile file (`core/profile/veronica.profile.json`,
+gitignored from the start) and live-derived data reused from Phases 11
+-12 (active goals, persistent-memory "important context", recent
+decisions, recommended focus via priority ranking) rather than
+duplicated.
+
+Terminal: `veronica.profile` (matching the codebase's own dot-notation
+convention rather than the brief's literal `veronica profile` wording),
+outputting exactly the requested format (mission/goals/context/
+decisions/focus).
+
+Two real bugs found and fixed along the way, both documented in full in
+Architecture.md: (1) a genuine circular-require closing the same loop
+documented since "Goal Decomposition Engine" -- `core/tools/handlers/
+profile.js`'s first draft required `PersonalContextEngine` at module
+top level, fixed with a lazy getter; (2) three terminal.js handlers
+corrupted by bad `replace_all` operations in Phases 11-12 that had
+shipped undetected because nothing in the test suite actually executes
+`core/interface/terminal.js` -- caught via `node --check`, fixed, and
+verified by actually booting the terminal.
+
+9 new tests. Wired into tools/dashboard/terminal.
+
 ## Totals
 
-- 12 commits across Phases 10-12 combined with the earlier 9, each with
+- 14 commits across Phases 10-13 combined with the earlier 9, each with
   `npm test` green before committing.
 - Test count: 210 -> 222 (end of the original 9-phase pass) -> 240 (end
-  of Phase 10) -> 267 (end of Phase 11) -> 291 (end of Phase 12), all
-  passing throughout.
+  of Phase 10) -> 267 (end of Phase 11) -> 291 (end of Phase 12) -> 300
+  (end of Phase 13), all passing throughout.
 - No existing test broken; no existing public API removed or changed
   incompatibly.
 

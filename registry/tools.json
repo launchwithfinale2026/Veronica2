@@ -598,6 +598,38 @@
       "description": "Lists every integration connector (Obsidian, HTTP, file intelligence, GitHub, Discord, Calendar, Email, Cloud storage) and whether each is configured.",
       "permission": "read_memory",
       "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "profile.summary",
+      "description": "Phase 13: the operator's personal operating profile -- current mission, active goals, important (persistent-lifecycle) context, recent decisions, recommended focus, preferences, working style, important relationships, and long-term objectives.",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "profile.set",
+      "description": "Sets one explicit profile field by dot path (e.g. \"identity.name\", \"workingStyle\", \"mission\").",
+      "permission": "write_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string" },
+          "value": { "type": "string" }
+        },
+        "required": ["path"]
+      }
+    },
+    {
+      "id": "profile.add",
+      "description": "Appends a value to a list profile field (preferences, importantRelationships, or longTermObjectives).",
+      "permission": "write_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "field": { "type": "string", "enum": ["preferences", "importantRelationships", "longTermObjectives"] },
+          "value": { "type": "string" }
+        },
+        "required": ["field", "value"]
+      }
     }
   ]
 }

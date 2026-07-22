@@ -23,6 +23,7 @@ const learning = require("../learning");
 const automation = require("../automation");
 const CollaborationEngine = require("../collaboration/engine");
 const ExecutiveOrchestrator = require("../executive/orchestrator");
+const PersonalContextEngine = require("../profile/personalContextEngine");
 
 
 const identity = JSON.parse(
@@ -46,6 +47,8 @@ const collaboration = new CollaborationEngine(departments);
 // here doesn't start it running -- see the "automation.start" command --
 // this only makes it exist and be scheduled.
 const orchestrator = automation.registerExecutionJob(departments);
+
+const personalContext = new PersonalContextEngine();
 
 const context = new ContextEngine();
 
@@ -107,6 +110,12 @@ memory.overview
 memory.lifecycleOverview
 
 memory.runLifecyclePromotion
+
+veronica.profile
+
+veronica.profileSet <dot.path> <value>
+
+veronica.profileAdd <preferences|importantRelationships|longTermObjectives> <value>
 
 memory.semanticSearch <term>
 
@@ -372,6 +381,51 @@ rl.on("line", async (input) => {
         else if (command === "memory.runLifecyclePromotion") {
 
             console.log(memory.runLifecyclePromotion());
+
+        }
+
+
+        // PHASE 13 -- PERSONAL OPERATING PROFILE
+        else if (command === "veronica.profile") {
+
+            const summary = personalContext.summary();
+
+            console.log(`
+Current mission: ${summary.mission}
+
+Active goals: ${summary.activeGoals.length ? "" : "(none)"}
+${summary.activeGoals.map(g => `  - [${g.status}] ${g.title} (priority ${g.priority})`).join("\n")}
+
+Important context: ${summary.importantContext.length ? "" : "(none marked persistent yet)"}
+${summary.importantContext.map(c => `  - ${c.content} (score ${c.score})`).join("\n")}
+
+Recent decisions: ${summary.recentDecisions.length ? "" : "(none)"}
+${summary.recentDecisions.map(d => `  - ${d.content}`).join("\n")}
+
+Recommended focus: ${summary.recommendedFocus ? `${summary.recommendedFocus.title} (score ${summary.recommendedFocus.score})` : "(nothing active to focus on)"}
+`);
+
+        }
+
+
+        // PHASE 13 -- SET AN EXPLICIT PROFILE FIELD (dot path)
+        else if (command.startsWith("veronica.profileSet ")) {
+
+            const rest = command.substring(20).trim();
+            const [fieldPath, ...valueParts] = rest.split(" ");
+
+            console.log(personalContext.set(fieldPath, valueParts.join(" ")));
+
+        }
+
+
+        // PHASE 13 -- APPEND TO A LIST PROFILE FIELD
+        else if (command.startsWith("veronica.profileAdd ")) {
+
+            const rest = command.substring(20).trim();
+            const [fieldName, ...valueParts] = rest.split(" ");
+
+            console.log(personalContext.add(fieldName, valueParts.join(" ")));
 
         }
 
@@ -982,6 +1036,9 @@ memory.overview
 memory.lifecycleOverview
 
 memory.runLifecyclePromotion
+veronica.profile
+veronica.profileSet <dot.path> <value>
+veronica.profileAdd <preferences|importantRelationships|longTermObjectives> <value>
 memory.semanticSearch <term>
 memory.reindexEmbeddings
 remember <memory>
