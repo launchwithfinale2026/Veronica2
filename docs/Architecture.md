@@ -2388,3 +2388,74 @@ executive-awareness extensions. All pre-existing tests continue to
 pass unmodified except where a test's own exact-match assertion needed
 updating to account for new registry entries (e.g. the connector-count/
 id-list assertions in `tests/integrations-connectors.test.js`).
+
+## Phases 20-24 — Capability Expansion, Mac Resident System, Integration Framework, Self-Management, Command Center extension
+
+**Goal:** the foundation for VERONICA to install and manage new
+capabilities as packages ("VERONICA, create a trading division" ->
+capability-gap analysis -> installation plan -> real installed
+capability), a real macOS user-level startup mechanism, and the
+self-management/reporting pieces that tie the whole system's real
+status together — without redesigning any existing system to get there.
+Full detail in `docs/CHANGELOG.md`'s per-phase entries; this section
+covers the two decisions worth explaining.
+
+**Approval reuse, again.** `core/capabilities/installer.js`'s
+approval-gated install path (a package whose manifest sets
+`"approvalRequired": true`) creates a proposal via the SAME
+`ActionProposalEngine.proposeExternalAction()` Phase 19 built for
+`create_github_issue`/`post_discord_message` — a new `install_capability`
+action, `"high"` risk (installing a package can grant new tool
+permissions), nothing structurally new. The one wrinkle: `installer.js`
+needs to create a proposal (requiring `core/executive/actionProposal.js`),
+and `actionProposal.js`'s `performExternalAction()` needs to call back
+into `installer.js` to actually perform the install once approved —
+a genuine two-way dependency, resolved the same way every other
+circular-require risk in this codebase is (see "Goal Decomposition
+Engine" above): both requires are lazy, inside function bodies, never
+at module top level.
+
+**One real example package, not five fake departments.** The Phase 20
+prompt's own illustrative examples (`packages/trading/`,
+`packages/marketing/`, etc.) were illustrative, not literal asks — and
+building five business-department stubs with agents that don't actually
+do anything would be exactly the "don't fabricate integrations, don't
+create placeholders pretending to work" failure mode Phase 19 was
+explicit about avoiding. `packages/example/` is instead one real,
+minimal package (one agent with a real prompt file, one tool with a
+real, working handler) that proves `installer.install()`'s entire
+pipeline — validate, snapshot, real health check (`require()`-ing the
+package's own files, catching a genuine syntax error), activate,
+rollback-on-failure — end to end. `core/capabilities/planner.js`'s
+`CAPABILITY_CATALOG` still names the illustrative domains (trading,
+marketing, finance, research, real estate) so the gap-analysis example
+interaction works, but building a REAL package for any of them is
+future work, honestly flagged as such in `docs/CHANGELOG.md` and
+`docs/NEXT_STEPS.md` rather than implied to already exist.
+
+**What's deliberately NOT done yet**: installed packages' agents/tools
+aren't hot-wired into the live `loadAgents()`/`loadTools()`/
+`loadDepartments()` roster — those three loaders are unchanged, still
+reading only the static `registry/*.json` files. `docs/NEXT_STEPS.md`
+names this as the single highest-value next increment, with the exact
+extension point in each loader.
+
+**Mac Resident System** (`core/system/startupManager.js`): explicitly
+scoped to spawning/monitoring one already-existing process
+(`dashboard/backend/server.js`) — no new capability of its own, and no
+touching of sleep/shutdown/battery/power-management settings, per this
+phase's own explicit constraint. The LaunchAgent
+(`config/com.veronica.agent.plist`) is a template; actually installing
+it (`scripts/install-launch-agent.sh`) changes the machine's real login
+behavior, so — consistent with this whole project's standing posture on
+actions with effects outside the repo — it's a manual, opt-in script,
+never executed automatically as part of this work.
+
+28 new tests (375 → 403) across all five phases: the capability
+install/upgrade/rollback pipeline end to end (including a real
+approval-gated install and a real syntax-error health-check failure),
+the startup manager's crash/backoff/restart-limit logic against a faked
+child process plus a real ephemeral HTTP server for the health-check
+path, the new `lastSync` registry field, the system report's three
+questions, and the new dashboard routes verified against a real running
+server instance.

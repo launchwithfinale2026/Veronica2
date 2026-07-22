@@ -479,18 +479,123 @@ routes, and the three executive-awareness extensions.
 ## Totals
 
 - 18 commits across Phases 10-17 combined with the earlier 9, plus 12
-  more across Phase 19, each with `npm test` green before committing.
+  more across Phase 19 and 6 more across Phases 20-24, each with
+  `npm test` green before committing.
 - Test count: 210 -> 222 (end of the original 9-phase pass) -> 240 (end
   of Phase 10) -> 267 (end of Phase 11) -> 291 (end of Phase 12) -> 300
   (end of Phase 13) -> 307 (end of Phase 14) -> 313 (end of Phase 15)
   -> 320 (end of Phase 16) -> 324 (end of Phase 17) -> 324 (end of
-  Phase 18, audit-only) -> 375 (end of Phase 19), all passing
-  throughout.
+  Phase 18, audit-only) -> 375 (end of Phase 19) -> 403 (end of Phases
+  20-24), all passing throughout.
 - No existing test broken; no existing public API removed or changed
   incompatibly.
 
+## Phase 20 -- Capability Expansion Architecture
+
+`core/capabilities/` (new): `registry.js` (persisted status --
+installed/active/disabled/error -- for every capability, seeded with
+the real built-ins), `manifest.js`/`validator.js` (load and validate a
+package's `manifest.json` against its actual directory: do the declared
+agent prompt/tool handler files really exist, are dependencies already
+installed), `lifecycle.js` (legal status transitions + rollback to a
+prior snapshot), `installer.js` (validate -> snapshot -> register ->
+real health check, actually `require()`-ing every declared file to
+catch a syntax error before activation -> activate, or roll back
+entirely on any failure), `planner.js` ("VERONICA, create a trading
+division" -> a rule-based capability-gap analysis against a static
+domain catalog). A package whose manifest sets `"approvalRequired":
+true` reuses Phase 19's `ActionProposalEngine` (a new
+`install_capability` external action) rather than a second approval
+mechanism.
+
+`packages/example/` is one real, minimal reference package (one agent,
+one tool) proving the install pipeline end to end -- deliberately not
+five fabricated business-department stubs. Installed package agents/
+tools are NOT YET hot-wired into the live agent/department/tool roster
+(`core/agents/loader.js` etc. are unchanged) -- see "Remaining
+limitations" below.
+
+Dashboard: `GET /api/capabilities`, `POST /api/capabilities/analyze`
+(no auth -- read-only analysis), `POST /api/capabilities/install`
+(`API_TOKEN`-gated), and a new
+`POST /api/executive/proposals/:id/execute-external` route for the
+async external-proposal execution path.
+
+19 new tests.
+
+## Phase 21 -- Mac Resident System
+
+`core/system/startupManager.js`: a thin, user-level supervisor --
+spawns the dashboard server as a child process, restarts it on crash
+(bounded, exponential backoff, gives up after a limit within a rolling
+window rather than crash-looping forever), and periodically health-
+checks it over real HTTP. Touches nothing about sleep/shutdown/battery/
+power management or any system-level policy, per this phase's explicit
+constraint.
+
+`config/com.veronica.agent.plist` is a LaunchAgent template for
+`~/Library/LaunchAgents/` (per-user, unprivileged -- never
+`/Library/LaunchDaemons/`). Actually installing it
+(`scripts/install-launch-agent.sh`) changes the machine's real login
+behavior, so it's an opt-in script the operator runs manually, not
+something executed automatically as part of this work --
+`scripts/uninstall-launch-agent.sh` reverses it.
+
+4 new tests (a fully faked child process, a real ephemeral HTTP server
+for the health-check path -- no test spawns a real process or touches
+the real LaunchAgents directory).
+
+## Phase 23 -- Integration Framework
+
+Phase 19 already built the substance of this phase's ask (connector
+registry, per-connector status, permissions via `credentialManager`,
+health via each connector's own `status()`). Closed the one real gap:
+`core/integrations/registry.js` now reports a real `lastSync` timestamp
+for github/google, derived from the shared event-ingestion pipeline
+every poller already writes to.
+
+1 new test.
+
+## Phase 24 -- VERONICA Self-Management
+
+`installer.upgrade(name, packageDir)`: capability upgrades with the
+same backup-snapshot/health-check/rollback safety as a fresh install.
+`core/system/report.js` answers "what exists / what is missing / what
+needs improvement" by reading the real capability/integration/
+credential registries -- not a fourth parallel tracking system. Exposed
+as `GET /api/system/report`. Health monitoring itself was already real
+(Phase 11's `SelfMonitor`).
+
+4 new tests.
+
+## Phase 22 -- Command Center Dashboard (extension, not a redesign)
+
+Extended the existing dashboard rather than rebuilding it -- this
+environment has no browser for visual verification, so a full aesthetic
+overhaul isn't something that could be honestly verified as done.
+Integrations panel now surfaces the richer fields Phase 19's newer
+connectors report (authorized/connected/latency/guild count/lastSync);
+fixed `github.js`/`discord.js`/`discordBot.js`/`google/oauth.js`'s
+`status()` to report `implemented: true` (always true, just missing,
+which mislabeled them "placeholder" in the existing UI). New
+"Capability Center" panel (installed capabilities, objective analysis,
+package install) and "System Report" panel. The existing generic
+proposal-action form gained an "execute external" option.
+
+No new backend routes in this commit (both `GET /api/capabilities` and
+`GET /api/system/report` were already tested when built in Phase 20/24)
+-- verified by booting the dashboard for real and curling every new
+route plus the served HTML/JS.
+
 ## Remaining limitations / future work
 
+- **Installed capability packages aren't hot-wired into the live agent/
+  tool/department roster yet** (Phase 20) -- `core/agents/loader.js`/
+  `core/tools/loader.js`/`core/departments/loader.js` would need to
+  additionally merge in installed packages' declarations; today,
+  install/upgrade/rollback all work for real against the capability
+  registry, but a package's agents don't yet become live `Agent`
+  instances without extending those three loaders.
 - **Generic Calendar/Email/Cloud storage connectors** (the pre-Phase-19
   provider-agnostic placeholders) remain interface-only -- Google
   Calendar/Gmail/Drive are now real (Phase 19); a different provider,
@@ -506,16 +611,21 @@ routes, and the three executive-awareness extensions.
   that can create arbitrary filesystem entries (see
   `docs/Architecture.md`'s "v1 release audit" symlink note, which the
   same reasoning extends to).
-- **No visual/browser-based UI testing** was performed for the new
-  dashboard widgets in this environment -- endpoint- and syntax-level
-  verification only.
-- **External write capability remains narrow by design** (Phase 19):
-  only `create_github_issue`/`post_discord_message` can be executed
-  through the approval pipeline; email sending, PR merging, code
-  pushing, and file deletion have no connector implementation at all.
-- **Recommended next phase:** see `docs/EXTERNAL_INTEGRATIONS.md`'s
-  "Future expansion" section -- a dedicated "External Systems" dashboard
-  panel (the data already exists via `GET /api/integrations`), a GitHub
-  webhook receiver (needs public HTTPS reachability), and extending
-  Discord's approval-gated posting to the real bot's channels instead of
-  only the webhook.
+- **No visual/browser-based UI testing** was performed for any dashboard
+  work (Phase 9 through 22) in this environment -- endpoint- and
+  content-level verification only.
+- **External write capability remains narrow by design** (Phase 19/20):
+  only `create_github_issue`/`post_discord_message`/`install_capability`
+  can be executed through the approval pipeline; email sending, PR
+  merging, code pushing, and file deletion have no connector
+  implementation at all.
+- **The LaunchAgent is a template, not installed** (Phase 21) -- running
+  `scripts/install-launch-agent.sh` is a deliberate, manual, one-time
+  operator action, not something this session did automatically.
+- **Recommended next phase:** wire installed capability packages into
+  the live agent/tool/department loaders (the real next increment for
+  Phase 20, above); a dedicated visual/browser-tested dashboard pass
+  once a browser-capable environment is available; a GitHub webhook
+  receiver (needs public HTTPS reachability); extending Discord's
+  approval-gated posting to the real bot's channels instead of only the
+  webhook.
