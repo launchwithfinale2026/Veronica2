@@ -527,3 +527,59 @@ test("GET /api/events streams a real department.activity event", async () => {
     assert.strictEqual(event.payload.outcome, "success");
 
 });
+
+// Every mutating dashboard endpoint is supposed to call checkApiAuth()
+// before doing anything else (verified by direct code inspection during
+// the v1 release audit -- see docs/Architecture.md), but nothing
+// previously asserted that invariant as a single regression test. One
+// new route added without the checkApiAuth() call would 200 requests
+// that should 501/403. This sweeps every known POST route with
+// API_TOKEN unset and confirms none of them fall through to real work.
+const ALL_POST_ROUTES = [
+    "/api/memory",
+    "/api/memory/semantic-search",
+    "/api/memory/reindex-embeddings",
+    "/api/sync/import",
+    "/api/executive/plan",
+    "/api/executive/consolidate",
+    "/api/executive/self-check",
+    "/api/learning/recommend",
+    "/api/automation/jobs/test-job/run",
+    "/api/collaboration/message",
+    "/api/collaboration/delegate",
+    "/api/collaboration/review",
+    "/api/collaboration/consensus",
+    "/api/executive/projects/test-id/decompose",
+    "/api/executive/projects/test-id/status",
+    "/api/executive/projects/test-id/artifacts",
+    "/api/executive/projects/test-id/handoff",
+    "/api/companies",
+    "/api/companies/test-id/employees",
+    "/api/companies/test-id/documents",
+    "/api/companies/test-id/finances",
+    "/api/companies/test-id/relationships",
+    "/api/companies/test-id/communications",
+    "/api/departments/athena/run",
+    "/api/tools/memory.recall/run"
+];
+
+test("every mutating dashboard route enforces checkApiAuth() (501 when API_TOKEN unset)", async () => {
+
+    delete process.env.API_TOKEN;
+
+    for(const route of ALL_POST_ROUTES){
+
+        const res = await fetch(`${baseUrl}${route}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: "{}"
+        });
+
+        const body = await res.json();
+
+        assert.strictEqual(res.status, 501, `${route} should 501 without API_TOKEN, got ${res.status}`);
+        assert.match(body.error, /not configured/, `${route} should report auth not configured`);
+
+    }
+
+});
