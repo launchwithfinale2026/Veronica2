@@ -224,6 +224,12 @@ test("history() returns completed/failed entries, most recent first", async () =
     const first = engine.enqueue("job-xqzauto9");
     await engine.tick();
 
+    // history() orders by updatedAt, which has millisecond resolution --
+    // without this gap, two ticks under fast/loaded test execution can
+    // land in the same millisecond and tie, making the ordering assertion
+    // below flaky.
+    await new Promise(resolve => setTimeout(resolve, 5));
+
     const second = engine.enqueue("job-xqzauto9");
     await engine.tick();
 
