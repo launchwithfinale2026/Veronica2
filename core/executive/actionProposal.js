@@ -49,6 +49,29 @@ const APPROVAL_REQUIRED = {
     high_urgency: false
 };
 
+// Phase 19 (External Integration): a second, separate action vocabulary
+// for proposals that reach outside VERONICA entirely (a real GitHub API
+// write, a real Discord post) rather than an internal roadmap-status
+// change. Kept apart from ACTION_RISK/APPROVAL_REQUIRED above because
+// these aren't recommendation "kind"s (see executiveRecommendations.js)
+// -- they're proposed directly by a connector or automation job that
+// wants to take a real external action. Only actions a connector can
+// ACTUALLY perform are listed here: github.js has a real createIssue(),
+// discord.js (webhook) has a real sendMessage() -- push_code/merge_pr/
+// delete_file/send_email are deliberately NOT here, since no connector in
+// this codebase implements those writes yet (see docs/EXTERNAL_INTEGRATIONS.md).
+// Every entry requires approval; there is no "no approval needed" external
+// action.
+const EXTERNAL_ACTION_RISK = {
+    create_github_issue: "medium",
+    post_discord_message: "low"
+};
+
+const EXTERNAL_APPROVAL_REQUIRED = {
+    create_github_issue: true,
+    post_discord_message: true
+};
+
 
 class ActionProposalEngine {
 
@@ -107,6 +130,50 @@ class ActionProposalEngine {
             type: "decisions",
             importance: proposal.risk === "medium" ? 4 : 2,
             tags: [PROPOSAL_TAG],
+            source: "action-proposal",
+            metadata: proposal
+        });
+
+        return this.toRecord(entry);
+
+    }
+
+
+    // A pending proposal for a real EXTERNAL action -- the Phase 19
+    // counterpart to fromRecommendation() above, for proposals that
+    // don't originate from a Phase 11 recommendation (no `subject`
+    // roadmap entity, just a connector call and its arguments). Same
+    // persisted-to-memory, same PROPOSAL_TAG, same pending/approved/
+    // rejected/executed status machine -- approve()/reject()/list()
+    // below work on these identically, no changes needed. Execution is
+    // via executeExternal() (below), not execute(), since these actions
+    // need a real async connector call (see that method's own comment).
+    proposeExternalAction({ action, reason, payload, risk } = {}){
+
+        if(!EXTERNAL_ACTION_RISK.hasOwnProperty(action)){
+            throw new Error(`Unknown external action: "${action}" -- supported: ${Object.keys(EXTERNAL_ACTION_RISK).join(", ")}`);
+        }
+
+        if(!reason){
+            throw new Error("A reason is required");
+        }
+
+        const proposal = {
+            action,
+            reason,
+            department: null,
+            subject: null,
+            payload: payload || {},
+            risk: risk || EXTERNAL_ACTION_RISK[action],
+            approvalRequired: EXTERNAL_APPROVAL_REQUIRED[action] !== false,
+            status: "pending"
+        };
+
+        const entry = memory.remember({
+            content: `External action proposal: ${reason}`,
+            type: "decisions",
+            importance: proposal.risk === "high" ? 5 : proposal.risk === "medium" ? 4 : 2,
+            tags: [PROPOSAL_TAG, "external-action", `action:${action}`],
             source: "action-proposal",
             metadata: proposal
         });
@@ -247,6 +314,78 @@ class ActionProposalEngine {
         }
 
         const outcome = this.performAction(this.toRecord(entry));
+
+        const updated = memory.update(id, { metadata: { status: "executed", executionOutcome: outcome, executedAt: new Date().toISOString() } });
+
+        return this.toRecord(updated);
+
+    }
+
+
+    // Async counterpart to performAction()/execute() above, for the
+    // external action kinds registered in EXTERNAL_ACTION_RISK. Kept
+    // entirely separate rather than making execute()/performAction()
+    // themselves async: those are exercised synchronously by every
+    // existing internal action kind (unblock_task/resolve_deadlock/
+    // revisit_stalled_goal/high_urgency) and by tests that call
+    // `assert.throws(() => engine.execute(...))` and read a plain
+    // synchronous return value -- making execute() async would turn
+    // those synchronous throws/returns into promise rejections/pending
+    // promises and break them. Same unconditional "approved" gate, same
+    // memory-backed proposal record either way.
+    async performExternalAction(proposal){
+
+        switch(proposal.action){
+
+            case "create_github_issue": {
+
+                // Required lazily, not at module top level, matching this
+                // codebase's standing circular-require avoidance
+                // convention (see core/automation/jobs.js's own comment) --
+                // cheap insurance even though core/integrations/github.js
+                // has no path back to core/executive today.
+                const github = require("../integrations/github");
+                const { owner, repo, title, body } = proposal.payload || {};
+
+                const issue = await github.createIssue(owner, repo, { title, body });
+
+                return `Created GitHub issue #${issue.number} in ${owner}/${repo}: ${issue.html_url}`;
+
+            }
+
+            case "post_discord_message": {
+
+                const discord = require("../integrations/discord");
+                const { content } = proposal.payload || {};
+
+                await discord.sendMessage(content);
+
+                return "Posted Discord message";
+
+            }
+
+            default:
+
+                throw new Error(`Unknown external proposal action: "${proposal.action}"`);
+
+        }
+
+    }
+
+
+    // The external-action equivalent of execute() above -- same
+    // unconditional "must be approved" gate, same persisted status
+    // transition to "executed", just async (see performExternalAction()'s
+    // comment for why this isn't just execute() itself).
+    async executeExternal(id){
+
+        const entry = this.requireProposal(id);
+
+        if(entry.metadata.status !== "approved"){
+            throw new Error(`Proposal "${id}" must be "approved" before it can be executed (current status: "${entry.metadata.status}")`);
+        }
+
+        const outcome = await this.performExternalAction(this.toRecord(entry));
 
         const updated = memory.update(id, { metadata: { status: "executed", executionOutcome: outcome, executedAt: new Date().toISOString() } });
 
