@@ -196,7 +196,8 @@
         "properties": {
           "name": { "type": "string" },
           "industry": { "type": "string" },
-          "departments": { "type": "array", "items": { "type": "string" }, "description": "Registry department ids staffing this company" }
+          "departments": { "type": "array", "items": { "type": "string" }, "description": "Registry department ids staffing this company" },
+          "allowedRoles": { "type": "array", "items": { "type": "string" }, "description": "Identity role ids (see identity/roles.json) permitted to access this company's data through its CompanyContext; omit or leave empty for unrestricted" }
         },
         "required": ["name"]
       }

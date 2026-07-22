@@ -23,7 +23,9 @@ const path = require("path");
 
 const memory = require("../memory");
 const knowledge = require("../knowledge");
+const identity = require("../identity");
 const ExecutivePlanner = require("./planner");
+const CompanyContext = require("./companyContext");
 
 const DEPARTMENTS_REGISTRY = path.join(__dirname, "../../registry/departments.json");
 
@@ -70,6 +72,12 @@ class CompanyManager {
             employees: meta.employees || [],
             documents: meta.documents || [],
             finances: meta.finances || [],
+            // Empty allowedRoles means unrestricted -- any role that
+            // already holds read_memory/write_memory can access this
+            // company's data through its CompanyContext (see
+            // core/executive/companyContext.js). A non-empty list
+            // restricts it to just those roles.
+            permissions: meta.permissions || { allowedRoles: [] },
             created: entry.created,
             updated: entry.updated
         };
@@ -98,6 +106,16 @@ class CompanyManager {
 
         }
 
+        const allowedRoles = input.allowedRoles || [];
+
+        for(const roleId of allowedRoles){
+
+            if(!identity.permissionsForRole(roleId).length){
+                throw new Error(`Unknown role: "${roleId}"`);
+            }
+
+        }
+
         const entry = memory.remember({
             content: input.name,
             type: "businesses",
@@ -111,6 +129,7 @@ class CompanyManager {
                 employees: [],
                 documents: [],
                 finances: [],
+                permissions: { allowedRoles },
                 history: []
             }
         });
@@ -279,6 +298,20 @@ class CompanyManager {
         this.requireEntry(companyId);
 
         return this.planner.roadmap({ company: companyId });
+
+    }
+
+
+    // The enforced logical-isolation boundary (see
+    // core/executive/companyContext.js and docs/Architecture.md
+    // "v1 release audit" / company isolation follow-up): every read/write
+    // made through the returned context is scoped to just this company,
+    // and (if the company was created with allowedRoles) gated by role.
+    context(companyId){
+
+        this.requireEntry(companyId);
+
+        return new CompanyContext(companyId, this);
 
     }
 

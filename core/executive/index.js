@@ -70,6 +70,12 @@ module.exports = {
 
     logCommunication: (companyId, communication) => companyManager.logCommunication(companyId, communication),
 
+    // Enforced logical isolation boundary (v1 release audit's answer to
+    // "each company must have separate memory/knowledge/permissions" --
+    // see core/executive/companyContext.js). Every read/write made
+    // through the returned context is scoped to just this company.
+    companyContext: (companyId) => companyManager.context(companyId),
+
     consolidate: () => consolidation.run(),
 
     consolidationHistory: (limit) => consolidation.history(limit),
