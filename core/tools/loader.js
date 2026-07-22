@@ -6,7 +6,11 @@ const Tool = require("./base");
 const HANDLER_MODULES = [
     require("./handlers/memory"),
     require("./handlers/knowledge"),
-    require("./handlers/filesystem")
+    require("./handlers/filesystem"),
+    require("./handlers/executive"),
+    require("./handlers/company"),
+    require("./handlers/learning"),
+    require("./handlers/automation")
 ];
 
 

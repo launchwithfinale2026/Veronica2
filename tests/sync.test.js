@@ -134,6 +134,20 @@ test("knowledge.merge() adds new entities/relationships and dedupes existing one
 
 // --- HTTP sync endpoint tests -------------------------------------------
 
+// require("../dashboard/backend/server") pulls in core/automation, whose
+// module load registers/schedules the built-in jobs -- schedule()
+// persists to core/automation/state.json unconditionally (see
+// docs/Architecture.md "Automation Engine"), so simply requiring the
+// server module writes real state to disk. Must snapshot "existed before"
+// ahead of the require below, not after (same fix as tests/dashboard.test.js).
+const AUTOMATION_STATE_PATH = path.join(__dirname, "..", "core", "automation", "state.json");
+const AUTOMATION_STATE_EXISTED_BEFORE = fs.existsSync(AUTOMATION_STATE_PATH);
+const AUTOMATION_STATE_BACKUP = path.join(os.tmpdir(), `veronica-automation-state-backup-sync-${process.pid}.json`);
+
+if(AUTOMATION_STATE_EXISTED_BEFORE){
+    fs.copyFileSync(AUTOMATION_STATE_PATH, AUTOMATION_STATE_BACKUP);
+}
+
 const { createServer } = require("../dashboard/backend/server");
 
 let server;
@@ -152,6 +166,13 @@ test.before(async () => {
 test.after(async () => {
 
     await new Promise(resolve => server.close(resolve));
+
+    if(AUTOMATION_STATE_EXISTED_BEFORE){
+        fs.copyFileSync(AUTOMATION_STATE_BACKUP, AUTOMATION_STATE_PATH);
+        fs.unlinkSync(AUTOMATION_STATE_BACKUP);
+    } else if(fs.existsSync(AUTOMATION_STATE_PATH)){
+        fs.unlinkSync(AUTOMATION_STATE_PATH);
+    }
 
 });
 

@@ -19,6 +19,10 @@ const knowledge = require("../../core/knowledge");
 const tools = require("../../core/tools");
 const device = require("../../core/device");
 const sync = require("../../core/device/sync");
+const executive = require("../../core/executive");
+const learning = require("../../core/learning");
+const automation = require("../../core/automation");
+const bus = require("../../core/bus");
 
 
 const FRONTEND_ROOT = path.join(__dirname, "../frontend");
@@ -119,7 +123,29 @@ const ROUTES = {
 
     "GET /api/activity": () => readRecentActivity(),
 
-    "GET /api/device": () => device.currentIdentity()
+    "GET /api/device": () => device.currentIdentity(),
+
+    "GET /api/executive/roadmap": () => executive.roadmap(),
+
+    "GET /api/executive/deadlines": () => executive.evaluateDeadlines(),
+
+    "GET /api/executive/consolidations": () => executive.consolidationHistory(),
+
+    "GET /api/companies": () => executive.listCompanies(),
+
+    "GET /api/learning/overview": () => learning.overview(),
+
+    "GET /api/learning/departments": () => learning.departmentPerformance(),
+
+    "GET /api/learning/agents": () => learning.agentPerformance(),
+
+    "GET /api/learning/tools": () => learning.toolPerformance(),
+
+    "GET /api/learning/recommendations": () => learning.recommendationHistory(),
+
+    "GET /api/automation/status": () => automation.status(),
+
+    "GET /api/automation/history": () => automation.history()
 
 };
 
@@ -212,12 +238,68 @@ function serveStatic(res, pathname){
 }
 
 
+// Every live-update event the milestone asked for (memory updates,
+// knowledge updates, department/agent activity, automation job
+// completions -- "progress updates" and "live notifications" fall out of
+// the same set) is forwarded here. Server-Sent Events, not a hand-rolled
+// WebSocket implementation -- see docs/Architecture.md "Dashboard Live
+// Updates" for why: every one of these is one-directional server->client
+// push, which is exactly what SSE is for, built entirely on the http
+// module already in use (no new dependency), with automatic browser
+// reconnection built into EventSource. A raw WebSocket implementation
+// from scratch (Node's http has no built-in WS support) would mean
+// hand-writing the handshake/framing/masking protocol for a capability
+// SSE already covers.
+const STREAMED_EVENTS = ["memory.updated", "knowledge.updated", "department.activity", "automation.jobCompleted"];
+const SSE_HEARTBEAT_MS = 25000;
+
+function handleEventStream(req, res){
+
+    res.writeHead(200, {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive"
+    });
+
+    res.write(": connected\n\n");
+
+    const listeners = STREAMED_EVENTS.map(eventName => {
+
+        const handler = payload => {
+            res.write(`data: ${JSON.stringify({ type: eventName, payload, timestamp: new Date().toISOString() })}\n\n`);
+        };
+
+        bus.on(eventName, handler);
+
+        return { eventName, handler };
+
+    });
+
+    // Proxies/load balancers (and some browsers) close idle connections --
+    // a periodic comment line keeps this one alive without being a real
+    // event the frontend has to filter out.
+    const heartbeat = setInterval(() => {
+        res.write(": heartbeat\n\n");
+    }, SSE_HEARTBEAT_MS);
+
+    req.on("close", () => {
+        clearInterval(heartbeat);
+        listeners.forEach(({ eventName, handler }) => bus.off(eventName, handler));
+    });
+
+}
+
+
 function createServer(){
 
     return http.createServer(async (req, res) => {
 
         const parsed = new URL(req.url, "http://localhost");
         const routeKey = `${req.method} ${parsed.pathname}`;
+
+        if(parsed.pathname === "/api/events" && req.method === "GET"){
+            return handleEventStream(req, res);
+        }
 
         try {
 
@@ -266,6 +348,248 @@ function createServer(){
                 const syncPackage = JSON.parse(await readBody(req));
 
                 return sendJSON(res, 200, sync.importState(syncPackage));
+
+            }
+
+            if(parsed.pathname === "/api/executive/plan" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const goal = JSON.parse((await readBody(req)) || "{}");
+
+                if(!goal.title){
+                    return sendJSON(res, 400, { error: "title is required" });
+                }
+
+                return sendJSON(res, 200, executive.plan(goal));
+
+            }
+
+            if(parsed.pathname === "/api/executive/consolidate" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                return sendJSON(res, 200, await executive.consolidate());
+
+            }
+
+            if(parsed.pathname === "/api/learning/recommend" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                return sendJSON(res, 200, await learning.recommend());
+
+            }
+
+            const automationRunMatch = parsed.pathname.match(/^\/api\/automation\/jobs\/([^/]+)\/run$/);
+
+            if(automationRunMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                return sendJSON(res, 200, automation.enqueue(decodeURIComponent(automationRunMatch[1])));
+
+            }
+
+            const decomposeMatch = parsed.pathname.match(/^\/api\/executive\/projects\/([^/]+)\/decompose$/);
+
+            if(decomposeMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                return sendJSON(res, 200, await executive.decompose(decodeURIComponent(decomposeMatch[1])));
+
+            }
+
+            const statusMatch = parsed.pathname.match(/^\/api\/executive\/projects\/([^/]+)\/status$/);
+
+            if(statusMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { status, note } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!status){
+                    return sendJSON(res, 400, { error: "status is required" });
+                }
+
+                return sendJSON(res, 200, executive.updateStatus(decodeURIComponent(statusMatch[1]), status, note));
+
+            }
+
+            const artifactMatch = parsed.pathname.match(/^\/api\/executive\/projects\/([^/]+)\/artifacts$/);
+
+            if(artifactMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { artifact } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!artifact){
+                    return sendJSON(res, 400, { error: "artifact is required" });
+                }
+
+                return sendJSON(res, 200, { artifacts: executive.addArtifact(decodeURIComponent(artifactMatch[1]), artifact) });
+
+            }
+
+            // Read-only: no auth required, same treatment as the other GET
+            // routes -- must come after the write routes above since they
+            // share the /api/executive/projects/:id/... prefix.
+            const projectDetailMatch = parsed.pathname.match(/^\/api\/executive\/projects\/([^/]+)$/);
+
+            if(projectDetailMatch && req.method === "GET"){
+
+                return sendJSON(res, 200, executive.getProject(decodeURIComponent(projectDetailMatch[1])));
+
+            }
+
+            if(parsed.pathname === "/api/companies" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const input = JSON.parse((await readBody(req)) || "{}");
+
+                if(!input.name){
+                    return sendJSON(res, 400, { error: "name is required" });
+                }
+
+                return sendJSON(res, 200, executive.createCompany(input));
+
+            }
+
+            const employeeMatch = parsed.pathname.match(/^\/api\/companies\/([^/]+)\/employees$/);
+
+            if(employeeMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { employee } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!employee){
+                    return sendJSON(res, 400, { error: "employee is required" });
+                }
+
+                return sendJSON(res, 200, { employees: executive.addEmployee(decodeURIComponent(employeeMatch[1]), employee) });
+
+            }
+
+            const documentMatch = parsed.pathname.match(/^\/api\/companies\/([^/]+)\/documents$/);
+
+            if(documentMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { document } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!document){
+                    return sendJSON(res, 400, { error: "document is required" });
+                }
+
+                return sendJSON(res, 200, { documents: executive.addDocument(decodeURIComponent(documentMatch[1]), document) });
+
+            }
+
+            const financeMatch = parsed.pathname.match(/^\/api\/companies\/([^/]+)\/finances$/);
+
+            if(financeMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { label, amount, type } = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, executive.recordFinance(decodeURIComponent(financeMatch[1]), { label, amount, type }));
+
+            }
+
+            const relationshipMatch = parsed.pathname.match(/^\/api\/companies\/([^/]+)\/relationships$/);
+
+            if(relationshipMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { to, type } = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, executive.addCompanyRelationship(decodeURIComponent(relationshipMatch[1]), { to, type }));
+
+            }
+
+            const communicationMatch = parsed.pathname.match(/^\/api\/companies\/([^/]+)\/communications$/);
+
+            if(communicationMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { summary, channel } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!summary){
+                    return sendJSON(res, 400, { error: "summary is required" });
+                }
+
+                return sendJSON(res, 200, executive.logCommunication(decodeURIComponent(communicationMatch[1]), { summary, channel }));
+
+            }
+
+            // Read-only: no auth required -- must come after the write
+            // routes above since they share the /api/companies/:id/...
+            // prefix.
+            const companyDetailMatch = parsed.pathname.match(/^\/api\/companies\/([^/]+)$/);
+
+            if(companyDetailMatch && req.method === "GET"){
+
+                return sendJSON(res, 200, executive.getCompany(decodeURIComponent(companyDetailMatch[1])));
 
             }
 
@@ -352,5 +676,17 @@ if(require.main === module){
     server.listen(PORT, HOST, () => {
         console.log(`[DASHBOARD] Online at http://${HOST}:${PORT}`);
     });
+
+    // The dashboard server is VERONICA's one genuinely long-running host
+    // process, so it's where the automation engine's tick loop actually
+    // runs (see docs/Architecture.md "Automation Engine") -- scheduled
+    // jobs (nightly consolidation, learning recommendations) only fire
+    // while this process is up. Opt out with AUTOMATION_DISABLED=1, e.g.
+    // for a dashboard instance you don't want double-running schedules
+    // against the same shared state as another instance.
+    if(process.env.AUTOMATION_DISABLED !== "1"){
+        automation.start(Number(process.env.AUTOMATION_TICK_MS) || undefined);
+        console.log("[AUTOMATION] Tick loop started");
+    }
 
 }

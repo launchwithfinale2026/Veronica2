@@ -11,13 +11,30 @@ const os = require("os");
 const DB_PATH = path.join(__dirname, "..", "core", "memory", "database.json");
 const DB_BACKUP = path.join(os.tmpdir(), `veronica-database-backup-tooluse-${process.pid}.json`);
 
+// Real tool calls through the tool-use loop also exercise
+// Tool.execute()'s instrumentation, which records to
+// core/learning/log.js's executions.log.
+const EXEC_LOG_PATH = path.join(__dirname, "..", "core", "learning", "executions.log");
+const EXEC_LOG_EXISTED_BEFORE = fs.existsSync(EXEC_LOG_PATH);
+const EXEC_LOG_BACKUP = path.join(os.tmpdir(), `veronica-executions-backup-tooluse-${process.pid}.log`);
+
 test.before(() => {
     fs.copyFileSync(DB_PATH, DB_BACKUP);
+    if(EXEC_LOG_EXISTED_BEFORE){
+        fs.copyFileSync(EXEC_LOG_PATH, EXEC_LOG_BACKUP);
+    }
 });
 
 test.after(() => {
     fs.copyFileSync(DB_BACKUP, DB_PATH);
     fs.unlinkSync(DB_BACKUP);
+
+    if(EXEC_LOG_EXISTED_BEFORE){
+        fs.copyFileSync(EXEC_LOG_BACKUP, EXEC_LOG_PATH);
+        fs.unlinkSync(EXEC_LOG_BACKUP);
+    } else if(fs.existsSync(EXEC_LOG_PATH)){
+        fs.unlinkSync(EXEC_LOG_PATH);
+    }
 });
 
 const ClaudeProvider = require("../core/brain/providers/claude");

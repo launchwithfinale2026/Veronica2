@@ -14,6 +14,8 @@ const path = require("path");
 const memory = require("../memory");
 const tools = require("../tools");
 const IntelligenceEngine = require("../intelligence");
+const learningLog = require("../learning/log");
+const bus = require("../bus");
 
 
 class DepartmentManager {
@@ -45,7 +47,12 @@ class DepartmentManager {
     // Delegates a task to this department's agent(s) and logs the
     // exchange. Single-agent departments (every department, today) just
     // use their one agent; multi-agent departments would need real
-    // in-department selection logic here later.
+    // in-department selection logic here later. Failures are now caught,
+    // logged (both to this department's own activity.log and to
+    // core/learning/log.js for cross-department stats), and re-thrown --
+    // previously an error from intelligence.think() propagated with no
+    // trace anywhere, so a failed run was indistinguishable from a run
+    // that never happened.
     async run(task, context = {}){
 
         if(!this.agents.length){
@@ -55,23 +62,71 @@ class DepartmentManager {
         }
 
         const agent = this.agents[0];
+        const startedAt = Date.now();
 
-        const thought = await this.intelligence.think(agent, { task, context });
+        try {
 
-        const response = thought.cognition.response.response;
+            const thought = await this.intelligence.think(agent, { task, context });
 
-        this.log({
-            task,
-            agent: agent.name,
-            response,
-            timestamp: new Date().toISOString()
-        });
+            const response = thought.cognition.response.response;
+            const durationMs = Date.now() - startedAt;
 
-        return {
-            agent: agent.name,
-            response,
-            thought
-        };
+            this.log({
+                task,
+                agent: agent.name,
+                response,
+                outcome: "success",
+                durationMs,
+                timestamp: new Date().toISOString()
+            });
+
+            learningLog.record({
+                kind: "department_run",
+                department: this.id,
+                agent: agent.name,
+                outcome: "success",
+                durationMs
+            });
+
+            bus.publish("department.activity", {
+                department: this.id, agent: agent.name, task, outcome: "success", durationMs
+            });
+
+            return {
+                agent: agent.name,
+                response,
+                thought
+            };
+
+        } catch(error){
+
+            const durationMs = Date.now() - startedAt;
+
+            this.log({
+                task,
+                agent: agent.name,
+                error: error.message,
+                outcome: "failure",
+                durationMs,
+                timestamp: new Date().toISOString()
+            });
+
+            bus.publish("department.activity", {
+                department: this.id, agent: agent.name, task, outcome: "failure", durationMs, error: error.message
+            });
+
+            learningLog.record({
+                kind: "department_run",
+                department: this.id,
+                agent: agent.name,
+                outcome: "failure",
+                durationMs,
+                error: error.message
+            });
+
+            throw error;
+
+        }
 
     }
 

@@ -92,7 +92,9 @@ function migrateLegacyEntry(entry){
 
         tags: [],
 
-        source: "legacy"
+        source: "legacy",
+
+        metadata: {}
 
     };
 
@@ -136,7 +138,13 @@ function normalize(input){
 
         tags: input.tags || [],
 
-        source: input.source || "unknown"
+        source: input.source || "unknown",
+
+        // Free-form structured data a caller needs preserved alongside the
+        // entry (e.g. core/executive's deadline/effort/priority fields) --
+        // optional and untouched by any existing reader, so this is a pure
+        // additive extension of the Phase 3 schema, not a breaking change.
+        metadata: (input.metadata && typeof input.metadata === "object") ? input.metadata : {}
 
     };
 
@@ -244,6 +252,52 @@ function filter(criteria = {}, options = {}){
 
 
 
+// Mutates an existing entry in place by id -- top-level fields in
+// `changes` overwrite (except `id`/`created`, which never change), and
+// `changes.metadata` is shallow-merged onto the existing metadata object
+// rather than replacing it wholesale, so a caller updating just `status`
+// doesn't have to first re-read and re-send every other metadata field.
+// `updated` is always bumped to now. Used by core/executive/projectManager.js
+// for status/history/artifact changes -- remember()/merge() intentionally
+// don't cover this (append-only vs. sync-upsert are different concerns).
+function update(id, changes = {}){
+
+    const data = load();
+
+    const index = data.memories.findIndex(entry => entry.id === id);
+
+    if(index === -1){
+        throw new Error(`Unknown memory entry: "${id}"`);
+    }
+
+    const entry = data.memories[index];
+
+    const updatedEntry = {
+
+        ...entry,
+
+        ...changes,
+
+        id: entry.id,
+
+        created: entry.created,
+
+        metadata: { ...(entry.metadata || {}), ...(changes.metadata || {}) },
+
+        updated: new Date().toISOString()
+
+    };
+
+    data.memories[index] = updatedEntry;
+
+    save(data);
+
+    return updatedEntry;
+
+}
+
+
+
 // Merges memory entries from another device's export (see core/device/
 // sync.js). Existing ids are kept unless the incoming entry is strictly
 // newer (last-write-wins on `updated`); unknown ids are inserted as-is.
@@ -290,6 +344,8 @@ module.exports = {
     search,
 
     filter,
+
+    update,
 
     merge,
 

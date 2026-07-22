@@ -5,8 +5,6 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 
-const { createServer } = require("../dashboard/backend/server");
-
 // POST /api/memory writes to the same shared, real database.json other
 // test files back up/restore -- relies on --test-concurrency=1 plus its
 // own backup/restore here.
@@ -14,12 +12,51 @@ const { createServer } = require("../dashboard/backend/server");
 const DB_PATH = path.join(__dirname, "..", "core", "memory", "database.json");
 const DB_BACKUP = path.join(os.tmpdir(), `veronica-database-backup-dashboard-${process.pid}.json`);
 
+// POST /api/tools/:id/run and POST /api/departments/:id/run exercise the
+// real Tool.execute()/DepartmentManager.run() instrumentation, which
+// records to core/learning/log.js's executions.log.
+const EXEC_LOG_PATH = path.join(__dirname, "..", "core", "learning", "executions.log");
+const EXEC_LOG_EXISTED_BEFORE = fs.existsSync(EXEC_LOG_PATH);
+const EXEC_LOG_BACKUP = path.join(os.tmpdir(), `veronica-executions-backup-dashboard-${process.pid}.log`);
+
+// require("../dashboard/backend/server") below pulls in core/automation,
+// whose module load registers/schedules the built-in jobs -- schedule()
+// persists to core/automation/state.json unconditionally (see
+// docs/Architecture.md "Automation Engine"), so simply requiring the
+// server module (not even starting it) writes real state to disk. Must
+// snapshot "existed before" ahead of that require, not after.
+const AUTOMATION_STATE_PATH = path.join(__dirname, "..", "core", "automation", "state.json");
+const AUTOMATION_STATE_EXISTED_BEFORE = fs.existsSync(AUTOMATION_STATE_PATH);
+const AUTOMATION_STATE_BACKUP = path.join(os.tmpdir(), `veronica-automation-state-backup-dashboard-${process.pid}.json`);
+
+if(AUTOMATION_STATE_EXISTED_BEFORE){
+    fs.copyFileSync(AUTOMATION_STATE_PATH, AUTOMATION_STATE_BACKUP);
+}
+
+// The SSE tests below construct a real DepartmentManager directly (same
+// pattern as tests/departments.test.js) to trigger a real
+// "department.activity" bus event without making a real Claude call --
+// same activity.log backup/restore that file uses.
+const ATHENA_LOG_PATH = path.join(__dirname, "..", "departments", "athena", "logs", "activity.log");
+const ATHENA_LOG_EXISTED_BEFORE = fs.existsSync(ATHENA_LOG_PATH);
+const ATHENA_LOG_BACKUP = path.join(os.tmpdir(), `veronica-athena-log-backup-dashboard-${process.pid}.log`);
+
+if(ATHENA_LOG_EXISTED_BEFORE){
+    fs.copyFileSync(ATHENA_LOG_PATH, ATHENA_LOG_BACKUP);
+}
+
+const { createServer } = require("../dashboard/backend/server");
+
 let server;
 let baseUrl;
 
 test.before(async () => {
 
     fs.copyFileSync(DB_PATH, DB_BACKUP);
+
+    if(EXEC_LOG_EXISTED_BEFORE){
+        fs.copyFileSync(EXEC_LOG_PATH, EXEC_LOG_BACKUP);
+    }
 
     server = createServer();
 
@@ -33,10 +70,38 @@ test.before(async () => {
 
 test.after(async () => {
 
+    // server.close() alone waits for existing connections to end
+    // gracefully -- the SSE tests below leave a keep-alive socket that
+    // Node doesn't drop until its default 5s keepAliveTimeout, which was
+    // adding several real seconds to every `npm test` run. Force-closing
+    // every socket (including idle keep-alive ones) is safe here since
+    // the test run is already finished with this server.
+    server.closeAllConnections();
     await new Promise(resolve => server.close(resolve));
 
     fs.copyFileSync(DB_BACKUP, DB_PATH);
     fs.unlinkSync(DB_BACKUP);
+
+    if(EXEC_LOG_EXISTED_BEFORE){
+        fs.copyFileSync(EXEC_LOG_BACKUP, EXEC_LOG_PATH);
+        fs.unlinkSync(EXEC_LOG_BACKUP);
+    } else if(fs.existsSync(EXEC_LOG_PATH)){
+        fs.unlinkSync(EXEC_LOG_PATH);
+    }
+
+    if(AUTOMATION_STATE_EXISTED_BEFORE){
+        fs.copyFileSync(AUTOMATION_STATE_BACKUP, AUTOMATION_STATE_PATH);
+        fs.unlinkSync(AUTOMATION_STATE_BACKUP);
+    } else if(fs.existsSync(AUTOMATION_STATE_PATH)){
+        fs.unlinkSync(AUTOMATION_STATE_PATH);
+    }
+
+    if(ATHENA_LOG_EXISTED_BEFORE){
+        fs.copyFileSync(ATHENA_LOG_BACKUP, ATHENA_LOG_PATH);
+        fs.unlinkSync(ATHENA_LOG_BACKUP);
+    } else if(fs.existsSync(ATHENA_LOG_PATH)){
+        fs.unlinkSync(ATHENA_LOG_PATH);
+    }
 
     delete process.env.API_TOKEN;
 
@@ -288,5 +353,119 @@ test("POST /api/departments/:id/run requires auth, a task, and a real department
         body: JSON.stringify({})
     });
     assert.strictEqual(missingTask.status, 400);
+
+});
+
+
+// --- GET /api/events (Server-Sent Events) --------------------------------
+
+// Reads the SSE stream until a `data:` line matching `wantType` arrives,
+// or `timeoutMs` elapses -- guards against hanging the test suite if the
+// event never shows up (a bug should fail loudly, not freeze `npm test`).
+async function readSseEventOfType(response, wantType, timeoutMs = 2000){
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    const deadline = Date.now() + timeoutMs;
+    let buffer = "";
+
+    try {
+
+        while(Date.now() < deadline){
+
+            const { value, done } = await reader.read();
+
+            if(done){
+                break;
+            }
+
+            buffer += decoder.decode(value, { stream: true });
+
+            const lines = buffer.split("\n\n");
+            buffer = lines.pop();
+
+            for(const chunk of lines){
+
+                const dataLine = chunk.split("\n").find(line => line.startsWith("data: "));
+
+                if(!dataLine){
+                    continue;
+                }
+
+                const parsed = JSON.parse(dataLine.slice("data: ".length));
+
+                if(parsed.type === wantType){
+                    return parsed;
+                }
+
+            }
+
+        }
+
+        throw new Error(`Timed out waiting for an SSE event of type "${wantType}"`);
+
+    } finally {
+
+        await reader.cancel().catch(() => {});
+
+    }
+
+}
+
+test("GET /api/events streams a real memory.updated event when a memory is stored", async () => {
+
+    process.env.API_TOKEN = "test-api-secret";
+
+    const stream = await fetch(`${baseUrl}/api/events`);
+    assert.strictEqual(stream.status, 200);
+    assert.strictEqual(stream.headers.get("content-type"), "text/event-stream");
+
+    const eventPromise = readSseEventOfType(stream, "memory.updated");
+
+    await fetch(`${baseUrl}/api/memory`, {
+        method: "POST",
+        headers: { Authorization: "Bearer test-api-secret", "Content-Type": "application/json" },
+        body: JSON.stringify({ content: "SSE live-update test marker XQZSSE1" })
+    });
+
+    const event = await eventPromise;
+
+    assert.strictEqual(event.payload.action, "created");
+    assert.strictEqual(event.payload.entry.content, "SSE live-update test marker XQZSSE1");
+
+});
+
+test("GET /api/events streams a real department.activity event", async () => {
+
+    const stream = await fetch(`${baseUrl}/api/events`);
+
+    const eventPromise = readSseEventOfType(stream, "department.activity");
+
+    // Reuses tests/departments.test.js's real DepartmentManager (mocked
+    // brain, no real API call) directly rather than going through the
+    // dashboard's department-run endpoint, which would make a real,
+    // billed Claude call end to end.
+    const DepartmentManager = require("../core/departments/base");
+
+    const manager = new DepartmentManager({
+        id: "athena",
+        name: "ATHENA",
+        domain: "Knowledge Intelligence",
+        agents: [{ name: "METIS", role: "Test Role", capabilities: [] }]
+    });
+
+    manager.intelligence.brain.provider.providers = {
+        claude: { generate: async () => ({ response: "sse marker XQZSSE2", provider: "claude", toolCalls: [] }) }
+    };
+    manager.intelligence.brain.provider.active = "claude";
+
+    await manager.run("sse test task XQZSSE2");
+
+    const event = await eventPromise;
+
+    assert.strictEqual(event.payload.department, "athena");
+    assert.strictEqual(event.payload.agent, "METIS");
+    assert.strictEqual(event.payload.outcome, "success");
 
 });

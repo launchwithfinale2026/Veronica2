@@ -66,6 +66,294 @@
         },
         "required": ["path", "content"]
       }
+    },
+    {
+      "id": "executive.plan",
+      "description": "Convert a goal into a scheduled, department-assigned project on VERONICA's executive roadmap.",
+      "permission": "manage_agents",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string", "description": "Short goal title" },
+          "description": { "type": "string" },
+          "deadline": { "type": "string", "description": "ISO date/time the goal is due" },
+          "priority": { "type": "integer", "minimum": 1, "maximum": 5, "description": "1 (low) to 5 (high); defaults to 3" },
+          "department": { "type": "string", "description": "Registry department id to force assignment to; auto-assigned by keyword match if omitted" },
+          "estimatedHours": { "type": "number", "description": "Explicit effort estimate in hours; heuristically estimated if omitted" },
+          "dependencies": { "type": "array", "items": { "type": "string" }, "description": "Project ids (from executive.roadmap) this goal depends on" },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["title"]
+      }
+    },
+    {
+      "id": "executive.roadmap",
+      "description": "List every planned project on VERONICA's executive roadmap, most urgent/important first.",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "executive.deadlines",
+      "description": "Group the executive roadmap by deadline risk: overdue, due_soon, on_track, no_deadline.",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "executive.decompose",
+      "description": "Break a planned project down into milestones and tasks (with subtasks/deliverables) via LLM reasoning, and persist them to the roadmap.",
+      "permission": "manage_agents",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": { "type": "string", "description": "Project id from executive.roadmap to decompose" }
+        },
+        "required": ["projectId"]
+      }
+    },
+    {
+      "id": "executive.project",
+      "description": "Get the full detail view of a project: status, progress, timeline/history, owners, artifacts, milestones, and knowledge graph neighborhood.",
+      "permission": "read_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": { "type": "string", "description": "Project id from executive.roadmap" }
+        },
+        "required": ["projectId"]
+      }
+    },
+    {
+      "id": "executive.updateStatus",
+      "description": "Update the status (planned/in_progress/blocked/completed) of a project, milestone, or task, recording the transition in its history.",
+      "permission": "manage_agents",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "Project, milestone, or task id" },
+          "status": { "type": "string", "enum": ["planned", "in_progress", "blocked", "completed"] },
+          "note": { "type": "string", "description": "Optional note explaining the transition" }
+        },
+        "required": ["id", "status"]
+      }
+    },
+    {
+      "id": "executive.addArtifact",
+      "description": "Record an artifact (URL, file path, or reference) a project produced.",
+      "permission": "manage_agents",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "projectId": { "type": "string" },
+          "artifact": { "type": "string" }
+        },
+        "required": ["projectId", "artifact"]
+      }
+    },
+    {
+      "id": "company.create",
+      "description": "Create a company: the top-level container for projects, employees, documents, finances, relationships, and communications.",
+      "permission": "manage_agents",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "industry": { "type": "string" },
+          "departments": { "type": "array", "items": { "type": "string" }, "description": "Registry department ids staffing this company" }
+        },
+        "required": ["name"]
+      }
+    },
+    {
+      "id": "company.list",
+      "description": "List every company.",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "company.get",
+      "description": "Get the full detail view of a company: departments, employees, documents, financial summary, projects, communications, and knowledge graph neighborhood.",
+      "permission": "read_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "companyId": { "type": "string" }
+        },
+        "required": ["companyId"]
+      }
+    },
+    {
+      "id": "company.addEmployee",
+      "description": "Add an employee to a company.",
+      "permission": "manage_agents",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "companyId": { "type": "string" },
+          "employee": {
+            "description": "A name string, or { name, role }",
+            "oneOf": [
+              { "type": "string" },
+              { "type": "object", "properties": { "name": { "type": "string" }, "role": { "type": "string" } }, "required": ["name"] }
+            ]
+          }
+        },
+        "required": ["companyId", "employee"]
+      }
+    },
+    {
+      "id": "company.addDocument",
+      "description": "Record a document (URL, file path, or reference) belonging to a company.",
+      "permission": "manage_agents",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "companyId": { "type": "string" },
+          "document": { "type": "string" }
+        },
+        "required": ["companyId", "document"]
+      }
+    },
+    {
+      "id": "company.recordFinance",
+      "description": "Record a revenue or expense entry for a company.",
+      "permission": "manage_agents",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "companyId": { "type": "string" },
+          "label": { "type": "string" },
+          "amount": { "type": "number" },
+          "type": { "type": "string", "enum": ["revenue", "expense"] }
+        },
+        "required": ["companyId", "label", "amount", "type"]
+      }
+    },
+    {
+      "id": "company.addRelationship",
+      "description": "Record a business relationship (client, partner, vendor) for a company in the knowledge graph.",
+      "permission": "manage_agents",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "companyId": { "type": "string" },
+          "to": { "type": "string", "description": "Name of the client/partner/vendor" },
+          "type": { "type": "string", "description": "Relationship type, e.g. \"client\", \"vendor\", \"partner\"" }
+        },
+        "required": ["companyId", "to", "type"]
+      }
+    },
+    {
+      "id": "company.logCommunication",
+      "description": "Log a communication (email summary, call notes, meeting notes) against a company.",
+      "permission": "manage_agents",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "companyId": { "type": "string" },
+          "summary": { "type": "string" },
+          "channel": { "type": "string", "description": "e.g. \"email\", \"call\", \"meeting\"" }
+        },
+        "required": ["companyId", "summary"]
+      }
+    },
+    {
+      "id": "executive.consolidate",
+      "description": "Run one executive memory consolidation pass: gather completed tasks, important memories, knowledge updates, project lessons, and decisions since the last run, and synthesize a summary/patterns/recommendations/insights via LLM reasoning.",
+      "permission": "manage_agents",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "executive.consolidationHistory",
+      "description": "List past executive memory consolidation runs, most recent first.",
+      "permission": "read_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": { "type": "integer", "description": "Max runs to return; defaults to 10" }
+        }
+      }
+    },
+    {
+      "id": "learning.overview",
+      "description": "System-wide execution stats: total/successful/failed department runs and tool calls, and average execution time.",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "learning.departmentPerformance",
+      "description": "Execution performance (success rate, average duration) broken down by department.",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "learning.agentPerformance",
+      "description": "Execution performance broken down by agent.",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "learning.toolPerformance",
+      "description": "Execution performance broken down by tool.",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "learning.recommend",
+      "description": "Analyze logged execution performance and generate optimization recommendations via LLM reasoning.",
+      "permission": "manage_agents",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "learning.recommendations",
+      "description": "List past optimization recommendation runs, most recent first.",
+      "permission": "read_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": { "type": "integer", "description": "Max runs to return; defaults to 10" }
+        }
+      }
+    },
+    {
+      "id": "automation.status",
+      "description": "Current automation engine state: whether the tick loop is running, the job queue, and registered schedules.",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "automation.history",
+      "description": "Past completed/failed automation job runs, most recent first.",
+      "permission": "read_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": { "type": "integer", "description": "Max runs to return; defaults to 20" }
+        }
+      }
+    },
+    {
+      "id": "automation.run",
+      "description": "Enqueue a registered job (e.g. \"consolidate\", \"learning-recommend\") to run in the background on the next tick. Requires the automation engine's tick loop to actually be running (e.g. the dashboard server) -- see automation.runNow to run immediately regardless.",
+      "permission": "manage_agents",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "jobName": { "type": "string" }
+        },
+        "required": ["jobName"]
+      }
+    },
+    {
+      "id": "automation.runNow",
+      "description": "Run a registered job immediately and synchronously, bypassing the queue -- no retry, just run it now.",
+      "permission": "manage_agents",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "jobName": { "type": "string" }
+        },
+        "required": ["jobName"]
+      }
     }
   ]
 }

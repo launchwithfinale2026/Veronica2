@@ -325,3 +325,670 @@ guidance against speculative back-compat).
   local dashboard (see "Dashboard stack" above); a real multi-user
   credential system would be a different, larger scope than what was
   asked for here.
+
+---
+
+## Executive Planner (`core/executive`)
+
+**Decision:** the planner is deliberately rule-based, not LLM-backed, and
+projects are stored as ordinary memory entries, not a second store. Built
+2026-07-21 (Intelligence Layer milestone, Phase 1 of 18).
+
+- `core/executive/index.js` was previously just a retired boot-path stub
+  (see "Boot path" section above) — this is the first real code living in
+  that directory.
+- Department assignment, effort estimate, and priority score are all
+  synchronous keyword/heuristic logic (`core/executive/planner.js`), not a
+  brain/LLM call: a plan needs to be cheap, deterministic, and callable
+  without network access on every `plan()`, and every test needs to run
+  without mocking a provider. This is a smaller scope than the milestone's
+  literal "produce execution plans" bullet — turning a goal into concrete
+  *steps*/subtasks is a genuinely LLM-shaped problem, left for a future
+  Goal Decomposition Engine to build on top of this planner rather than
+  bolted on speculatively here.
+- Projects are `memory.remember()` entries (`type: "goals"`, tagged
+  `executive-project` + the assigned department id), not a parallel
+  `core/executive/projects.json` store — consistent with the existing rule
+  against duplicating the memory system (see "Memory" section above). The
+  roadmap (`roadmap()`) is a derived view over `memory.filter()`, recomputed
+  on read, not separately maintained state.
+- This required one additive change to the Phase 3 memory schema:
+  `core/memory/store.js` entries now carry an optional `metadata` object
+  (defaults to `{}`), used here for `{description, deadline, deadlineStatus,
+  effort, priority, status}`. Existing readers ignore the new field;
+  existing entries (including legacy-migrated ones) get `metadata: {}`.
+  This is the same kind of generic extensibility `tags`/`relationships`
+  already provided — not a new parallel schema.
+- Each planned project also gets a `project`-type knowledge graph entity,
+  an `assignedTo` relationship to its department entity, and a `dependsOn`
+  relationship per validated dependency — department entities are keyed by
+  registry id (e.g. `"athena"`), matching `core/knowledge/seed.js`'s
+  existing convention, not display name.
+- Dependencies (`goal.dependencies`, an array of project ids) are validated
+  against the current roadmap at `plan()` time — an unknown id throws
+  rather than silently being dropped or stored unchecked.
+- Exposed the same way every other subsystem is: three tools
+  (`executive.plan` — `manage_agents`, `executive.roadmap` /
+  `executive.deadlines` — `read_memory`) registered in
+  `registry/tools.json` + `core/tools/handlers/executive.js`; terminal
+  commands (`executive.plan`/`.roadmap`/`.deadlines`); read-only dashboard
+  routes (`GET /api/executive/roadmap`, `GET /api/executive/deadlines`) and
+  one write route (`POST /api/executive/plan`, gated by `API_TOKEN` like
+  every other write endpoint). Also the first real entry in
+  `registry/services.json`, which existed but was empty/unreferenced until
+  now — establishes that file as the services registry future subsystems
+  (Project Manager, Company Manager, ...) should register themselves in
+  too, rather than inventing a second registry file.
+- Not built: mutable project status transitions (`planned` → `in_progress`
+  → `completed`) and persistent progress/timeline/owners tracking — that's
+  the milestone's Phase 3 (Project Manager), a distinct concern from
+  scheduling/prioritizing goals. `toProject()`'s `status` field is always
+  `"planned"` today; wiring real status updates through belongs with that
+  phase, not bolted on speculatively here.
+
+---
+
+## Goal Decomposition Engine (`core/executive/decomposer.js`)
+
+**Decision:** LLM-backed (unlike the planner), milestones/tasks are
+first-class persisted entities, subtasks/deliverables are not. Built
+2026-07-21 (Intelligence Layer milestone, Phase 2 of 18).
+
+- This is the half of "produce execution plans" `ExecutivePlanner`
+  deliberately deferred (see its section above): `GoalDecomposer.decompose
+  (projectId)` takes a project already on the roadmap and asks the brain
+  (via `core/intelligence`, `useTools: false` — this needs one clean JSON
+  document back, not a multi-turn tool loop) to break it into milestones,
+  each with tasks, each with subtasks/deliverables. The response is parsed
+  as JSON (markdown code fences stripped first — models asked for "JSON
+  only" still sometimes wrap it) and persisted.
+- Milestones and tasks get the full treatment (memory entry + knowledge
+  entity + department/priority/effort/dependencies/status), same as a
+  Phase-1 project. Subtasks and deliverables do **not** — they're stored as
+  structured data inside their owning task's `metadata` (`subtasks: [{title,
+  status}]`, `deliverables: [string]`), not separate memory entries or
+  graph nodes. Rationale: a subtask/deliverable isn't independently
+  assigned to a department or prioritized against the rest of the roadmap —
+  it's a checklist item / exit criterion of its task. Modeling all four
+  levels as fully independent scheduled entities per the milestone spec's
+  literal wording would have meant 4x the entities for every goal with no
+  real scheduling use for the bottom two levels; revisit if a real need
+  for independently-tracked subtasks appears.
+- Department and priority are **inherited** from the parent project (a
+  milestone/task doesn't get its own department-assignment or
+  priority-scoring pass) — a project already belongs to one department;
+  decomposing it into work items for that same department is the expected
+  case, not a re-litigation of Phase 1's assignment. Effort is the one
+  field computed bottom-up instead of inherited: each task gets its own
+  estimate (explicit `estimatedHours` from the model, or
+  `ExecutivePlanner.estimateEffort()` reused — exposed as `static
+  sizeFromHours()` too, so the t-shirt-size thresholds live in one place),
+  and a milestone's effort is the sum of its tasks'.
+- Dependencies: the model can declare `dependsOnTitles` (referencing any
+  earlier milestone/task title in the same decomposition, or the project
+  itself); unresolvable titles are dropped rather than failing the whole
+  decomposition — a missed dependency link is recoverable, an aborted
+  decomposition over the model paraphrasing a title isn't.
+- **Found while wiring this in**: making `executive.decompose` a tool
+  (`core/tools/handlers/executive.js`) closed a real circular require loop
+  — `core/tools` (via `handlers/executive.js`) → `core/executive` →
+  `core/executive/decomposer.js` → `core/intelligence` → `core/brain` →
+  `ClaudeProvider` → `core/tools` again. Node resolves a `require()` cycle
+  by handing back whatever the in-progress module's `module.exports` is at
+  that point in its load — which was still the default `{}`, so
+  `GoalDecomposer`/`IntelligenceEngine`/`BrainProvider` all came back as
+  "not a constructor" depending on which test file happened to trigger the
+  cycle first. Fixed by making `core/tools/handlers/executive.js` require
+  `../../executive` lazily inside each handler function instead of at
+  module load time — by the time any tool is actually invoked, the normal
+  (non-circular) load path has long finished and `require()` just returns
+  the real cached singleton. No other handler module needs this (none of
+  `memory`/`knowledge`/`filesystem`'s dependencies loop back through
+  `core/tools`), so this is scoped to the one handler that does.
+- Not built: decomposing a task further into its own sub-decomposition
+  (recursive breakdown), and re-decomposing/updating an already-decomposed
+  project. Both are real future work, not gaps in what was asked for this
+  pass — the milestone spec describes one goal → one breakdown, not
+  iterative refinement.
+
+---
+
+## Project Manager (`core/executive/projectManager.js`)
+
+**Decision:** status/history is one generic mechanism shared by projects,
+milestones, and tasks; progress is derived from decomposed tasks, not a
+manually-set field. Built 2026-07-21 (Intelligence Layer milestone, Phase
+3 of 18).
+
+- This fills in exactly what `ExecutivePlanner`'s "Not built" note said it
+  would: mutable status, progress, timeline/history, owners, artifacts —
+  still no parallel store, every operation reads/writes the same memory
+  entries `planner.js`/`decomposer.js` already create.
+- Required the one other addition to `core/memory/store.js` this milestone
+  needed: `update(id, changes)` — mutates an entry in place (shallow-merges
+  `changes.metadata` onto the existing metadata rather than replacing it,
+  so a status update doesn't have to resend the whole metadata object),
+  bumping `updated`. Deliberately separate from `remember()` (creates) and
+  `merge()` (sync upsert, last-write-wins by `updated`) — different
+  concerns, not consolidated into one do-everything function.
+- `updateStatus(id, status, note)` works on a project, milestone, or task
+  id interchangeably — all three share the same `metadata.status`/
+  `metadata.history` shape (milestones/tasks got `history: []` added in
+  `decomposer.js` alongside their existing `status: "planned"` for
+  exactly this). One method instead of three near-identical ones.
+  `"completed"` is terminal — once set, nothing (including setting
+  `"completed"` again) can change it further; every transition appends a
+  `{from, to, note, timestamp}` entry rather than overwriting history.
+- `progress(projectId)` is **derived**, not stored: percent of the
+  project's decomposed tasks with `status: "completed"`. A project with no
+  decomposition yet has no granular work to measure, so it falls back to a
+  coarse reading of the project's own status (`planned` → 0,
+  `in_progress` → 50, `completed` → 100) instead of always reporting 0 —
+  consistent with the rest of this milestone's "derive from what's already
+  there, don't ask for a second manually-maintained number" approach
+  (`roadmap()`/`evaluateDeadlines()` work the same way).
+- `owners` is resolved at `plan()` time (an `ExecutivePlanner.plan()`
+  amendment, not a `ProjectManager` method): explicit `goal.owners` wins,
+  otherwise every agent registered to the assigned department via
+  `registry/agents.json` (today, one primary agent per department) owns it
+  by default. No separate human/stakeholder identity system exists yet to
+  assign a non-agent owner to — real future work if a project ever needs
+  an owner who isn't one of VERONICA's own agents.
+- `addArtifact()` links into the knowledge graph the same way everything
+  else here does (a `produces` relationship from the project entity to a
+  new `artifact`-type entity) — discoverable through
+  `knowledge.retrieve()`, not just the project's own `artifacts` array.
+- `getProject()` is the one place all of this comes together for the
+  dashboard: base project fields + `progress` + `timeline`
+  (`created`/`updated`/`deadline`/`history`) + `artifacts` + decomposed
+  `milestones` (id/title/status only — full milestone/task detail isn't
+  surfaced here, `executive.roadmap`-style entries for milestones/tasks
+  themselves would be the natural next step if that's needed) +
+  `knowledge.retrieve(project.title)`.
+- Dashboard integration (explicitly required by the milestone spec for
+  this phase, unlike the read-only façade treatment earlier phases got):
+  a new "Executive" panel (`dashboard/frontend/index.html`) showing the
+  live roadmap + deadline-risk counts + a project-id lookup that renders
+  `getProject()`'s full JSON, plus four new forms in the existing
+  "Actions" panel (plan a goal, decompose a project, update status, record
+  an artifact) — all reusing the existing `authedFetch()`/`API_TOKEN`
+  pattern, no new frontend infrastructure.
+- Not built: milestone/task-level dashboard views (only project-level
+  detail is surfaced today), and a UI for browsing a project's full
+  knowledge-graph neighborhood beyond the raw JSON dump in "Project
+  detail." Both are real future work if the JSON dump proves insufficient
+  in practice, not gaps in what this pass asked for.
+
+---
+
+## Company Manager (`core/executive/companyManager.js`)
+
+**Decision:** a company is the same kind of thing a project is (a memory
+entry + metadata + knowledge entity), one structural level up, using a
+memory *type* ("businesses") that already existed but was unused for
+anything structured before this. Built 2026-07-21 (Intelligence Layer
+milestone, Phase 4 of 18).
+
+- The milestone spec's own framing — "isolated memory while still
+  contributing to executive intelligence" — is exactly what tag-based
+  scoping already gives departments (see "Departments" section above): a
+  company's projects/communications are tagged `company:<id>` and
+  filterable to just that company, while still living in the one shared
+  memory store the rest of the system searches/reasons over. No per-company
+  database, no new registry file — `registry/services.json` gained an
+  `executive-planner` entry in Phase 1; companies don't get a parallel
+  `registry/companies.json` for the same reason projects don't have one.
+  `dashboard/frontend/index.html` already had a "Business" panel wired to
+  `GET /api/memory?type=businesses` before this phase — showing raw,
+  unstructured memories. That's the hook this phase builds on, not a new
+  concept introduced from scratch.
+- Field-by-field scope decisions for the milestone's "each company
+  contains: projects, goals, employees, agents, documents, finances,
+  relationships, knowledge, communications" list:
+  - **projects/goals** — `ExecutivePlanner.plan()` gained an optional
+    `goal.company` field (tags the project `company:<id>`, stores it in
+    metadata); `roadmap()` gained an optional `{ company }` filter
+    (backward compatible — existing zero-arg calls are unaffected).
+    Deliberately **not** validated against the company registry at
+    `plan()` time: doing so would make `ExecutivePlanner` depend on
+    `CompanyManager`, which itself depends on `ExecutivePlanner` (to list
+    a company's projects) — a circular dependency in the class graph, not
+    just the `require()` graph this milestone already hit once in Phase 2.
+    An unknown company id just means the project won't surface under that
+    company's filtered view; recoverable, not worth the coupling.
+  - **employees** — a plain list on the company (name + optional role),
+    each also getting a `person`-type knowledge entity + `employedBy`
+    relationship. No auth/login/identity for employees — they're records,
+    not accounts.
+  - **agents/departments** — a company records which of VERONICA's
+    existing 9 departments staff it (validated against
+    `registry/departments.json`, same check `assignDepartment()` already
+    does), with a `staffedBy` knowledge relationship per department. No
+    second agent roster — VERONICA has one shared set of agents/
+    departments serving every company, consistent with this being one AI
+    system operating multiple companies, not multiple separate AI
+    installations.
+  - **documents** — same treatment as `ProjectManager.addArtifact()`, one
+    level up: a list on the company entry + a `produces` knowledge
+    relationship per document.
+  - **finances** — a minimal ledger (label/amount/type "revenue"|
+    "expense"), not an accounting system: `recordFinance()` appends an
+    entry, `financialSummary()` derives revenue/expense/net. No
+    currencies, categories, or reconciliation — no concrete need for them
+    yet, and building them speculatively would be exactly the premature
+    complexity this project's guidance warns against.
+  - **relationships** — go straight into the knowledge graph as an edge
+    from the company entity (`addRelationship({to, type})`, e.g. `type:
+    "client"`) rather than a second parallel list — a relationship *is* a
+    graph edge, this makes it discoverable through `knowledge.retrieve()`
+    like everything else here, and avoids a redundant place to look for
+    the same fact.
+  - **knowledge** — the company's `knowledge.retrieve(company.name)`
+    neighborhood, same as a project's.
+  - **communications** — logged as their own searchable memory entries
+    (type `"businesses"`, tagged `company:<id>` + `"communication"`), not
+    appended to the company entry's metadata like employees/documents —
+    a communications log is a stream, not a small bounded list, so giving
+    each entry its own memory entry keeps it consistent with how
+    `memory.search()` already works over everything else. Deliberately
+    minimal (`summary` + optional `channel`) — a real inbox/calendar
+    integration is the milestone's own later Phase 14 (Communications),
+    not duplicated here.
+- Dashboard: a "Companies" list + company-id lookup (mirrors "Project
+  detail"'s raw-JSON-dump pattern) in the existing "Business" panel, plus
+  a "Create a company" form in "Actions". Unlike Phase 3, this phase's
+  milestone text doesn't explicitly require dashboard integration, so
+  employee/document/finance/relationship/communication management got
+  terminal commands + tools + API routes but not dedicated dashboard
+  forms — reachable today via `company.employee`/`company.finance`/etc.
+  in the terminal, or directly against the API. Add dashboard forms for
+  these if the JSON-dump + terminal combination proves insufficient in
+  practice.
+
+---
+
+## Persistent Context Engine (`core/context/engine.js`)
+
+**Decision:** context retrieval moved from "each caller fetches its own"
+to "`core/intelligence` fetches it automatically for every reasoning
+call." Built 2026-07-21 (Intelligence Layer milestone, Phase 5 of 18).
+
+- Before this, `core/router` (the `ask` command) fetched context itself
+  (`this.context.retrieve(command)`, memories + knowledge only) and passed
+  it through `mission.context`; `core/departments/base.js`'s
+  `DepartmentManager.run()` didn't fetch any context at all — department-
+  driven tasks got zero background beyond the bare task string. Two
+  callers, two different (and one non-existent) treatments. Now
+  `Intelligence.think()` calls `this.context.retrieve(mission.task, {
+  companyId: options.companyId })` itself on every call, so both paths get
+  identical, automatic context — "inject automatically into prompts," per
+  the milestone's own framing, means the reasoning layer does it, not
+  every caller remembering to.
+- `core/router/index.js`'s `route()` no longer pre-fetches context itself
+  (removed the now-redundant `this.context.retrieve(command)` call) —
+  `Intelligence.think()` does the real work. The `context` constructor
+  parameter (`new Router(agents, context)`) is kept unchanged for backward
+  compatibility (`tests/router.test.js` still constructs one) and any
+  future direct caller, it's just not used internally by `route()` anymore.
+- Context now covers what the milestone spec asked for beyond the
+  original memories+knowledge: **active goals** (top 5 roadmap projects by
+  priority), **recent project activity** (top 3 by `updated`, a distinct
+  slice from "active goals" — "what's important" vs. "what just
+  happened"), **department roster** (id/name/domain/status, all 9, always
+  included — cheap, small, no reason to gate it on a query), **device
+  identity** (`core/device`), and an **optional company scope**
+  (`options.companyId`, trimmed to id/name/industry/status/departments —
+  full company detail would blow past what a prompt needs). Company scope
+  is a hook, not wired into any caller automatically yet — no caller
+  (`Router`, `DepartmentManager`) has a natural company id to pass today;
+  a future company-scoped department run is the natural place to use it.
+- "Compress into executive context" (the milestone's own phrase): every
+  list is capped (`LIST_LIMIT = 5` for memories/knowledge/activeGoals, 3
+  for recent activity) so the injected context stays roughly prompt-sized
+  regardless of how large the memory store, knowledge graph, or roadmap
+  grow — not full-fidelity, deliberately.
+- **Found while wiring this in**: making `core/context/engine.js` pull
+  from `core/executive` for goals/company data would create the exact same
+  class of circular dependency Phase 2 hit (`core/executive` depends on
+  `core/intelligence` via `decomposer.js`; if `core/intelligence` now
+  depends on `core/context`, and `core/context` depended on
+  `core/executive` at module-load time, that's a cycle). Fixed the same
+  way: `core/executive` is required lazily inside `retrieve()`, not at
+  module load time — by the time `retrieve()` is ever actually called
+  (a runtime reasoning call, never during initial module loading), the
+  normal load path has long finished. See "Goal Decomposition Engine"
+  above for the first occurrence of this exact issue and why the fix
+  pattern is safe.
+- Not built: semantic/embedding-based retrieval (memories/knowledge are
+  still keyword search — Phase 3 of the original protocol flagged this as
+  future work before this milestone existed, still true), and any context
+  caching/memoization across calls (`retrieve()` re-reads from disk every
+  time — this is a personal, single-user system with a small on-disk
+  store, not a latency-sensitive multi-tenant one).
+
+---
+
+## Executive Memory Consolidation (`core/executive/consolidation.js`)
+
+**Decision:** this phase builds the consolidation *logic* only — gather,
+synthesize, persist — not a scheduler. Built 2026-07-21 (Intelligence
+Layer milestone, Phase 6 of 18).
+
+- The milestone spec calls this a "nightly process," but actually running
+  anything on a schedule is the *next* phase's whole job (Phase 8,
+  Automation Engine: "scheduled execution, background execution, task
+  queues"). Building a bespoke scheduler here to satisfy the word
+  "nightly" would mean building it twice — once ad hoc now, once properly
+  in Phase 8. Instead: `consolidation.run()` is a plain on-demand async
+  method, reachable via terminal (`executive.consolidate`), a tool
+  (`executive.consolidate`), and a dashboard button / `POST /api/executive
+  /consolidate` — the same "trigger it yourself, or point cron/launchd at
+  the endpoint" honesty this project already applies to sync (see "Device
+  identity & synchronization" above: "Sync is deliberately NOT a live
+  network service").
+- "Merge: completed tasks, important memories, knowledge updates, project
+  lessons, decision history" is implemented as **gather**, not merge in
+  the memory-store sense — nothing about existing entries changes; a
+  consolidation run reads a window of recent activity and produces one new
+  summary entry. Field-by-field:
+  - **completed tasks** — task-kind entries (`GoalDecomposer.TAG`) with
+    `metadata.status === "completed"`, updated since the window start.
+  - **important memories** — memory entries with `importance >= 4`,
+    excluding types `"decisions"`/`"goals"` (those are their own buckets
+    below) and excluding the consolidation's own entries.
+  - **knowledge updates** — graph entities/relationships `created` since
+    the window start.
+  - **project lessons** — a real, not invented, concept: the `note` on any
+    project/milestone/task's transition *to* `"completed"` (see
+    `ProjectManager.updateStatus()`) is treated as the lesson. Only counted
+    when a note was actually given — most completions won't have one, and
+    that's fine, there's nothing to learn from a bare status flip.
+  - **decision history** — memory entries of type `"decisions"` (a type
+    that already existed in `core/memory/store.js`'s `TYPES`, like
+    `"businesses"` did for Company Manager) updated since the window start.
+  - **windowing**: since the *previous* consolidation entry's `created`
+    timestamp (`lastRun()`), or `DEFAULT_WINDOW_DAYS` (1) back if this is
+    the first run ever. No separate "last run" state file — the previous
+    run's own persisted memory entry (tagged `executive-consolidation`) is
+    the state, same "don't add parallel storage for something the memory
+    store can already answer" reasoning as everywhere else in this
+    milestone.
+- "Generate: summaries, patterns, recommendations, executive insights" is
+  one LLM call (`synthesize()`, same `useTools: false` / JSON-response /
+  markdown-fence-stripping pattern as `GoalDecomposer.requestStructure()`)
+  — **skipped entirely** when `gather()` finds zero activity in the
+  window, returning a canned "No new activity" result instead. This
+  matters in practice, not just for cost: a "nightly" job that always finds
+  *something* (even a single low-signal memory) would make a real, paid
+  API call every night forever regardless of whether anything meaningful
+  happened.
+- **Found while wiring this in**: the consolidation run's own output
+  (`persist()` adds a `"consolidation"`-type knowledge entity, matching
+  every other executive entity's pattern of a matching graph node) was
+  itself showing up in the *next* run's `knowledgeUpdates` — since that
+  entity's `created` timestamp is always after the previous run's window
+  start, every consolidation after the first found "activity" purely from
+  its own prior output, permanently defeating the skip-when-empty check
+  above and making every run a real (paid, ~10s) API call regardless of
+  actual system activity. A test that called `run()` twice in a row without
+  mocking the brain caught this (11s test runtime was the tell). Fixed by
+  excluding `type: "consolidation"` entities from `knowledgeUpdates` in
+  `gather()`.
+- Not built: any scheduler/cron/daemon (Phase 8, as above), and semantic
+  deduplication of what counts as "important" beyond the existing
+  `importance` field (no embedding/similarity system exists yet — see
+  "Persistent Context Engine" above).
+
+---
+
+## Learning Engine (`core/learning/`)
+
+**Decision:** a new top-level `core/learning/` module (not nested under
+`core/executive`), with its own dedicated execution log file rather than
+memory entries. Built 2026-07-21 (Intelligence Layer milestone, Phase 7 of
+18).
+
+- **Why a new top-level module, not `core/executive/learning.js`**:
+  unlike Company Manager/Memory Consolidation (which extend the
+  goal→project→company hierarchy `core/executive` already owns), Learning
+  is a cross-cutting concern over `core/departments`, `core/tools`, and
+  `core/agents` alike — it doesn't belong to any one of them. This matches
+  how `core/context` and `core/intelligence` are their own top-level
+  modules rather than living under `core/executive` too.
+- **Why a dedicated file (`core/learning/executions.log`), not memory
+  entries**: this is high-frequency operational telemetry — potentially
+  one entry per tool call and per department run — not curated content an
+  agent should reason over. Mixing it into `core/memory` would pollute
+  `memory.search()`/the Persistent Context Engine's retrieval with noise
+  every future reasoning call would have to wade through. This is the same
+  kind of decision that already put `departments/<id>/logs/activity.log`
+  in its own file rather than memory entries; `core/learning/log.js`
+  applies it system-wide instead of per-department, in the same
+  JSON-lines-append shape.
+- **Instrumentation, not a new reporting layer bolted on top**: the
+  milestone's "track successful/failed decisions, execution time, tool
+  performance, department performance, agent performance" needed real data
+  to exist first. Two minimal, additive edits:
+  - `core/tools/base.js` `Tool.execute()` now times every call and records
+    outcome (`success`/`failure`, including a permission denial) to
+    `core/learning/log.js` — the one chokepoint every tool call already
+    passes through regardless of caller (terminal, dashboard, agent tool
+    use), so this required touching exactly one function.
+  - `core/departments/base.js` `run()` now wraps its call to
+    `intelligence.think()` in a try/catch, timing it and recording the
+    outcome the same way. **Found while wiring this in**: `run()` never
+    had a catch block before — a failed department run (e.g. the brain
+    throwing) propagated with literally no trace anywhere, not even in
+    `activity.log`. A "failed decision" was previously indistinguishable
+    from "this task was never attempted." Fixed as part of this phase,
+    not a separate bug fix pass, since tracking failed decisions requires
+    failures to be observable at all.
+  - `core/learning/log.js` itself has zero dependencies beyond Node
+    built-ins (`fs`/`path`/`crypto`) specifically so requiring it from
+    `Tool.execute()`/`DepartmentManager.run()` — both hot, frequently-hit
+    paths — can never risk the circular-`require()` class of bug Phase 2
+    hit. `core/learning/engine.js` (the aggregation/recommendation layer)
+    is a separate file specifically so those two call sites don't pull in
+    `core/intelligence` → `core/brain` → `core/tools` at all.
+- Every aggregate (`overview()`, `departmentPerformance()`,
+  `agentPerformance()`, `toolPerformance()`) is computed by reading and
+  grouping the log on every call — no separately-maintained running
+  counters to keep in sync, consistent with `roadmap()`/`progress()`/etc.
+  elsewhere in this milestone.
+- "Generate optimization recommendations" is one LLM call
+  (`recommend()`), same `useTools:false`/JSON-response/skip-when-no-data
+  pattern as `MemoryConsolidation.run()` — fed the four aggregates above,
+  asked for a summary + a list of concrete recommendations, persisted as a
+  `type: "decisions"` memory entry tagged `learning-recommendation`.
+- **Found while writing tests, before it shipped**: a test that called
+  `Tool.execute()`/`DepartmentManager.run()` for real (exercising the new
+  instrumentation) without also backing up/restoring the new
+  `executions.log` file would permanently pollute it across test runs —
+  three existing test files (`tools.test.js`, `departments.test.js`,
+  `dashboard.test.js`, `claude-tooluse.test.js`) newly exercise this
+  instrumentation as a side effect of testing things that were already
+  there, so all four needed the same backup/restore treatment the other
+  shared-state files already have. Caught by manually inspecting the live
+  `executions.log` after a full `npm test` run and finding it non-empty
+  when it should have been absent.
+- Not built: a UI/tool to prune old executions.log entries (it grows
+  unbounded) — no concrete need yet for a personal system's log to be
+  large enough to matter; revisit if it ever is.
+
+---
+
+## Automation Engine (`core/automation/`)
+
+**Decision:** plain `setInterval`-based tick loop with persisted JSON
+state, no new dependency (no `node-cron`/`bull`/etc.), and the engine
+itself has zero knowledge of what jobs exist. Built 2026-07-21
+(Intelligence Layer milestone, Phase 8 of 18).
+
+- **This is what Phases 6 and 7 were both waiting on**: both `docs/
+  Architecture.md`'s Executive Memory Consolidation and Learning Engine
+  sections explicitly said "not scheduled... until Phase 8." This phase's
+  two built-in jobs (`consolidate`, `learning-recommend`, both nightly)
+  are that promise being kept, not new speculative jobs invented to fill
+  out the phase.
+- **`core/automation/engine.js` depends on nothing from `core/executive`/
+  `core/tools`/`core/learning`'s engine** — jobs are registered from
+  outside via `registerJob(name, handler)`. `core/automation/jobs.js` is
+  the one file allowed to require `core/executive`/`core/learning` to wire
+  up the two built-in jobs; the engine class itself only touches `fs`/
+  `path`/`crypto` and `core/learning/log.js` (a safe leaf dependency, same
+  as `Tool.execute()`/`DepartmentManager.run()` use directly). This is
+  deliberately the same shape as `registry/tools.json` + `core/tools/
+  handlers/*.js` — declaration/wiring separated from the generic runner.
+- **No node-cron or similar**: a personal system running at most a
+  handful of daily jobs doesn't need cron-expression parsing, distributed
+  locking, or persistence beyond a flat JSON file — a `setInterval` tick
+  (default 30s) that checks "is anything due" against persisted
+  `nextRunAt`/`scheduledFor` timestamps covers every capability the
+  milestone asked for (scheduled execution, background execution, retry,
+  recovery) without a new dependency. Revisit if job volume or scheduling
+  precision ever genuinely needs more.
+- **State** (`core/automation/state.json`, gitignored like `core/device/
+  device.local.json` — per-machine operational state, not source) holds
+  two arrays: `queue` (individual job executions, pending/running/
+  completed/failed) and `schedules` (recurring definitions with
+  `nextRunAt`). Both are covered by "persistent state": a schedule's
+  `nextRunAt` survives a restart without resetting the clock (re-calling
+  `schedule()` with the same `jobName` preserves the existing
+  `nextRunAt`, only updates `intervalMs`), and **failure recovery** is
+  literal — any queue entry found with `status: "running"` at load time
+  (impossible unless the process crashed mid-job) is reset to `"pending"`
+  so it gets retried.
+- **Retry logic**: failed jobs re-enqueue with backoff
+  (`60s × attempts`) up to `maxAttempts` (default 3), then go
+  `"failed"` — a terminal state, same one-way-door pattern as a project's
+  `"completed"` status (`ProjectManager.updateStatus()`) and a
+  consolidation/recommendation run's `"failed"` isn't retried
+  automatically after that either.
+- **Two execution modes, not one**, because nothing guarantees a
+  background tick loop is actually running on a personal, not-always-on
+  machine: `enqueue()` is genuinely fire-and-forget background execution
+  (only actually runs once *something's* tick loop finds it due), while
+  `runNow()` bypasses the queue entirely and runs a job synchronously,
+  immediately, regardless of whether any tick loop is active — mainly for
+  the terminal, where a user issuing `automation.run consolidate` and
+  having nothing happen (because they're not also running the dashboard)
+  would be a confusing dead end. Both record to `core/learning/log.js`
+  (`kind: "automation_job"`) either way, so job outcomes feed
+  `core/learning/engine.js`'s stats automatically regardless of which
+  mode ran them.
+- **The tick loop only starts from one place**: `dashboard/backend/
+  server.js`'s `require.main === module` guard (its real-boot path, not
+  triggered by tests requiring `createServer`) — the dashboard is
+  VERONICA's one genuinely long-running host process. `core/interface/
+  terminal.js` gets an `automation.start` command instead of auto-
+  starting, specifically to avoid two processes (a terminal session left
+  open *and* the dashboard) both ticking against the same
+  `state.json` and racing to claim the same due schedule. `AUTOMATION_DISABLED=1`
+  opts a given dashboard instance out entirely, for the same
+  multiple-instances-sharing-state reason.
+- **Found while writing tests, before it shipped** (the same class of bug
+  as Phase 7's `executions.log` leak, one level up): `core/automation/
+  index.js`'s module load calls `schedule()` for both built-in jobs,
+  which persists to `state.json` unconditionally — meaning simply
+  *requiring* `dashboard/backend/server.js` (which `tests/dashboard.test.js`
+  and `tests/sync.test.js` both do, to get `createServer`) writes real
+  state to disk before any test even runs, let alone before a
+  `test.before()` hook could snapshot "did this exist already." Fixed by
+  moving the existed-before snapshot to before those two files' `require()`
+  calls specifically, not inside their hooks — the general lesson (a
+  module's *side effects on load*, not just on the operations its tests
+  exercise, need backing up) applies to any future test that transitively
+  requires a module with load-time persistence.
+- Not built: cron-expression scheduling (fixed intervals only — no
+  concrete need yet for "every weekday at 9am" precision over "every 24
+  hours"), job concurrency (`processQueue()` runs due jobs sequentially,
+  one at a time — a personal system's volume never justifies the
+  complexity of parallel job execution), and pruning old completed/failed
+  queue entries (same unbounded-growth deferral as `executions.log`
+  above).
+
+---
+
+## Dashboard Live Updates (`GET /api/events`)
+
+**Decision:** Server-Sent Events over the existing plain `http` server,
+not a hand-rolled WebSocket implementation. Built 2026-07-21 (Intelligence
+Layer milestone, Phase 9 of 18).
+
+- **Why SSE, not literal WebSocket**: every capability the milestone spec
+  actually lists — live notifications, progress updates, memory updates,
+  knowledge updates, department activity, agent activity — is
+  one-directional, server→client push. That is exactly what SSE is for.
+  Node's `http` module has no built-in WebSocket support (unlike
+  `http.createServer`'s native support for chunked/streamed responses,
+  which SSE just is), so a literal WebSocket would mean hand-writing the
+  handshake/framing/masking wire protocol from scratch — real,
+  security-sensitive, easy-to-get-subtly-wrong code — or adding a new
+  dependency (`ws`), which this project has avoided everywhere else (see
+  "Dashboard stack" above: "no new dependencies... built-in http only").
+  SSE gets automatic browser reconnection for free (`EventSource`) and
+  needed zero new code on the wire-protocol level. Revisit if a genuine
+  bidirectional need (the browser pushing to the server outside normal
+  HTTP requests) ever appears — SSE structurally can't do that, WebSocket
+  can.
+- **Event source, not new instrumentation everywhere**: `core/bus` (the
+  `EventEmitter`-based message bus that already existed, previously only
+  used for one `system.ready` publish at boot) is the backbone. Rather
+  than instrumenting every executive method that creates a project/
+  company/consolidation/recommendation individually, `core/memory/
+  index.js`'s `remember()`/`update()` publish `memory.updated` once —
+  since nearly everything (`ExecutivePlanner.plan()`, `CompanyManager.
+  createCompany()`, `MemoryConsolidation.persist()`, `ProjectManager.
+  updateStatus()`, ...) already funnels through those two functions, this
+  one chokepoint covers all of them for free, the same reasoning Phase 7's
+  `Tool.execute()`/`DepartmentManager.run()` instrumentation already
+  used. `core/knowledge/index.js`'s `addEntity()`/`addRelationship()`
+  publish `knowledge.updated` (only on the genuine-create branch, not the
+  idempotent-reuse one — a no-op call shouldn't notify anyone).
+  `DepartmentManager.run()` and `AutomationEngine.runEntry()` publish
+  their own distinct events (`department.activity`, `automation.
+  jobCompleted`) since those carry information (which department/agent,
+  which job) memory/knowledge events don't.
+- **Not covered**: `core/device/sync.js` calls `core/memory/store.js` and
+  `core/knowledge`'s `merge()` directly, bypassing the instrumented
+  `core/memory/index.js` wrapper — sync imports don't currently trigger
+  live-update events. Deliberate, not an oversight: sync is a rare,
+  already-authenticated, distinctly different kind of write than normal
+  live usage; wiring it in is real future work if it's ever needed, not
+  gap-filled speculatively here.
+- One `/api/events` connection streams every event type (tagged with
+  `type` in the JSON payload) rather than one connection per type — a
+  personal dashboard with one or two open tabs doesn't need per-topic
+  subscription management, and the frontend just filters client-side.
+  Listeners are cleaned up on `req.on("close")` (no leaked `EventEmitter`
+  listeners across reconnects), and a 25s heartbeat comment line keeps
+  proxies/browsers from treating the connection as idle and dropping it.
+- Frontend: `setInterval(loadDashboard, 15000)` is gone, replaced by
+  `EventSource` — each event both appends to a new "Live Activity" panel
+  immediately (the direct, visible "live notifications" experience) and
+  triggers a debounced (800ms) `loadDashboard()` refresh, since one user
+  action (e.g. planning a goal) fires several events in quick succession
+  (a `memory.updated` for the project, multiple `knowledge.updated` for
+  its entities/relationships) and refreshing once covers all of them
+  rather than re-fetching on every single event.
+- **Found while writing tests, before it shipped**: the two new SSE tests
+  in `tests/dashboard.test.js` (connect, trigger a real event, assert it
+  arrives) made the file's `test.after()` — specifically the graceful
+  `server.close()`, which waits for existing connections to end on their
+  own — hang on Node's default 5s `keepAliveTimeout` before the socket
+  the SSE test opened would actually close, adding several real seconds
+  to every single `npm test` run regardless of whether SSE was even the
+  thing being tested. Fixed with `server.closeAllConnections()` (Node
+  ≥18.2) called immediately before `server.close()` in that file's
+  cleanup — safe there since the test run is already finished with the
+  server at that point. Caught by comparing `npm test`'s total duration
+  before/after adding the SSE tests, the same way Phase 6's and Phase 8's
+  bugs were caught by watching for anomalous timing, not by a failing
+  assertion.
+- Not built: per-event-type SSE subscription (one client always gets
+  every event type — no concrete need yet to filter server-side), and any
+  event history/replay for a client that connects after an event already
+  fired (a freshly-opened dashboard tab sees new events from that point
+  forward; the existing `GET /api/...` endpoints remain how a tab gets
+  the current state on load, which is intentional — the point of SSE here
+  is "notify me of what changes next," not "replace all data-fetching").

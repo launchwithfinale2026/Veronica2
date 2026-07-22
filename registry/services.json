@@ -1,0 +1,25 @@
+{
+  "services": [
+    {
+      "id": "executive-planner",
+      "name": "Executive Planner",
+      "module": "core/executive",
+      "status": "active",
+      "description": "Plans goals into scheduled projects, decomposes them into milestones/tasks, manages their lifecycle (status/progress/artifacts), groups them under companies, and consolidates recent activity into executive summaries."
+    },
+    {
+      "id": "learning-engine",
+      "name": "Learning Engine",
+      "module": "core/learning",
+      "status": "active",
+      "description": "Tracks department/agent/tool execution outcomes and duration, and generates optimization recommendations from the aggregated performance data."
+    },
+    {
+      "id": "automation-engine",
+      "name": "Automation Engine",
+      "module": "core/automation",
+      "status": "active",
+      "description": "Persisted job queue with retry/backoff and a recurring scheduler for background jobs (nightly consolidation, learning recommendations). The tick loop only runs while a long-running host process (the dashboard server) has started it."
+    }
+  ]
+}

@@ -6,6 +6,8 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 
+const bus = require("../bus");
+
 
 class KnowledgeGraph {
 
@@ -82,6 +84,11 @@ class KnowledgeGraph {
             "[KNOWLEDGE] Entity created:", name
         );
 
+        // Only on the genuine-create branch, not the idempotent-reuse
+        // one above -- a live dashboard viewer doesn't need a "knowledge
+        // updated" notification for a call that changed nothing.
+        bus.publish("knowledge.updated", { action: "entityCreated", entity });
+
         return entity;
 
     }
@@ -126,6 +133,8 @@ class KnowledgeGraph {
             "[KNOWLEDGE] Relationship created:",
             `${from} -${type}-> ${to}`
         );
+
+        bus.publish("knowledge.updated", { action: "relationshipCreated", relationship });
 
         return relationship;
 

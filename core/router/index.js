@@ -87,15 +87,13 @@ class Router {
 
         console.log("[ROUTER] Selected agent:", agent.name);
 
-        const context = this.context.retrieve(command);
-
-        const mission = {
-
-            task: command,
-
-            context
-
-        };
+        // Intelligence.think() now retrieves its own executive context
+        // automatically on every call (see docs/Architecture.md
+        // "Persistent Context Engine") -- this.context is kept as a
+        // constructor param for backward compatibility and any caller
+        // that wants a direct context.retrieve(), but route() no longer
+        // needs to pre-fetch it itself.
+        const mission = { task: command };
 
         const result = await this.intelligence.think(
 

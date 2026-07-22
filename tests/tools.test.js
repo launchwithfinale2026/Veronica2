@@ -17,9 +17,20 @@ const GRAPH_BACKUP = path.join(os.tmpdir(), `veronica-graph-backup-tools-${proce
 
 const WORKSPACE = path.join(__dirname, "..", "data", "workspace");
 
+// Tool.execute() now records every call to core/learning/log.js's
+// executions.log -- same real-file backup/restore treatment, handling
+// "didn't exist before this test run" the same way
+// tests/departments.test.js does for activity.log.
+const EXEC_LOG_PATH = path.join(__dirname, "..", "core", "learning", "executions.log");
+const EXEC_LOG_EXISTED_BEFORE = fs.existsSync(EXEC_LOG_PATH);
+const EXEC_LOG_BACKUP = path.join(os.tmpdir(), `veronica-executions-backup-tools-${process.pid}.log`);
+
 test.before(() => {
     fs.copyFileSync(DB_PATH, DB_BACKUP);
     fs.copyFileSync(GRAPH_PATH, GRAPH_BACKUP);
+    if(EXEC_LOG_EXISTED_BEFORE){
+        fs.copyFileSync(EXEC_LOG_PATH, EXEC_LOG_BACKUP);
+    }
 });
 
 test.after(() => {
@@ -27,6 +38,13 @@ test.after(() => {
     fs.unlinkSync(DB_BACKUP);
     fs.copyFileSync(GRAPH_BACKUP, GRAPH_PATH);
     fs.unlinkSync(GRAPH_BACKUP);
+
+    if(EXEC_LOG_EXISTED_BEFORE){
+        fs.copyFileSync(EXEC_LOG_BACKUP, EXEC_LOG_PATH);
+        fs.unlinkSync(EXEC_LOG_BACKUP);
+    } else if(fs.existsSync(EXEC_LOG_PATH)){
+        fs.unlinkSync(EXEC_LOG_PATH);
+    }
 
     const testFile = path.join(WORKSPACE, "tools-test.txt");
     if(fs.existsSync(testFile)){
@@ -101,15 +119,42 @@ test("identity.hasPermission() matches permissionsForRole()", () => {
 
 });
 
-test("registry loads all 5 tools with real handlers", () => {
+test("registry loads all 31 tools with real handlers", () => {
 
     const list = tools.list();
     const ids = list.map(t => t.id).sort();
 
     assert.deepStrictEqual(ids, [
+        "automation.history",
+        "automation.run",
+        "automation.runNow",
+        "automation.status",
+        "company.addDocument",
+        "company.addEmployee",
+        "company.addRelationship",
+        "company.create",
+        "company.get",
+        "company.list",
+        "company.logCommunication",
+        "company.recordFinance",
+        "executive.addArtifact",
+        "executive.consolidate",
+        "executive.consolidationHistory",
+        "executive.deadlines",
+        "executive.decompose",
+        "executive.plan",
+        "executive.project",
+        "executive.roadmap",
+        "executive.updateStatus",
         "filesystem.readFile",
         "filesystem.writeFile",
         "knowledge.query",
+        "learning.agentPerformance",
+        "learning.departmentPerformance",
+        "learning.overview",
+        "learning.recommend",
+        "learning.recommendations",
+        "learning.toolPerformance",
         "memory.recall",
         "memory.remember"
     ]);

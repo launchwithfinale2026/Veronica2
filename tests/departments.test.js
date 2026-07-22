@@ -16,10 +16,19 @@ const LOG_PATH = path.join(__dirname, "..", "departments", "athena", "logs", "ac
 const LOG_EXISTED_BEFORE = fs.existsSync(LOG_PATH);
 const LOG_BACKUP = path.join(os.tmpdir(), `veronica-athena-log-backup-${process.pid}.log`);
 
+// run() now also records to core/learning/log.js's executions.log --
+// same existed-before-this-run treatment as activity.log above.
+const EXEC_LOG_PATH = path.join(__dirname, "..", "core", "learning", "executions.log");
+const EXEC_LOG_EXISTED_BEFORE = fs.existsSync(EXEC_LOG_PATH);
+const EXEC_LOG_BACKUP = path.join(os.tmpdir(), `veronica-executions-backup-dept-${process.pid}.log`);
+
 test.before(() => {
     fs.copyFileSync(DB_PATH, DB_BACKUP);
     if(LOG_EXISTED_BEFORE){
         fs.copyFileSync(LOG_PATH, LOG_BACKUP);
+    }
+    if(EXEC_LOG_EXISTED_BEFORE){
+        fs.copyFileSync(EXEC_LOG_PATH, EXEC_LOG_BACKUP);
     }
 });
 
@@ -32,6 +41,13 @@ test.after(() => {
         fs.unlinkSync(LOG_BACKUP);
     } else if(fs.existsSync(LOG_PATH)){
         fs.unlinkSync(LOG_PATH);
+    }
+
+    if(EXEC_LOG_EXISTED_BEFORE){
+        fs.copyFileSync(EXEC_LOG_BACKUP, EXEC_LOG_PATH);
+        fs.unlinkSync(EXEC_LOG_BACKUP);
+    } else if(fs.existsSync(EXEC_LOG_PATH)){
+        fs.unlinkSync(EXEC_LOG_PATH);
     }
 });
 
@@ -84,6 +100,50 @@ test("run() delegates to the department's agent via real Intelligence and logs t
 
     const after = fs.readFileSync(LOG_PATH, "utf8").split("\n").filter(Boolean).length;
     assert.strictEqual(after, before + 1);
+
+    const learningLog = require("../core/learning/log");
+    const events = learningLog.readAll();
+    const event = events[events.length - 1];
+
+    assert.strictEqual(event.kind, "department_run");
+    assert.strictEqual(event.department, "athena");
+    assert.strictEqual(event.agent, "METIS");
+    assert.strictEqual(event.outcome, "success");
+    assert.ok(Number.isFinite(event.durationMs));
+
+});
+
+test("run() logs a failure (to both activity.log and the learning log) and still rejects when the brain throws", async () => {
+
+    const manager = new DepartmentManager({
+        id: "athena",
+        name: "ATHENA",
+        domain: "Knowledge Intelligence",
+        agents: [fakeAgent("METIS")]
+    });
+
+    manager.intelligence.brain.provider.providers = {
+        claude: { generate: async () => { throw new Error("brain unavailable XQZFAIL"); } }
+    };
+    manager.intelligence.brain.provider.active = "claude";
+
+    await assert.rejects(
+        () => manager.run("a task that will fail"),
+        /brain unavailable XQZFAIL/
+    );
+
+    const activity = fs.readFileSync(LOG_PATH, "utf8").split("\n").filter(Boolean).map(JSON.parse);
+    const lastActivity = activity[activity.length - 1];
+    assert.strictEqual(lastActivity.outcome, "failure");
+    assert.ok(lastActivity.error.includes("brain unavailable XQZFAIL"));
+
+    const learningLog = require("../core/learning/log");
+    const events = learningLog.readAll();
+    const event = events[events.length - 1];
+
+    assert.strictEqual(event.kind, "department_run");
+    assert.strictEqual(event.outcome, "failure");
+    assert.ok(event.error.includes("brain unavailable XQZFAIL"));
 
 });
 

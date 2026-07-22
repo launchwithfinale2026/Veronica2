@@ -12,6 +12,9 @@ const loadDepartments = require("../departments/loader");
 const tools = require("../tools");
 const device = require("../device");
 const bus = require("../bus");
+const executive = require("../executive");
+const learning = require("../learning");
+const automation = require("../automation");
 
 
 const identity = JSON.parse(
@@ -93,6 +96,62 @@ tools.list
 tools.run <id> <json args>
 
 device.identity
+
+executive.roadmap
+
+executive.deadlines
+
+executive.plan <json goal>
+
+executive.decompose <projectId>
+
+executive.project <projectId>
+
+executive.status <id> <status> [note]
+
+executive.artifact <projectId> <artifact>
+
+company.create <json>
+
+company.list
+
+company.get <companyId>
+
+company.employee <companyId> <name>
+
+company.document <companyId> <document>
+
+company.finance <companyId> <json>
+
+company.relationship <companyId> <json>
+
+company.communication <companyId> <summary>
+
+executive.consolidate
+
+executive.consolidations
+
+learning.overview
+
+learning.departments
+
+learning.agents
+
+learning.tools
+
+learning.recommend
+
+learning.recommendations
+
+automation.status
+
+automation.history
+
+automation.run <jobName>
+
+automation.runNow <jobName>
+
+automation.start
 
 ask <command>
 
@@ -291,6 +350,294 @@ rl.on("line", async (input) => {
         }
 
 
+        // EXECUTIVE ROADMAP
+        else if (command === "executive.roadmap") {
+
+            console.log(executive.roadmap());
+
+        }
+
+
+        // EXECUTIVE DEADLINES
+        else if (command === "executive.deadlines") {
+
+            console.log(executive.evaluateDeadlines());
+
+        }
+
+
+        // PLAN A GOAL
+        else if (command.startsWith("executive.plan ")) {
+
+            const rawGoal = command.substring(15).trim();
+
+            const goal = JSON.parse(rawGoal);
+
+            console.log(executive.plan(goal));
+
+        }
+
+
+        // DECOMPOSE A PROJECT INTO MILESTONES/TASKS
+        else if (command.startsWith("executive.decompose ")) {
+
+            const projectId = command.substring(20).trim();
+
+            console.log(await executive.decompose(projectId));
+
+        }
+
+
+        // FULL PROJECT DETAIL
+        else if (command.startsWith("executive.project ")) {
+
+            const projectId = command.substring(18).trim();
+
+            console.log(executive.getProject(projectId));
+
+        }
+
+
+        // UPDATE STATUS OF A PROJECT/MILESTONE/TASK
+        else if (command.startsWith("executive.status ")) {
+
+            const rest = command.substring(17).trim();
+
+            const [id, status, ...noteParts] = rest.split(" ");
+
+            console.log(executive.updateStatus(id, status, noteParts.join(" ") || undefined));
+
+        }
+
+
+        // RECORD AN ARTIFACT ON A PROJECT
+        else if (command.startsWith("executive.artifact ")) {
+
+            const rest = command.substring(19).trim();
+
+            const separator = rest.indexOf(" ");
+
+            const projectId = separator === -1 ? rest : rest.substring(0, separator);
+            const artifact = separator === -1 ? "" : rest.substring(separator + 1).trim();
+
+            console.log(executive.addArtifact(projectId, artifact));
+
+        }
+
+
+        // CREATE A COMPANY
+        else if (command.startsWith("company.create ")) {
+
+            const rawInput = command.substring(15).trim();
+
+            console.log(executive.createCompany(JSON.parse(rawInput)));
+
+        }
+
+
+        // LIST COMPANIES
+        else if (command === "company.list") {
+
+            console.log(executive.listCompanies());
+
+        }
+
+
+        // FULL COMPANY DETAIL
+        else if (command.startsWith("company.get ")) {
+
+            const companyId = command.substring(12).trim();
+
+            console.log(executive.getCompany(companyId));
+
+        }
+
+
+        // ADD AN EMPLOYEE
+        else if (command.startsWith("company.employee ")) {
+
+            const rest = command.substring(17).trim();
+
+            const separator = rest.indexOf(" ");
+
+            const companyId = separator === -1 ? rest : rest.substring(0, separator);
+            const name = separator === -1 ? "" : rest.substring(separator + 1).trim();
+
+            console.log(executive.addEmployee(companyId, name));
+
+        }
+
+
+        // ADD A DOCUMENT
+        else if (command.startsWith("company.document ")) {
+
+            const rest = command.substring(17).trim();
+
+            const separator = rest.indexOf(" ");
+
+            const companyId = separator === -1 ? rest : rest.substring(0, separator);
+            const document = separator === -1 ? "" : rest.substring(separator + 1).trim();
+
+            console.log(executive.addDocument(companyId, document));
+
+        }
+
+
+        // RECORD A FINANCE ENTRY
+        else if (command.startsWith("company.finance ")) {
+
+            const rest = command.substring(16).trim();
+
+            const separator = rest.indexOf(" ");
+
+            const companyId = separator === -1 ? rest : rest.substring(0, separator);
+            const entry = separator === -1 ? {} : JSON.parse(rest.substring(separator + 1).trim());
+
+            console.log(executive.recordFinance(companyId, entry));
+
+        }
+
+
+        // RECORD A RELATIONSHIP
+        else if (command.startsWith("company.relationship ")) {
+
+            const rest = command.substring(21).trim();
+
+            const separator = rest.indexOf(" ");
+
+            const companyId = separator === -1 ? rest : rest.substring(0, separator);
+            const relationship = separator === -1 ? {} : JSON.parse(rest.substring(separator + 1).trim());
+
+            console.log(executive.addCompanyRelationship(companyId, relationship));
+
+        }
+
+
+        // LOG A COMMUNICATION
+        else if (command.startsWith("company.communication ")) {
+
+            const rest = command.substring(22).trim();
+
+            const separator = rest.indexOf(" ");
+
+            const companyId = separator === -1 ? rest : rest.substring(0, separator);
+            const summary = separator === -1 ? "" : rest.substring(separator + 1).trim();
+
+            console.log(executive.logCommunication(companyId, { summary }));
+
+        }
+
+
+        // RUN A CONSOLIDATION PASS
+        else if (command === "executive.consolidate") {
+
+            console.log(await executive.consolidate());
+
+        }
+
+
+        // CONSOLIDATION HISTORY
+        else if (command === "executive.consolidations") {
+
+            console.log(executive.consolidationHistory());
+
+        }
+
+
+        // LEARNING OVERVIEW
+        else if (command === "learning.overview") {
+
+            console.log(learning.overview());
+
+        }
+
+
+        // DEPARTMENT PERFORMANCE
+        else if (command === "learning.departments") {
+
+            console.log(learning.departmentPerformance());
+
+        }
+
+
+        // AGENT PERFORMANCE
+        else if (command === "learning.agents") {
+
+            console.log(learning.agentPerformance());
+
+        }
+
+
+        // TOOL PERFORMANCE
+        else if (command === "learning.tools") {
+
+            console.log(learning.toolPerformance());
+
+        }
+
+
+        // GENERATE OPTIMIZATION RECOMMENDATIONS
+        else if (command === "learning.recommend") {
+
+            console.log(await learning.recommend());
+
+        }
+
+
+        // RECOMMENDATION HISTORY
+        else if (command === "learning.recommendations") {
+
+            console.log(learning.recommendationHistory());
+
+        }
+
+
+        // AUTOMATION STATUS
+        else if (command === "automation.status") {
+
+            console.log(automation.status());
+
+        }
+
+
+        // AUTOMATION HISTORY
+        else if (command === "automation.history") {
+
+            console.log(automation.history());
+
+        }
+
+
+        // ENQUEUE A JOB TO RUN IN THE BACKGROUND ON THE NEXT TICK
+        else if (command.startsWith("automation.run ")) {
+
+            const jobName = command.substring(15).trim();
+
+            console.log(automation.enqueue(jobName));
+
+        }
+
+
+        // RUN A JOB IMMEDIATELY, SYNCHRONOUSLY
+        else if (command.startsWith("automation.runNow ")) {
+
+            const jobName = command.substring(18).trim();
+
+            console.log(await automation.runNow(jobName));
+
+        }
+
+
+        // START THE BACKGROUND TICK LOOP FOR THIS SESSION
+        else if (command === "automation.start") {
+
+            automation.start();
+
+            console.log("Automation tick loop started for this terminal session.");
+
+        }
+
+
         // HELP
         else if (command === "help") {
 
@@ -308,6 +655,34 @@ knowledge.find <name>
 tools.list
 tools.run <id> <json args>
 device.identity
+executive.roadmap
+executive.deadlines
+executive.plan <json goal>
+executive.decompose <projectId>
+executive.project <projectId>
+executive.status <id> <status> [note]
+executive.artifact <projectId> <artifact>
+company.create <json>
+company.list
+company.get <companyId>
+company.employee <companyId> <name>
+company.document <companyId> <document>
+company.finance <companyId> <json>
+company.relationship <companyId> <json>
+company.communication <companyId> <summary>
+executive.consolidate
+executive.consolidations
+learning.overview
+learning.departments
+learning.agents
+learning.tools
+learning.recommend
+learning.recommendations
+automation.status
+automation.history
+automation.run <jobName>
+automation.runNow <jobName>
+automation.start
 ask <command>
 help
 exit
