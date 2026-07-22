@@ -35,6 +35,7 @@ const capabilitiesRegistry = require("../../core/capabilities/registry");
 const installer = require("../../core/capabilities/installer");
 const capabilitiesPlanner = require("../../core/capabilities/planner");
 const systemReport = require("../../core/system/report");
+const capabilitiesMarketplace = require("../../core/capabilities/marketplace");
 const PersonalContextEngine = require("../../core/profile/personalContextEngine");
 const log = require("../../core/logging");
 const { installCrashGuards } = require("../../core/logging/crashGuard");
@@ -283,6 +284,18 @@ const ROUTES = {
     // / what needs improvement, read live from the real capability and
     // integration registries -- see core/system/report.js.
     "GET /api/system/report": () => systemReport.generate(),
+
+    // Phase 26 (Capability Marketplace): every capability categorized
+    // into Installed/Available/Disabled/Experimental/Updates Available/
+    // Deprecated/Broken, with real per-package metadata (dependencies,
+    // permissions, install size/date, update history) -- see
+    // core/capabilities/marketplace.js.
+    "GET /api/capabilities/marketplace": () => capabilitiesMarketplace.categorize(),
+
+    "GET /api/capabilities/search": (searchParams) => {
+        const q = searchParams.get("q");
+        return q ? capabilitiesMarketplace.search(q) : [];
+    },
 
     "GET /api/profile": () => personalContext.summary(),
 

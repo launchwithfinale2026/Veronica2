@@ -596,6 +596,75 @@ async function loadSystemReport(){
 }
 
 
+function formatMarketplaceEntry(entry){
+
+    const flags = [];
+    if(entry.experimental) flags.push("experimental");
+    if(entry.deprecated) flags.push("deprecated");
+    if(entry.updateAvailable) flags.push(`update available (v${entry.onDiskVersion})`);
+
+    const sizeKb = typeof entry.installSizeBytes === "number" ? `${Math.round(entry.installSizeBytes / 1024)}KB` : "?";
+    const flagsText = flags.length ? ` [${flags.join(", ")}]` : "";
+
+    return `${entry.name} v${entry.version} — ${entry.description}${flagsText} (${sizeKb})`;
+
+}
+
+
+async function loadCapabilityMarketplace(){
+
+    const categories = await fetchJSON("/api/capabilities/marketplace");
+    const container = document.getElementById("capability-marketplace");
+
+    container.innerHTML = "";
+
+    for(const [label, key] of [
+        ["Installed", "installed"], ["Available", "available"], ["Disabled", "disabled"],
+        ["Experimental", "experimental"], ["Updates available", "updatesAvailable"],
+        ["Deprecated", "deprecated"], ["Broken", "broken"]
+    ]){
+
+        const heading = el("p", { textContent: `${label} (${categories[key].length})`, className: "hint" });
+        container.appendChild(heading);
+
+        if(!categories[key].length){
+            continue;
+        }
+
+        const list = el("ul");
+        for(const entry of categories[key]){
+            list.appendChild(el("li", { textContent: formatMarketplaceEntry(entry) }));
+        }
+        container.appendChild(list);
+
+    }
+
+}
+
+
+function setupCapabilitySearchForm(){
+
+    const form = document.getElementById("capability-search-form");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const query = document.getElementById("capability-search-query").value;
+        const results = await fetchJSON(`/api/capabilities/search?q=${encodeURIComponent(query)}`);
+
+        renderList(
+            "capability-search-result",
+            results,
+            "No matching capabilities.",
+            formatMarketplaceEntry
+        );
+
+    });
+
+}
+
+
 async function loadCollaborationHistory(){
 
     const history = await fetchJSON("/api/collaboration/history");
@@ -696,6 +765,7 @@ async function loadDashboard(){
             loadIntegrationsStatus(),
             loadCapabilities(),
             loadSystemReport(),
+            loadCapabilityMarketplace(),
             loadSemanticSearchStatus(),
             loadCompanies()
         ]);
@@ -1942,6 +2012,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupCompanyCreateForm();
     setupCapabilityAnalysisForm();
     setupCapabilityInstallForm();
+    setupCapabilitySearchForm();
 
     populateDepartmentSelect("department-select");
     populateDepartmentSelect("plan-department", { includeAuto: true });
