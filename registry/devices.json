@@ -23,6 +23,12 @@
       "name": "Server",
       "permissions": ["read_memory", "write_memory", "execute_tools", "manage_agents", "sync"],
       "capabilities": ["headless", "always_on", "large_storage"]
+    },
+    {
+      "id": "chromebook",
+      "name": "Chromebook",
+      "permissions": ["read_memory", "sync"],
+      "capabilities": ["gui", "large_storage"]
     }
   ]
 }

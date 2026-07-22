@@ -2093,3 +2093,55 @@ reject/execute gated at `manage_agents`, matching
 `executive.updateStatus`'s existing permission level for consequential
 state changes), dashboard (routes + widget + two trigger forms), and
 terminal commands.
+
+---
+
+## Phase 16 — Device Network
+
+**Goal:** `core/device/deviceManager.js`'s `DeviceManager` — `registerDevice()`/
+`heartbeat()`/`deviceStatus()`/`assignRole()`, with the schema asked for
+(`id`/`name`/`type`/`role`/`capabilities`/`lastSeen`/`status`).
+
+**Distinct from `core/device/registry.js`'s existing known-devices
+roster on purpose**, not a duplicate: `registry.js` is specifically
+"which other devices have I ever synced with, and when" (sighting
+history, written by `core/device/sync.js`, schema `firstSeenAt`/
+`lastSeenAt`/`syncCount`). This is a general-purpose device network
+with a materially different schema (`lastSeen` not `lastSeenAt`, plus
+new `type`/`capabilities`/`status` fields neither `registry.js` nor
+`core/device/index.js`'s own device identity ever tracked). Rather than
+overload one file with two schemas two different modules both write to
+— a real risk of the two colliding — this keeps its own file
+(`core/device/network.json`, gitignored like `device.local.json`/
+`known-devices.json` already are). `registry.js` is untouched.
+
+**`type` and `role` share the same vocabulary** (`registry/devices.json`'s
+roles, now extended with `"chromebook"` alongside the existing laptop/
+desktop/phone/server — the fourth device category this phase asked to
+prepare support for) but aren't required to be the same value — a
+laptop could plausibly be assigned role `"server"` if it's being used
+as one. `"chromebook"` was given the same permissions as `"phone"`
+(`read_memory`, `sync`) as a conservative default: real Chromebook
+support depends on whether Linux/Crostini is available to run VERONICA
+natively vs. only reaching the dashboard through a browser, which this
+phase can't determine — the role exists and is ready to adjust once
+that's known.
+
+**`deviceStatus()` recomputes a live status from real elapsed time**
+(15-minute online threshold, same explainable-threshold convention as
+`goalMonitor.js`'s `STALE_DAYS`) rather than trusting whatever the
+stored `status` field last said — a device that heartbeated an hour ago
+and hasn't since is not still "online" just because nobody told it
+otherwise.
+
+**Not wired into the dashboard's UI in this phase** — Phase 17
+("Command Center Dashboard") explicitly asks for a "Device network"
+view; building a widget here and then rebuilding it properly in Phase
+17 would be redundant. The API route (`GET /api/devices/network`, plus
+register/heartbeat/role POST routes) is ready for Phase 17 to use.
+
+7 new tests (`tests/device-manager.test.js`). Wired into the dashboard
+(routes) and terminal commands; no generic tool registry entries --
+matching the existing precedent that `device.identity`/
+`device.capabilities` are terminal+dashboard only, not exposed as
+tools either.

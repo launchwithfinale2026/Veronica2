@@ -20,6 +20,7 @@ const knowledge = require("../../core/knowledge");
 const tools = require("../../core/tools");
 const device = require("../../core/device");
 const sync = require("../../core/device/sync");
+const DeviceManager = require("../../core/device/deviceManager");
 const executive = require("../../core/executive");
 const learning = require("../../core/learning");
 const automation = require("../../core/automation");
@@ -60,6 +61,8 @@ const collaboration = new CollaborationEngine(departments);
 const orchestrator = automation.registerExecutionJob(departments);
 
 const personalContext = new PersonalContextEngine();
+
+const deviceManager = new DeviceManager();
 
 
 // Reads every department's activity.log (JSON lines), merges, and
@@ -180,6 +183,8 @@ const ROUTES = {
     "GET /api/device/capabilities": () => device.capabilities(),
 
     "GET /api/device/known": () => sync.knownDevices(),
+
+    "GET /api/devices/network": () => deviceManager.networkStatus(),
 
     "GET /api/memory/semantic-search-status": () => ({ available: memory.semanticSearchAvailable() }),
 
@@ -512,6 +517,59 @@ function createServer(){
                 const syncPackage = JSON.parse(await readBody(req));
 
                 return sendJSON(res, 200, sync.importState(syncPackage));
+
+            }
+
+            // Phase 16 -- Device Network.
+            if(parsed.pathname === "/api/devices/register" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { name, type, role, capabilities } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!name || !type){
+                    return sendJSON(res, 400, { error: "name and type are required" });
+                }
+
+                return sendJSON(res, 200, deviceManager.registerDevice({ name, type, role, capabilities }));
+
+            }
+
+            const deviceHeartbeatMatch = parsed.pathname.match(/^\/api\/devices\/([^/]+)\/heartbeat$/);
+
+            if(deviceHeartbeatMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                return sendJSON(res, 200, deviceManager.heartbeat(decodeURIComponent(deviceHeartbeatMatch[1])));
+
+            }
+
+            const deviceRoleMatch = parsed.pathname.match(/^\/api\/devices\/([^/]+)\/role$/);
+
+            if(deviceRoleMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { role } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!role){
+                    return sendJSON(res, 400, { error: "role is required" });
+                }
+
+                return sendJSON(res, 200, deviceManager.assignRole(decodeURIComponent(deviceRoleMatch[1]), role));
 
             }
 

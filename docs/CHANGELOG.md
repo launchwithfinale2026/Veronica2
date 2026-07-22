@@ -329,14 +329,34 @@ pipeline.
 against the real `ProjectManager`. Wired into the executive facade, 5
 new tools, dashboard (routes + widget + forms), and terminal commands.
 
+## Phase 16 -- Device Network
+
+Full design reasoning in `docs/Architecture.md`'s "Phase 16 -- Device
+Network". `core/device/deviceManager.js`'s `DeviceManager`:
+`registerDevice()`/`heartbeat()`/`deviceStatus()`/`assignRole()`, schema
+`{id, name, type, role, capabilities, lastSeen, status}`. Deliberately
+its own file (`network.json`) rather than overloading
+`core/device/registry.js`'s existing known-devices roster, which
+tracks something different (sync sighting history) with an
+incompatible schema. Added `"chromebook"` as a fourth device role
+alongside laptop/desktop/phone/server. `deviceStatus()` recomputes a
+live online/offline status from real elapsed time (15-minute
+threshold) rather than trusting a possibly-stale stored field.
+
+Not wired into the dashboard UI yet -- Phase 17 explicitly covers a
+"Device network" view; the API routes are ready for it rather than
+building the widget twice.
+
+7 new tests. Wired into dashboard routes and terminal commands.
+
 ## Totals
 
-- 16 commits across Phases 10-15 combined with the earlier 9, each with
+- 17 commits across Phases 10-16 combined with the earlier 9, each with
   `npm test` green before committing.
 - Test count: 210 -> 222 (end of the original 9-phase pass) -> 240 (end
   of Phase 10) -> 267 (end of Phase 11) -> 291 (end of Phase 12) -> 300
-  (end of Phase 13) -> 307 (end of Phase 14) -> 313 (end of Phase 15),
-  all passing throughout.
+  (end of Phase 13) -> 307 (end of Phase 14) -> 313 (end of Phase 15)
+  -> 320 (end of Phase 16), all passing throughout.
 - No existing test broken; no existing public API removed or changed
   incompatibly.
 

@@ -17,7 +17,7 @@ const os = require("os");
 const DEVICE_FILE = path.join(__dirname, "device.local.json");
 const REGISTRY_FILE = path.join(__dirname, "../../registry/devices.json");
 
-const VALID_ROLES = ["laptop", "desktop", "phone", "server"];
+const VALID_ROLES = ["laptop", "desktop", "phone", "server", "chromebook"];
 
 
 function loadDeviceRoles(){

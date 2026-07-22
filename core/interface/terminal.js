@@ -16,6 +16,7 @@ const loadDepartments = require("../departments/loader");
 const tools = require("../tools");
 const device = require("../device");
 const sync = require("../device/sync");
+const DeviceManager = require("../device/deviceManager");
 const bus = require("../bus");
 const log = require("../logging");
 const executive = require("../executive");
@@ -49,6 +50,8 @@ const collaboration = new CollaborationEngine(departments);
 const orchestrator = automation.registerExecutionJob(departments);
 
 const personalContext = new PersonalContextEngine();
+
+const deviceManager = new DeviceManager();
 
 const context = new ContextEngine();
 
@@ -136,6 +139,16 @@ device.identity
 device.capabilities
 
 device.known
+
+device.registerDevice <json {name,type,role?,capabilities?}>
+
+device.heartbeat <id>
+
+device.status <id>
+
+device.assignRole <id> <role>
+
+device.network
 
 executive.roadmap
 
@@ -549,6 +562,55 @@ Recommended focus: ${summary.recommendedFocus ? `${summary.recommendedFocus.titl
         else if (command === "device.known") {
 
             console.log(sync.knownDevices());
+
+        }
+
+
+        // PHASE 16 -- REGISTER A DEVICE INTO THE DEVICE NETWORK
+        else if (command.startsWith("device.registerDevice ")) {
+
+            const rawInput = command.substring(22).trim();
+
+            console.log(deviceManager.registerDevice(JSON.parse(rawInput)));
+
+        }
+
+
+        // PHASE 16 -- HEARTBEAT A DEVICE
+        else if (command.startsWith("device.heartbeat ")) {
+
+            const id = command.substring(18).trim();
+
+            console.log(deviceManager.heartbeat(id));
+
+        }
+
+
+        // PHASE 16 -- LIVE DEVICE STATUS
+        else if (command.startsWith("device.status ")) {
+
+            const id = command.substring(15).trim();
+
+            console.log(deviceManager.deviceStatus(id));
+
+        }
+
+
+        // PHASE 16 -- ASSIGN A DEVICE'S ROLE
+        else if (command.startsWith("device.assignRole ")) {
+
+            const rest = command.substring(19).trim();
+            const [id, role] = rest.split(" ");
+
+            console.log(deviceManager.assignRole(id, role));
+
+        }
+
+
+        // PHASE 16 -- FULL DEVICE NETWORK STATUS
+        else if (command === "device.network") {
+
+            console.log(deviceManager.networkStatus());
 
         }
 
@@ -1150,6 +1212,11 @@ device.identity
 
 device.capabilities
 device.known
+device.registerDevice <json {name,type,role?,capabilities?}>
+device.heartbeat <id>
+device.status <id>
+device.assignRole <id> <role>
+device.network
 executive.roadmap
 executive.deadlines
 executive.plan <json goal>

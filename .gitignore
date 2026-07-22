@@ -22,6 +22,10 @@ data/workspace/*
 core/device/device.local.json
 core/device/known-devices.json
 
+# Phase 16 device network roster (registerDevice()/heartbeat() state) --
+# same per-machine, real-data treatment as the two files above.
+core/device/network.json
+
 # Automation engine runtime state (job queue + schedules) -- operational
 # state, not source
 core/automation/state.json
