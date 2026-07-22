@@ -36,6 +36,7 @@ const installer = require("../../core/capabilities/installer");
 const capabilitiesPlanner = require("../../core/capabilities/planner");
 const systemReport = require("../../core/system/report");
 const capabilitiesMarketplace = require("../../core/capabilities/marketplace");
+const capabilitiesBuilder = require("../../core/capabilities/builder");
 const PersonalContextEngine = require("../../core/profile/personalContextEngine");
 const log = require("../../core/logging");
 const { installCrashGuards } = require("../../core/logging/crashGuard");
@@ -852,6 +853,30 @@ function createServer(){
                 }
 
                 return sendJSON(res, 200, installer.install(packageDir));
+
+            }
+
+            // Phase 27 (Internal Package Builder): generates a new
+            // capability package's real SKELETON files (manifest, agent/
+            // tool placeholders, a self-validating test, a README) --
+            // does NOT install/activate it (call POST
+            // /api/capabilities/install with the returned packageDir for
+            // that, same as any other package).
+            if(parsed.pathname === "/api/capabilities/build" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const input = JSON.parse((await readBody(req)) || "{}");
+
+                if(!input.name){
+                    return sendJSON(res, 400, { error: "name is required" });
+                }
+
+                return sendJSON(res, 200, capabilitiesBuilder.buildPackage(input));
 
             }
 

@@ -358,6 +358,17 @@
       </form>
       <p id="capability-install-result" class="hint"></p>
     </div>
+    <div class="widget-group">
+      <h3>Build a new package (Phase 27 -- generates a real SKELETON, not working logic)</h3>
+      <form id="capability-build-form" class="stacked-form">
+        <input type="text" id="build-name" placeholder="package-name (lowercase, hyphens)" required>
+        <input type="text" id="build-description" placeholder="Description" required>
+        <input type="text" id="build-agents" placeholder="Agent names, comma-separated (optional)">
+        <input type="text" id="build-tools" placeholder="Tool ids, comma-separated (optional)">
+        <button type="submit">Generate</button>
+      </form>
+      <p id="capability-build-result" class="hint"></p>
+    </div>
   </section>
 
   <section class="panel">

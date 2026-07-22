@@ -1874,6 +1874,46 @@ function setupCapabilityInstallForm(){
 }
 
 
+function setupCapabilityBuildForm(){
+
+    const form = document.getElementById("capability-build-form");
+    const result = document.getElementById("capability-build-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const name = document.getElementById("build-name").value;
+        const description = document.getElementById("build-description").value;
+        const agentNames = document.getElementById("build-agents").value.split(",").map(s => s.trim()).filter(Boolean);
+        const toolIds = document.getElementById("build-tools").value.split(",").map(s => s.trim()).filter(Boolean);
+
+        result.textContent = "Generating...";
+
+        try {
+
+            const built = await authedFetch("/api/capabilities/build", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name,
+                    description,
+                    agents: agentNames.map(n => ({ name: n })),
+                    tools: toolIds.map(id => ({ id }))
+                })
+            });
+
+            result.textContent = `Generated ${built.filesCreated.length} file(s) at ${built.packageDir}. This is a SKELETON -- install it (above) once its agents/tools are actually implemented.`;
+
+        } catch(error){
+            result.textContent = `Error: ${error.message}`;
+        }
+
+    });
+
+}
+
+
 // --- Live updates (Server-Sent Events) ------------------------------------
 //
 // Replaces interval polling: GET /api/events streams memory/knowledge
@@ -2013,6 +2053,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupCapabilityAnalysisForm();
     setupCapabilityInstallForm();
     setupCapabilitySearchForm();
+    setupCapabilityBuildForm();
 
     populateDepartmentSelect("department-select");
     populateDepartmentSelect("plan-department", { includeAuto: true });
