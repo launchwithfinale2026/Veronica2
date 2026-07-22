@@ -14,6 +14,7 @@
 
 const http = require("./http");
 const credentialManager = require("./credentialManager");
+const log = require("../logging");
 
 
 function isConfigured(){
@@ -44,8 +45,11 @@ async function sendMessage(content){
     });
 
     if(response.status >= 400){
+        log.error("discord-webhook", `Send failed: ${response.status}`);
         throw new Error(`Discord webhook error ${response.status}: ${response.body}`);
     }
+
+    log.info("discord-webhook", "Message sent");
 
     return { sent: true };
 

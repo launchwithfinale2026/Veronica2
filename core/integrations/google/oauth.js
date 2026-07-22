@@ -30,6 +30,7 @@ const path = require("path");
 
 const http = require("../http");
 const credentialManager = require("../credentialManager");
+const log = require("../../logging");
 
 const TOKEN_FILE = path.join(__dirname, "tokens.json");
 
@@ -144,10 +145,13 @@ async function exchangeCode(code){
     });
 
     if(response.status >= 400){
+        log.error("google-oauth", `Token exchange failed: ${response.status}`);
         throw new Error(`Google OAuth token exchange failed ${response.status}: ${response.body}`);
     }
 
     const tokens = JSON.parse(response.body);
+
+    log.info("google-oauth", "Authorized -- consent flow completed, tokens obtained");
 
     return saveTokens({ ...tokens, obtainedAt: new Date().toISOString() });
 
@@ -178,10 +182,13 @@ async function refreshAccessToken(){
     });
 
     if(response.status >= 400){
+        log.error("google-oauth", `Token refresh failed: ${response.status}`);
         throw new Error(`Google OAuth token refresh failed ${response.status}: ${response.body}`);
     }
 
     const refreshed = JSON.parse(response.body);
+
+    log.info("google-oauth", "Access token refreshed");
 
     // Google's refresh response often omits refresh_token (it doesn't
     // change) -- keep the existing one rather than losing it.
