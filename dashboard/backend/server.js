@@ -164,6 +164,8 @@ const ROUTES = {
 
     "GET /api/device": () => device.currentIdentity(),
 
+    "GET /api/device/known": () => sync.knownDevices(),
+
     "GET /api/executive/roadmap": () => executive.roadmap(),
 
     "GET /api/executive/deadlines": () => executive.evaluateDeadlines(),

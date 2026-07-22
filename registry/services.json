@@ -41,6 +41,13 @@
       "module": "core/integrations",
       "status": "active",
       "description": "Obsidian vault read/write/index (configurable path, defaults to the repo root) and an allowlisted outbound HTTP connector (fails closed until SERVICE_ALLOWLIST is set). Reachable via the existing generic tool system -- no dedicated routes needed."
+    },
+    {
+      "id": "device-registry",
+      "name": "Known Devices Roster",
+      "module": "core/device/registry.js",
+      "status": "active",
+      "description": "Per-machine roster of every device this instance has ever synced with (first/last seen, sync count), built from the device identity already carried in every sync package. Complements the pre-existing core/device identity + sync mechanism with actual multi-device awareness."
     }
   ]
 }

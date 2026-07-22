@@ -15,6 +15,7 @@ const { seedFromAgents } = require("../knowledge/seed");
 const loadDepartments = require("../departments/loader");
 const tools = require("../tools");
 const device = require("../device");
+const sync = require("../device/sync");
 const bus = require("../bus");
 const log = require("../logging");
 const executive = require("../executive");
@@ -104,6 +105,8 @@ tools.list
 tools.run <id> <json args>
 
 device.identity
+
+device.known
 
 executive.roadmap
 
@@ -368,6 +371,14 @@ rl.on("line", async (input) => {
         else if (command === "device.identity") {
 
             console.log(device.currentIdentity());
+
+        }
+
+
+        // KNOWN DEVICES (multi-device awareness)
+        else if (command === "device.known") {
+
+            console.log(sync.knownDevices());
 
         }
 
@@ -759,6 +770,7 @@ knowledge.find <name>
 tools.list
 tools.run <id> <json args>
 device.identity
+device.known
 executive.roadmap
 executive.deadlines
 executive.plan <json goal>

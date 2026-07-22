@@ -12,6 +12,7 @@
 const memoryStore = require("../memory/store");
 const knowledge = require("../knowledge");
 const device = require("./index");
+const deviceRegistry = require("./registry");
 
 
 function exportState(){
@@ -38,6 +39,13 @@ function importState(syncPackage){
         syncPackage.knowledge || { entities: [], relationships: [] }
     );
 
+    // Every sync package already carries the exporting device's full
+    // identity -- recording it here is what actually gives this instance
+    // multi-device *awareness* (a roster of who it's synced with and
+    // when), not just a one-shot merge with no memory of who it came
+    // from. See core/device/registry.js.
+    deviceRegistry.recordSighting(syncPackage.device, "import");
+
     return {
         fromDevice: syncPackage.device,
         memory: memoryResult,
@@ -47,4 +55,4 @@ function importState(syncPackage){
 }
 
 
-module.exports = { exportState, importState };
+module.exports = { exportState, importState, knownDevices: deviceRegistry.listKnownDevices };

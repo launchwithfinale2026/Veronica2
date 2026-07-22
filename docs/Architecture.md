@@ -1235,3 +1235,65 @@ scoping (Obsidian vault, outbound HTTP), one deliberately deferred
   this file) plus the new HTTP connector above; a bespoke MCP client is
   the milestone's own later, dedicated MCP Integrations phase, not
   reinvented here under a more generic name.
+
+---
+
+## Device Ecosystem (`core/device/registry.js`)
+
+**Decision:** one small, real addition — a known-devices roster — not a
+rebuild. Device identity (`core/device/index.js`) and sync (`core/device/
+sync.js`) already existed from before this milestone (see "Device
+identity & synchronization" above); this phase audited what was actually
+still missing rather than re-implementing what already worked. Built
+2026-07-22 (Intelligence Layer milestone, Phase 13 of 18).
+
+- **What the audit found**: `importState()` already received the
+  exporting device's full identity inside every sync package
+  (`syncPackage.device`) — and did nothing with it beyond using it for
+  the return value. Two VERONICA instances could sync repeatedly and
+  neither would ever be able to answer "which other devices have I synced
+  with, and when" — there was a merge *mechanism* but no actual
+  multi-device *awareness*, which is the specific gap this milestone
+  phase names.
+- `core/device/registry.js` is per-machine state (`known-devices.json`,
+  gitignored like `device.local.json`) — each device's own roster of
+  "who I've seen" is naturally local, not itself something to sync (a
+  device's sync history isn't a fact device B needs to receive from
+  device A; each device already builds its own roster the moment it
+  receives *anything* from another).
+- `recordSighting()` upserts by device id: first sighting records
+  `firstSeenAt`; every sighting after that updates `lastSeenAt`,
+  `lastSyncDirection`, and increments `syncCount`, while preserving the
+  original `firstSeenAt` — the roster answers "how long have I known
+  this device and how often do we sync," not just "have I seen it."
+- Wired into exactly one place: `importState()`, right after the existing
+  merge calls. `exportState()` doesn't get a symmetric call — a `GET`
+  request pulling an export doesn't identify itself as a specific device
+  today (no device-identity header/param exists on that path), so there's
+  nothing real to record on that side yet; adding one would mean
+  designing a new identification mechanism for a capability that isn't
+  needed until export-side awareness is actually asked for.
+- No dedicated facade/lazy-require complexity needed — `core/device/
+  registry.js` only touches `fs`/`path`, so requiring it from `core/
+  device/sync.js` (already required broadly, including by the dashboard)
+  carries zero circular-dependency risk, unlike the `core/executive`/
+  `core/tools` chain documented earlier.
+- **Found while writing tests, before it shipped**: the existing
+  `POST /api/sync/import` test in `tests/sync.test.js` already sends a
+  hand-crafted remote device identity in its sync package — meaning it
+  now exercises `recordSighting()` (and writes to the real
+  `known-devices.json`) as a side effect of testing something that
+  already existed, the same class of bug caught repeatedly in earlier
+  phases (see "Learning Engine," "Automation Engine," "Production
+  Hardening"). Caught and fixed *before* it shipped this time, by
+  proactively adding the backup/restore treatment while writing the new
+  device-registry tests, rather than discovering it as filesystem residue
+  afterward.
+- Not built: "API architecture" as a new thing — the dashboard's existing
+  REST API (documented throughout this file, extended every phase) and
+  Phase 12's new HTTP connector already cover it; there was no concrete
+  gap here to name a new subsystem after. A device actively announcing
+  itself on the export side, and any notion of device "trust"/pairing
+  beyond "the bearer token already gates every write" are real future
+  work if a second physical device and a genuine pairing need show up —
+  not built speculatively against a need that doesn't exist yet.

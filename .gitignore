@@ -20,6 +20,7 @@ data/workspace/*
 
 # Per-machine device identity (unique per device, not shared/synced)
 core/device/device.local.json
+core/device/known-devices.json
 
 # Automation engine runtime state (job queue + schedules) -- operational
 # state, not source

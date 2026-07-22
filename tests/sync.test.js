@@ -19,11 +19,24 @@ const DEVICE_PATH = path.join(__dirname, "..", "core", "device", "device.local.j
 const DEVICE_EXISTED_BEFORE = fs.existsSync(DEVICE_PATH);
 const DEVICE_BACKUP = path.join(os.tmpdir(), `veronica-device-backup-sync-${process.pid}.json`);
 
+// POST /api/sync/import's remote package carries a device identity, which
+// (Phase 13) importState() now records via core/device/registry.js into
+// known-devices.json -- same backup/restore every other file this
+// instrumentation touches needs (see docs/Architecture.md "Device
+// Ecosystem" for why this got caught before shipping, unlike the first
+// few times this class of bug appeared).
+const KNOWN_DEVICES_PATH = path.join(__dirname, "..", "core", "device", "known-devices.json");
+const KNOWN_DEVICES_EXISTED_BEFORE = fs.existsSync(KNOWN_DEVICES_PATH);
+const KNOWN_DEVICES_BACKUP = path.join(os.tmpdir(), `veronica-known-devices-backup-sync-${process.pid}.json`);
+
 test.before(() => {
     fs.copyFileSync(DB_PATH, DB_BACKUP);
     fs.copyFileSync(GRAPH_PATH, GRAPH_BACKUP);
     if(DEVICE_EXISTED_BEFORE){
         fs.copyFileSync(DEVICE_PATH, DEVICE_BACKUP);
+    }
+    if(KNOWN_DEVICES_EXISTED_BEFORE){
+        fs.copyFileSync(KNOWN_DEVICES_PATH, KNOWN_DEVICES_BACKUP);
     }
 });
 
@@ -37,6 +50,12 @@ test.after(() => {
         fs.unlinkSync(DEVICE_BACKUP);
     } else if(fs.existsSync(DEVICE_PATH)){
         fs.unlinkSync(DEVICE_PATH);
+    }
+    if(KNOWN_DEVICES_EXISTED_BEFORE){
+        fs.copyFileSync(KNOWN_DEVICES_BACKUP, KNOWN_DEVICES_PATH);
+        fs.unlinkSync(KNOWN_DEVICES_BACKUP);
+    } else if(fs.existsSync(KNOWN_DEVICES_PATH)){
+        fs.unlinkSync(KNOWN_DEVICES_PATH);
     }
     delete process.env.API_TOKEN;
 });
@@ -251,5 +270,9 @@ test("POST /api/sync/import merges a hand-crafted remote package", async () => {
 
     assert.ok(store.recall().some(m => m.content.includes("STUVWX")));
     assert.ok(knowledge.find("ImportedEntity_STUVWX").length === 1);
+
+    const sync = require("../core/device/sync");
+    const known = sync.knownDevices();
+    assert.ok(known.some(d => d.id === "remote-device-id" && d.name === "test-remote"));
 
 });
