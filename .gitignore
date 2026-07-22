@@ -66,3 +66,10 @@ backups/
 # start this time. core/profile/personalContextEngine.js bootstraps a
 # default file if one doesn't exist.
 core/profile/veronica.profile.json
+
+# Phase 19: real Google OAuth2 tokens (access + refresh) -- the most
+# sensitive file this project has generated yet. Never committed, never
+# logged. core/integrations/google/oauth.js bootstraps nothing here
+# automatically; it only exists once a human completes the real OAuth
+# consent flow.
+core/integrations/google/tokens.json

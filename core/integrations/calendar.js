@@ -12,11 +12,15 @@
 // and a registry entry to discover it, per the milestone's own framing:
 // "prepare connectors... do not require live credentials."
 //
-// To make this real: pick a provider, implement its OAuth2 flow
-// (probably needs a small addition to core/integrations/http.js or a
-// sibling for handling token refresh -- today's request() assumes a
-// caller already has a valid credential to attach as a header), and
-// replace the two NOT_IMPLEMENTED throws below.
+// UPDATE (Phase 19): Google Calendar specifically is now implemented
+// for real at core/integrations/google/calendar.js, since Google ended
+// up being the concrete provider actually built (alongside Gmail/
+// Drive, under one shared OAuth2 flow -- see
+// core/integrations/google/oauth.js). This file remains the generic,
+// provider-agnostic placeholder for a DIFFERENT calendar provider
+// (Microsoft Graph, CalDAV) if one is ever chosen instead -- it isn't
+// superseded, just no longer the only calendar-shaped thing in this
+// directory.
 
 const REQUIRED_ENV = ["CALENDAR_PROVIDER", "CALENDAR_ACCESS_TOKEN"];
 
