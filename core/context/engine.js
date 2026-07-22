@@ -51,7 +51,7 @@ class ContextEngine {
     // is a contained change -- see docs/Architecture.md "Advanced Memory".
     async retrieve(query, options = {}){
 
-        const memories = query ? await this.searchMemories(query) : [];
+        const memories = query ? await this.searchMemories(query, options.companyId) : [];
 
         const knowledgeResult = query
             ? knowledge.retrieve(query)
@@ -112,7 +112,33 @@ class ContextEngine {
     // been reindexed yet (semanticSearch() can only rank entries with a
     // stored embedding -- see core/memory/embeddings.js), rather than
     // returning a confidently-empty result.
-    async searchMemories(query){
+    //
+    // companyId (added during the Phase 10 security audit): before this,
+    // a reasoning call scoped to one company (see
+    // core/executive/orchestrator.js's executeTask(), which passes
+    // companyId for company-tagged tasks) still searched the ENTIRE
+    // shared memory store -- a task for Company A could surface Company
+    // B's finances/communications/documents in its injected context, even
+    // though core/executive/companyContext.js exists specifically to
+    // prevent that for direct reads/writes. Filtering out entries tagged
+    // to any OTHER company closes that gap without changing behavior for
+    // the (much more common) no-company-scope case, and without touching
+    // entries with no company tag at all -- general/personal memories
+    // stay visible everywhere, exactly as before.
+    async searchMemories(query, companyId){
+
+        const results = await this.rawSearchMemories(query);
+
+        if(!companyId){
+            return results;
+        }
+
+        return results.filter(entry => this.visibleToCompany(entry, companyId));
+
+    }
+
+
+    async rawSearchMemories(query){
 
         if(!memory.semanticSearchAvailable()){
             return memory.search(query, { limit: LIST_LIMIT });
@@ -129,6 +155,22 @@ class ContextEngine {
             return memory.search(query, { limit: LIST_LIMIT });
 
         }
+
+    }
+
+
+    // An entry is visible to `companyId` unless it's tagged to a
+    // DIFFERENT company -- entries with no company tag at all (personal
+    // notes, technical knowledge, non-company projects) are always
+    // visible, matching the rest of this system's isolation model: only
+    // OTHER companies' scoped data is excluded, not everything that
+    // isn't explicitly this company's.
+    visibleToCompany(entry, companyId){
+
+        const otherCompanyTags = (entry.tags || [])
+            .filter(tag => tag.startsWith("company:") && tag !== `company:${companyId}`);
+
+        return otherCompanyTags.length === 0;
 
     }
 

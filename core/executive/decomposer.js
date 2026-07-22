@@ -170,7 +170,14 @@ class GoalDecomposer {
             content: spec.title,
             type: "goals",
             importance: 3,
-            tags: [DECOMPOSITION_TAG, "milestone", project.department],
+            // Tagged to the parent project's company (if any), same as
+            // the project entry itself -- without this, a company's
+            // milestones/tasks would be invisible to
+            // CompanyContext.search()/filter() (see
+            // core/executive/companyContext.js) even though the project
+            // that owns them is correctly scoped. Found during the
+            // Phase 10 security audit.
+            tags: [DECOMPOSITION_TAG, "milestone", project.department, ...(project.company ? [`company:${project.company}`] : [])],
             source: "goal-decomposer",
             relationships: [project.id, ...dependencies],
             metadata: {
@@ -179,6 +186,7 @@ class GoalDecomposer {
                 parentProject: project.id,
                 department: project.department,
                 priority: project.priority,
+                company: project.company || null,
                 status: "planned",
                 history: []
             }
@@ -229,7 +237,8 @@ class GoalDecomposer {
             content: spec.title,
             type: "goals",
             importance: 3,
-            tags: [DECOMPOSITION_TAG, "task", project.department],
+            // See the matching comment in persistMilestone() above.
+            tags: [DECOMPOSITION_TAG, "task", project.department, ...(project.company ? [`company:${project.company}`] : [])],
             source: "goal-decomposer",
             relationships: [milestoneEntry.id, ...dependencies],
             metadata: {
@@ -238,6 +247,7 @@ class GoalDecomposer {
                 parentMilestone: milestoneEntry.id,
                 department: project.department,
                 priority: project.priority,
+                company: project.company || null,
                 effort,
                 status: "planned",
                 history: [],

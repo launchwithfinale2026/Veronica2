@@ -275,6 +275,54 @@ test("executeTask() dispatches to the assigned department, completes the task, a
 });
 
 
+// Phase 10 security audit: a company-scoped task must carry the company
+// tag/metadata all the way down to milestone/task (see decomposer.js),
+// and executeTask() must forward it to department.run() as
+// { companyId } so the reasoning context is actually scoped (see
+// core/context/engine.js's searchMemories()). Without this wiring, the
+// enforced isolation core/executive/companyContext.js provides for
+// direct reads/writes wouldn't extend to what an agent's context
+// injection can see mid-task.
+test("executeTask() propagates a company-scoped task's company id to department.run()", async () => {
+
+    const { themis, orion, realPlanner } = makeHarness();
+
+    const { project, projectManager } = await planAndDecompose(realPlanner, {
+        milestones: [
+            {
+                title: "Milestone XQZORCH7",
+                tasks: [
+                    { title: "Task XQZORCH7", subtasks: [], deliverables: [] }
+                ]
+            }
+        ]
+    }, { company: "xqz-audit-company-7" });
+
+    const [task] = projectManager.tasksForProject(project.id);
+
+    assert.ok(task.tags.includes("company:xqz-audit-company-7"));
+    assert.strictEqual(task.metadata.company, "xqz-audit-company-7");
+
+    // executeTask() only touches departments/projectManager, not planner
+    // -- omitted here (the constructor doesn't require it for this call).
+    const orchestrator = new ExecutiveOrchestrator({ departments: [themis, orion], projectManager });
+
+    mockDepartmentBrain(themis, "Task XQZORCH7 completed by DIKE");
+
+    let capturedOptions;
+    const originalRun = themis.run.bind(themis);
+    themis.run = async (taskText, context, options) => {
+        capturedOptions = options;
+        return originalRun(taskText, context, options);
+    };
+
+    await orchestrator.executeTask(task);
+
+    assert.deepStrictEqual(capturedOptions, { companyId: "xqz-audit-company-7" });
+
+});
+
+
 test("executeTask() marks the task blocked and returns a failure outcome when the department throws", async () => {
 
     const { themis, orion, realPlanner } = makeHarness();

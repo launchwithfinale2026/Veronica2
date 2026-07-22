@@ -141,10 +141,17 @@ class ExecutiveOrchestrator {
 
         this.projectManager.updateStatus(task.id, "in_progress", `Dispatched to ${departmentId}`);
 
+        // Company-scoped tasks (see decomposer.js's persistTask()) get a
+        // company-scoped reasoning context -- see core/context/engine.js's
+        // searchMemories() for why this matters: without it, this
+        // dispatch would reason over the ENTIRE shared memory store
+        // regardless of which company (if any) the task belongs to.
+        const companyId = task.metadata.company || undefined;
+
         let result;
 
         try {
-            result = await department.run(task.content, { taskId: task.id });
+            result = await department.run(task.content, { taskId: task.id }, { companyId });
         } catch(error){
 
             this.projectManager.updateStatus(task.id, "blocked", `Execution failed: ${error.message}`);

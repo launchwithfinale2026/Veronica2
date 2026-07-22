@@ -53,7 +53,15 @@ class DepartmentManager {
     // previously an error from intelligence.think() propagated with no
     // trace anywhere, so a failed run was indistinguishable from a run
     // that never happened.
-    async run(task, context = {}){
+    //
+    // `options` is forwarded to intelligence.think() as-is -- today that
+    // means `companyId`, so a company-scoped task (see
+    // core/executive/orchestrator.js's executeTask()) actually gets a
+    // company-scoped reasoning context instead of always reasoning over
+    // the whole shared memory store regardless of which company the task
+    // belongs to (a real cross-company data exposure found during the
+    // Phase 10 security audit -- see core/context/engine.js).
+    async run(task, context = {}, options = {}){
 
         if(!this.agents.length){
             throw new Error(
@@ -66,7 +74,7 @@ class DepartmentManager {
 
         try {
 
-            const thought = await this.intelligence.think(agent, { task, context });
+            const thought = await this.intelligence.think(agent, { task, context }, options);
 
             const response = thought.cognition.response.response;
             const durationMs = Date.now() - startedAt;

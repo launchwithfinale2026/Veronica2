@@ -128,3 +128,52 @@ test("searchMemories() falls back to keyword search when semantic search isn't c
     assert.ok(results.some(m => m.content.includes("XQZCTX4")));
 
 });
+
+
+// Phase 10 security audit: before this, a reasoning call scoped to one
+// company still searched the ENTIRE shared memory store -- a task for
+// Company A could surface Company B's data in its injected context. See
+// core/context/engine.js's searchMemories()/visibleToCompany().
+test("searchMemories() excludes entries tagged to a DIFFERENT company when companyId is given", async () => {
+
+    const engine = new ContextEngine();
+    const memory = require("../core/memory");
+
+    memory.remember({ content: "shared marker XQZCTX5 for company A", tags: ["company:xqz-company-a"] });
+    memory.remember({ content: "shared marker XQZCTX5 for company B", tags: ["company:xqz-company-b"] });
+    memory.remember({ content: "shared marker XQZCTX5 with no company at all" });
+
+    const resultsForA = await engine.searchMemories("XQZCTX5", "xqz-company-a");
+
+    assert.ok(resultsForA.some(m => m.content.includes("for company A")));
+    assert.ok(!resultsForA.some(m => m.content.includes("for company B")));
+    assert.ok(resultsForA.some(m => m.content.includes("no company at all")));
+
+    // No companyId at all -- unrestricted, same as before this fix.
+    const resultsUnscoped = await engine.searchMemories("XQZCTX5");
+
+    assert.ok(resultsUnscoped.some(m => m.content.includes("for company A")));
+    assert.ok(resultsUnscoped.some(m => m.content.includes("for company B")));
+
+});
+
+
+test("retrieve() applies the same company scoping to its injected memories", async () => {
+
+    const engine = new ContextEngine();
+    const memory = require("../core/memory");
+    const planner = new ExecutivePlanner();
+    const companyManager = new CompanyManager({ planner });
+
+    const companyC = companyManager.createCompany({ name: "Retrieve Scoping Co C XQZCTX6" });
+    const companyD = companyManager.createCompany({ name: "Retrieve Scoping Co D XQZCTX6" });
+
+    memory.remember({ content: "retrieve scoping marker XQZCTX6 for company C", tags: [`company:${companyC.id}`] });
+    memory.remember({ content: "retrieve scoping marker XQZCTX6 for company D", tags: [`company:${companyD.id}`] });
+
+    const result = await engine.retrieve("XQZCTX6", { companyId: companyC.id });
+
+    assert.ok(result.memories.some(m => m.content.includes("for company C")));
+    assert.ok(!result.memories.some(m => m.content.includes("for company D")));
+
+});
