@@ -291,9 +291,13 @@ existing flat `{agent, response}` return shape callers already depend on,
 with a new `.thought` field carrying the full reasoning trace. Tests
 updated to mock the brain provider (matching `tests/brain-provider.test.js`'s
 pattern) instead of the now-defunct `agent.process()` mock.
-`Agent.process()` itself wasn't deleted — it's still there as an
-available offline/canned-response method, just no longer on the live
-path.
+`Agent.process()` itself wasn't deleted at the time — it was left in
+place as an available offline/canned-response method, just no longer
+on the live path. **Update (v1 release audit):** removed. It had
+stayed unreferenced except by its own dedicated test
+(`tests/agent.test.js`, also removed) ever since, so on reconsideration
+for a public release it's genuine dead code rather than a kept
+capability — reversing the original "keep it" call above.
 
 ---
 
