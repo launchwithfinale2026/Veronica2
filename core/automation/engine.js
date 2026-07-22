@@ -155,6 +155,7 @@ class AutomationEngine {
     checkSchedules(){
 
         const now = Date.now();
+        let fired = false;
 
         for(const entry of this.state.schedules){
 
@@ -163,12 +164,19 @@ class AutomationEngine {
                 this.enqueue(entry.jobName);
 
                 entry.nextRunAt = new Date(now + entry.intervalMs).toISOString();
+                fired = true;
 
             }
 
         }
 
-        save(this.state);
+        // enqueue() above already saves the new queue entry; this second
+        // save persists the advanced nextRunAt. Skipped entirely when
+        // nothing fired, so an idle tick (the common case, every 30s by
+        // default) doesn't write to disk for no reason.
+        if(fired){
+            save(this.state);
+        }
 
     }
 
