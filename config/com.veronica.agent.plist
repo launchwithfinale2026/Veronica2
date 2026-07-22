@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+    VERONICA -- macOS user-level LaunchAgent (Phase 21: Mac Resident
+    System). A TEMPLATE, not a ready-to-install file: __NODE_PATH__ and
+    __REPO_PATH__ below are filled in by
+    scripts/install-launch-agent.sh at install time, since the real
+    paths depend on where Node is installed and where this repo lives
+    on the machine actually running it.
+
+    Deliberately placed under ~/Library/LaunchAgents/ (per-user,
+    unprivileged) when installed, NOT /Library/LaunchDaemons/
+    (system-wide, root) -- this starts core/system/startupManager.js
+    only when THIS user logs in, and never touches sleep/shutdown/
+    battery/power-management settings or any other system policy.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.veronica.agent</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__NODE_PATH__</string>
+        <string>__REPO_PATH__/core/system/startupManager.js</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__REPO_PATH__</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Restarts startupManager.js itself if IT crashes (distinct from
+         startupManager.js's own bounded restart logic for the dashboard
+         child process it supervises) -- launchd's own throttling
+         already prevents a crash-loop from spinning unboundedly. -->
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>__REPO_PATH__/core/logging/launchagent.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__REPO_PATH__/core/logging/launchagent.err.log</string>
+</dict>
+</plist>
