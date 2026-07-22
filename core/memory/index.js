@@ -1,5 +1,4 @@
 const store = require("./store");
-const context = require("./context");
 const bus = require("../bus");
 const EmbeddingIndex = require("./embeddings");
 
@@ -27,7 +26,7 @@ module.exports = {
     },
 
     retrieve(query){
-        return context.retrieve(query);
+        return store.search(query);
     },
 
     search(query, options){
