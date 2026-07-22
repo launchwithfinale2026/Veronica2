@@ -85,3 +85,18 @@ test("filter() narrows by type and minimum importance", () => {
     assert.ok(results.some(r => r.content === "a goal entry"));
     assert.ok(!results.some(r => r.content === "a low goal entry"));
 });
+
+test("recall() bootstraps an empty database.json when the file doesn't exist (Phase 10 audit: no longer tracked in git)", () => {
+
+    fs.unlinkSync(DB_PATH);
+    assert.ok(!fs.existsSync(DB_PATH));
+
+    const result = store.recall();
+
+    assert.deepStrictEqual(result, []);
+    assert.ok(fs.existsSync(DB_PATH));
+
+    const onDisk = JSON.parse(fs.readFileSync(DB_PATH, "utf8"));
+    assert.deepStrictEqual(onDisk, { memories: [] });
+
+});

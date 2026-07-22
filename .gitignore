@@ -29,3 +29,29 @@ core/automation/state.json
 # Semantic memory embeddings cache -- regenerable from memory content via
 # reindex(), not source, and can grow large
 core/memory/embeddings.json
+
+# Real memory/knowledge content -- the actual data this personal AI system
+# accumulates (personal notes, business/company records, decisions,
+# finances). Found tracked in git during the Phase 10 security audit: this
+# was committed once as bootstrap seed content early on and never moved
+# into this ignore list the way every other piece of real runtime state
+# above was. core/memory/store.js and core/knowledge/index.js both
+# bootstrap an empty file if one doesn't exist, so untracking these is
+# safe -- a fresh clone gets a clean, empty store rather than missing
+# these files. NOTE: earlier commits still contain the (low-sensitivity,
+# bootstrap-only) content these files held before this change; see
+# docs/PRODUCTION_READINESS.md for whether a git history rewrite is
+# warranted.
+core/memory/database.json
+core/knowledge/graph.json
+
+# Dead legacy file, superseded by database.json -- nothing in core/
+# reads or writes it (confirmed during the Phase 10 audit).
+core/memory/memory.json
+
+# One-off manual backup snapshots (not a build artifact, not managed by
+# this project's own code) -- found tracked in git during the Phase 10
+# security audit, including a snapshot of real early memory/knowledge
+# content. Backups of real data should never be committed; keep them
+# local instead.
+backups/

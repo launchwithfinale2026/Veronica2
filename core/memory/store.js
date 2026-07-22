@@ -25,7 +25,24 @@ const TYPES = [
 ];
 
 
+// Bootstraps an empty store on first run (or after database.json is
+// removed from git tracking -- see the Phase 10 security audit: this
+// file holds real, potentially sensitive memory content, so it's no
+// longer committed as source, which means a fresh clone now needs this
+// fallback the same way core/knowledge/index.js's initialize() already
+// creates a default graph.json when none exists).
+function ensureFile(){
+
+    if(!fs.existsSync(FILE)){
+        fs.writeFileSync(FILE, JSON.stringify({ memories: [] }, null, 4));
+    }
+
+}
+
+
 function load(){
+
+    ensureFile();
 
     const data = JSON.parse(
         fs.readFileSync(FILE, "utf8")
