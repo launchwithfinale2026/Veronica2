@@ -241,7 +241,7 @@ test("history() returns completed/failed entries, most recent first", async () =
 
 });
 
-test("requiring the real core/automation facade registers all three built-in jobs (including self-monitor) without a circular-require crash", () => {
+test("requiring the real core/automation facade registers all five built-in jobs (including self-monitor and the Phase 11 daily briefing/weekly report) without a circular-require crash", () => {
 
     // Regression test for the exact risk documented in
     // core/executive/selfMonitor.js's constructor comment and
@@ -267,7 +267,7 @@ test("requiring the real core/automation facade registers all three built-in job
     // wired, not that nothing else exists in shared state.
     const jobNames = status.schedules.map(s => s.jobName);
 
-    assert.ok(["consolidate", "learning-recommend", "self-monitor"].every(name => jobNames.includes(name)));
+    assert.ok(["consolidate", "learning-recommend", "self-monitor", "daily-briefing", "weekly-report"].every(name => jobNames.includes(name)));
 
 });
 

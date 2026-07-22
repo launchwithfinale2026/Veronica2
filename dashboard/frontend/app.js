@@ -196,6 +196,108 @@ async function loadSelfMonitorHistory(){
 }
 
 
+async function loadPriorityRank(){
+
+    const ranked = await fetchJSON("/api/executive/priority-rank");
+
+    renderList(
+        "priority-rank",
+        ranked.slice(0, 10),
+        "No active projects to rank.",
+        entry => `[${entry.score}] ${entry.project.title} -- ${entry.reasons.join("; ")}`
+    );
+
+}
+
+
+async function loadGoalIssues(){
+
+    const issues = await fetchJSON("/api/executive/goal-issues");
+    const items = [...issues.stalledProjects, ...issues.stalledMilestones];
+
+    renderList(
+        "goal-issues",
+        items,
+        "No stalled projects or milestones.",
+        entry => entry.reason
+    );
+
+}
+
+
+async function loadExecutiveBlockers(){
+
+    const blockers = await fetchJSON("/api/executive/blockers");
+    const items = [
+        ...blockers.blockedTasks.map(t => `[blocked] ${t.title} -- ${t.reason}`),
+        ...blockers.deadlockedProjects.map(p => `[deadlocked] ${p.project.title} -- ${p.reason}`)
+    ];
+
+    renderList(
+        "executive-blockers",
+        items,
+        "No blocked tasks or deadlocked projects.",
+        item => item
+    );
+
+}
+
+
+async function loadExecutiveRecommendations(){
+
+    const history = await fetchJSON("/api/executive/recommendations");
+    const latest = history[0];
+
+    renderList(
+        "executive-recommendations",
+        latest ? latest.recommendations : [],
+        latest ? "Last run found nothing to recommend." : "No recommendations generated yet.",
+        rec => `[${rec.kind}] ${rec.detail} -- ${rec.action}`
+    );
+
+}
+
+
+async function loadDailyBriefing(){
+
+    const history = await fetchJSON("/api/executive/daily-briefings");
+    const latest = history[0];
+
+    const container = document.getElementById("daily-briefing");
+    container.innerHTML = "";
+
+    if(!latest){
+        container.appendChild(el("p", { className: "empty", textContent: "No briefing generated yet." }));
+        return;
+    }
+
+    container.appendChild(el("p", {
+        textContent: `[${new Date(latest.created).toLocaleString()}] ${latest.summary} -- ${latest.roadmap.totalProjects} project(s), ${latest.recommendations.length} recommendation(s)`
+    }));
+
+}
+
+
+async function loadWeeklyReport(){
+
+    const history = await fetchJSON("/api/executive/weekly-reports");
+    const latest = history[0];
+
+    const container = document.getElementById("weekly-report");
+    container.innerHTML = "";
+
+    if(!latest){
+        container.appendChild(el("p", { className: "empty", textContent: "No weekly report generated yet." }));
+        return;
+    }
+
+    container.appendChild(el("p", {
+        textContent: `[${new Date(latest.weekStart).toLocaleDateString()} - ${new Date(latest.weekEnd).toLocaleDateString()}] ${latest.completed.projects.length} project(s) and ${latest.completed.taskCount} task(s) completed, ${latest.blockersEncountered} blocker(s) encountered`
+    }));
+
+}
+
+
 async function loadLearningOverview(){
 
     const overview = await fetchJSON("/api/learning/overview");
@@ -411,6 +513,12 @@ async function loadDashboard(){
             loadMemoryOverview(),
             loadConsolidationHistory(),
             loadSelfMonitorHistory(),
+            loadPriorityRank(),
+            loadGoalIssues(),
+            loadExecutiveBlockers(),
+            loadExecutiveRecommendations(),
+            loadDailyBriefing(),
+            loadWeeklyReport(),
             loadLearningOverview(),
             loadLearningDepartments(),
             loadLearningTools(),
@@ -871,6 +979,98 @@ function setupRunNextForm(){
             result.textContent = outcome.ranTask
                 ? `Ran task ${outcome.task} via ${outcome.department} -- outcome: ${outcome.outcome}.`
                 : "No ready task found.";
+
+            loadDashboard();
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupRecommendationsForm(){
+
+    const form = document.getElementById("recommendations-form");
+    const result = document.getElementById("recommendations-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        result.textContent = "Generating...";
+
+        try {
+
+            const record = await authedFetch("/api/executive/recommendations", { method: "POST" });
+
+            result.textContent = record.recommendations.length
+                ? `${record.recommendations.length} recommendation(s) generated.`
+                : "Nothing to recommend.";
+
+            loadDashboard();
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupDailyBriefingForm(){
+
+    const form = document.getElementById("daily-briefing-form");
+    const result = document.getElementById("daily-briefing-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        result.textContent = "Generating...";
+
+        try {
+
+            const briefing = await authedFetch("/api/executive/daily-briefing", { method: "POST" });
+
+            result.textContent = briefing.summary;
+
+            loadDashboard();
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupWeeklyReportForm(){
+
+    const form = document.getElementById("weekly-report-form");
+    const result = document.getElementById("weekly-report-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        result.textContent = "Generating...";
+
+        try {
+
+            const report = await authedFetch("/api/executive/weekly-report", { method: "POST" });
+
+            result.textContent = report.summary;
 
             loadDashboard();
 
@@ -1388,6 +1588,9 @@ document.addEventListener("DOMContentLoaded", () => {
     setupPursueForm();
     setupRunNextForm();
     setupSelfCheckForm();
+    setupRecommendationsForm();
+    setupDailyBriefingForm();
+    setupWeeklyReportForm();
     setupRecommendForm();
     setupAutomationRunForm();
     setupCollabMessageForm();

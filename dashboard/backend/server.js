@@ -190,6 +190,18 @@ const ROUTES = {
 
     "GET /api/executive/self-monitor": () => executive.selfMonitorHistory(),
 
+    "GET /api/executive/priority-rank": () => executive.priorityRank(),
+
+    "GET /api/executive/goal-issues": () => executive.goalIssues(),
+
+    "GET /api/executive/blockers": () => executive.blockers(),
+
+    "GET /api/executive/recommendations": () => executive.recommendationHistory(),
+
+    "GET /api/executive/daily-briefings": () => executive.dailyBriefingHistory(),
+
+    "GET /api/executive/weekly-reports": () => executive.weeklyOperatingReportHistory(),
+
     "GET /api/executive/report": () => orchestrator.report(),
 
     "GET /api/companies": () => executive.listCompanies(),
@@ -571,6 +583,47 @@ function createServer(){
                 }
 
                 return sendJSON(res, 200, await executive.runSelfCheck());
+
+            }
+
+            // Phase 11 -- Executive Intelligence Layer. All three are
+            // rule-based (no LLM call, see each module's own header
+            // comment) -- POST rather than GET only because they persist
+            // a new record each time, same reasoning as consolidate/
+            // self-check above.
+            if(parsed.pathname === "/api/executive/recommendations" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                return sendJSON(res, 200, executive.recommendations());
+
+            }
+
+            if(parsed.pathname === "/api/executive/daily-briefing" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                return sendJSON(res, 200, executive.dailyBriefing());
+
+            }
+
+            if(parsed.pathname === "/api/executive/weekly-report" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                return sendJSON(res, 200, executive.weeklyOperatingReport());
 
             }
 

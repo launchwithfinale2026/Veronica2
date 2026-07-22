@@ -330,6 +330,75 @@
       }
     },
     {
+      "id": "executive.priorityRank",
+      "description": "Live, explainable re-ranking of every active project by current urgency (importance, fresh deadline urgency, blocked status, and how many other projects depend on it), each with its reasons.",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "executive.goalIssues",
+      "description": "Active projects/milestones with no recent activity (status change or task update) in 5+ days, regardless of deadline status.",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "executive.blockers",
+      "description": "Every currently blocked task system-wide, and every active project that's deadlocked (no remaining task is ready to run), each with the specific holdup.",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "executive.recommendations",
+      "description": "Generates and persists a fresh set of rule-based executive recommendations (resolve a deadlock, unblock a stuck task, revisit a stalled goal, prioritize a high-urgency project), each citing the exact data behind it.",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "executive.recommendationHistory",
+      "description": "List past executive recommendation runs, most recent first.",
+      "permission": "read_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": { "type": "integer", "description": "Max runs to return; defaults to 10" }
+        }
+      }
+    },
+    {
+      "id": "executive.dailyBriefing",
+      "description": "Generates and persists today's executive briefing: roadmap summary, top priorities, goal issues, blockers, and recommendations.",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "executive.dailyBriefingHistory",
+      "description": "List past daily briefings, most recent first.",
+      "permission": "read_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": { "type": "integer", "description": "Max briefings to return; defaults to 10" }
+        }
+      }
+    },
+    {
+      "id": "executive.weeklyOperatingReport",
+      "description": "Generates and persists a structured weekly rollup: completed projects/tasks, new projects, blockers encountered, briefings/recommendations issued, consolidation and self-monitor activity, and the current roadmap/learning snapshot.",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "executive.weeklyOperatingReportHistory",
+      "description": "List past weekly operating reports, most recent first.",
+      "permission": "read_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": { "type": "integer", "description": "Max reports to return; defaults to 10" }
+        }
+      }
+    },
+    {
       "id": "learning.overview",
       "description": "System-wide execution stats: total/successful/failed department runs and tool calls, and average execution time.",
       "permission": "read_memory",

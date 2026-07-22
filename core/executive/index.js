@@ -15,12 +15,28 @@ const ProjectManager = require("./projectManager");
 const CompanyManager = require("./companyManager");
 const MemoryConsolidation = require("./consolidation");
 const SelfMonitor = require("./selfMonitor");
+const PriorityRanking = require("./priorityRanking");
+const GoalMonitor = require("./goalMonitor");
+const BlockerDetector = require("./blockerDetection");
+const ExecutiveRecommendationEngine = require("./executiveRecommendations");
+const DailyBriefingEngine = require("./dailyBriefing");
+const WeeklyOperatingReport = require("./weeklyReport");
 
 const planner = new ExecutivePlanner();
 const decomposer = new GoalDecomposer({ planner });
 const projectManager = new ProjectManager({ planner });
 const companyManager = new CompanyManager({ planner });
 const consolidation = new MemoryConsolidation();
+
+// Phase 11 (Executive Intelligence Layer) -- all five read-only/rule-
+// based, none need real departments, so they're safe to construct
+// eagerly here exactly like planner/decomposer/projectManager above.
+const priorityRanking = new PriorityRanking({ planner, projectManager });
+const goalMonitor = new GoalMonitor({ planner, projectManager });
+const blockerDetector = new BlockerDetector({ planner, projectManager });
+const recommendationEngine = new ExecutiveRecommendationEngine({ planner, projectManager, priorityRanking, goalMonitor, blockerDetector });
+const dailyBriefingEngine = new DailyBriefingEngine({ planner, projectManager, priorityRanking, goalMonitor, blockerDetector, recommendationEngine });
+const weeklyReport = new WeeklyOperatingReport({ planner, projectManager, dailyBriefingEngine, recommendationEngine, consolidation });
 
 // SelfMonitor's constructor would otherwise default `executive` to
 // require("../executive") -- this exact file, still mid-load right now.
@@ -85,6 +101,29 @@ module.exports = {
     // core/automation/jobs.js; see core/executive/selfMonitor.js.
     runSelfCheck: () => selfMonitor.runSelfCheck(),
 
-    selfMonitorHistory: (limit) => selfMonitor.history(limit)
+    selfMonitorHistory: (limit) => selfMonitor.history(limit),
+
+    // Phase 11 -- Executive Intelligence Layer. All five are rule-based
+    // and explainable (see each module's own header comment): live views
+    // (priorityRank/goalIssues/blockers) recomputed fresh on every call,
+    // and persisted artifacts (recommendations/dailyBriefing/weeklyReport)
+    // that accumulate real history in memory.
+    priorityRank: () => priorityRanking.rank(),
+
+    goalIssues: () => goalMonitor.check(),
+
+    blockers: () => blockerDetector.detect(),
+
+    recommendations: () => recommendationEngine.run(),
+
+    recommendationHistory: (limit) => recommendationEngine.history(limit),
+
+    dailyBriefing: () => dailyBriefingEngine.run(),
+
+    dailyBriefingHistory: (limit) => dailyBriefingEngine.history(limit),
+
+    weeklyOperatingReport: () => weeklyReport.run(),
+
+    weeklyOperatingReportHistory: (limit) => weeklyReport.history(limit)
 
 };

@@ -162,6 +162,53 @@
   </section>
 
   <section class="panel">
+    <h2>Executive Intelligence</h2>
+    <p class="hint">
+      Phase 11: rule-based and explainable throughout -- every ranking,
+      flag, and recommendation below cites the exact data behind it, no
+      LLM narration.
+    </p>
+    <div class="widget-group">
+      <h3>Live priority ranking</h3>
+      <div id="priority-rank" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Goal issues (stalled projects/milestones)</h3>
+      <div id="goal-issues" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Blockers</h3>
+      <div id="executive-blockers" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Executive recommendations</h3>
+      <div id="executive-recommendations" class="widget"></div>
+      <form id="recommendations-form" class="inline-form">
+        <button type="submit">Generate now</button>
+      </form>
+      <p id="recommendations-result" class="hint"></p>
+    </div>
+    <div class="widget-group">
+      <h3>Daily briefing</h3>
+      <p class="hint">Scheduled every 24h while the dashboard server is running -- or generate one now.</p>
+      <div id="daily-briefing" class="widget"></div>
+      <form id="daily-briefing-form" class="inline-form">
+        <button type="submit">Generate today's briefing now</button>
+      </form>
+      <p id="daily-briefing-result" class="hint"></p>
+    </div>
+    <div class="widget-group">
+      <h3>Weekly operating report</h3>
+      <p class="hint">Scheduled every 7 days while the dashboard server is running -- or generate one now.</p>
+      <div id="weekly-report" class="widget"></div>
+      <form id="weekly-report-form" class="inline-form">
+        <button type="submit">Generate this week's report now</button>
+      </form>
+      <p id="weekly-report-result" class="hint"></p>
+    </div>
+  </section>
+
+  <section class="panel">
     <h2>Learning</h2>
     <div class="widget-group">
       <h3>Overview</h3>

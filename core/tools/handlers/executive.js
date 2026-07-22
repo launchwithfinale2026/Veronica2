@@ -78,6 +78,25 @@ module.exports = {
 
     "executive.runSelfCheck": () => require("../../executive").runSelfCheck(),
 
-    "executive.selfMonitorHistory": ({ limit } = {}) => require("../../executive").selfMonitorHistory(limit)
+    "executive.selfMonitorHistory": ({ limit } = {}) => require("../../executive").selfMonitorHistory(limit),
+
+    // Phase 11 -- Executive Intelligence Layer.
+    "executive.priorityRank": () => require("../../executive").priorityRank(),
+
+    "executive.goalIssues": () => require("../../executive").goalIssues(),
+
+    "executive.blockers": () => require("../../executive").blockers(),
+
+    "executive.recommendations": () => require("../../executive").recommendations(),
+
+    "executive.recommendationHistory": ({ limit } = {}) => require("../../executive").recommendationHistory(limit),
+
+    "executive.dailyBriefing": () => require("../../executive").dailyBriefing(),
+
+    "executive.dailyBriefingHistory": ({ limit } = {}) => require("../../executive").dailyBriefingHistory(limit),
+
+    "executive.weeklyOperatingReport": () => require("../../executive").weeklyOperatingReport(),
+
+    "executive.weeklyOperatingReportHistory": ({ limit } = {}) => require("../../executive").weeklyOperatingReportHistory(limit)
 
 };

@@ -1422,10 +1422,13 @@ system still needs, continued in later sections below).
   Decomposition Engine." Fixed by passing the already-constructed
   `engine` parameter directly instead. A dedicated regression test
   (`tests/automation-engine.test.js`) requires the real
-  `core/automation` facade fresh and asserts all three built-in jobs
+  `core/automation` facade fresh and asserts the built-in jobs
   (including `self-monitor`) come back correctly scheduled, specifically
   so a future revert of this wiring fails loudly here instead of
-  surfacing as a runtime crash.
+  surfacing as a runtime crash. (Grown from three to five since this was
+  written — `daily-briefing`/`weekly-report` joined in Phase 11, see
+  "Executive Intelligence Layer" below — but the risk and the fix are
+  unchanged.)
 - **The facade's own `SelfMonitor` instance** (`core/executive/index.js`,
   for manual triggers/read access via terminal/dashboard/tools) hit the
   identical self-reference risk one level up: constructing it inside
@@ -1699,3 +1702,137 @@ unrestricted/no-company allow paths, and two `executeTask()`-level
 integration tests confirming a denial never reaches `department.run()`
 (verified with a spy) and that the same task succeeds on retry with a
 permitted actor.
+
+---
+
+## Phase 11 — Executive Intelligence Layer
+
+**Goal:** move VERONICA from a command-driven system (you ask, it
+answers — plan a goal, decompose it, check the roadmap) to one that
+proactively tells an operator what needs attention, ranked and
+explained. Six pieces, all additive to the existing executive pipeline,
+none replacing it:
+
+1. **Priority ranking** (`core/executive/priorityRanking.js`)
+2. **Goal monitoring** (`core/executive/goalMonitor.js`)
+3. **Blocker detection** (`core/executive/blockerDetection.js`)
+4. **Executive recommendations** (`core/executive/executiveRecommendations.js`)
+5. **Daily briefing engine** (`core/executive/dailyBriefing.js`)
+6. **Weekly operating reports** (`core/executive/weeklyReport.js`)
+
+**"All decisions must be explainable" was the load-bearing requirement**
+for how every one of these is built: 100% rule-based, zero LLM calls,
+same reasoning `planner.js` already gave for why department assignment/
+priority scoring is deterministic (cheap, synchronous, no brain mock
+needed in tests) — and here, load-bearing for a different reason too:
+an operator needs to be able to verify *why* something was flagged or
+recommended, not trust a model's narration of it. Every finding carries
+its own `reason`/`reasons` string(s) citing the exact numbers behind it
+(days idle, dependency counts, urgency deltas) — nothing is "the system
+thinks this matters," everything is "this matters because X."
+
+### Why these don't duplicate what already existed
+
+Three systems already did LLM-narrated synthesis over similar data —
+`MemoryConsolidation` (nightly activity summary), `LearningEngine.recommend()`
+(system/tool performance recommendations), and `SelfMonitor` (overdue-
+deadline and failure-rate thresholds). Phase 11 deliberately doesn't
+re-do any of them:
+
+- **`priorityRanking.js` vs. `planner.js`'s stored `priority`**: the
+  stored value is frozen at `plan()` time and never revisited — a
+  project planned three weeks out doesn't get more urgent in the
+  roadmap's own eyes as its deadline actually approaches.
+  `PriorityRanking.score()` recomputes `ExecutivePlanner.urgencyScore()`
+  fresh, against *today*, every time it's called — same formula,
+  live input — plus two things the stored value never captured at all:
+  a bonus for currently being blocked, and a bonus per other active
+  project that depends on this one (found via `dependencies` fan-out
+  across the roadmap).
+- **`goalMonitor.js` vs. `selfMonitor.js`'s `checkDeadlines()`**:
+  `checkDeadlines()` only flags a project once it's actually past its
+  stated deadline. A goal with *no* deadline, or one still "on track" by
+  the calendar, can still have gone completely silent — no status
+  change, no task update — for reasons a deadline check can't see.
+  `GoalMonitor` flags staleness (no activity in 5+ days) independent of
+  deadline status entirely.
+- **`blockerDetection.js`**: nothing before this collected every
+  currently-`"blocked"` task into one place with how long it's been
+  stuck, or noticed when a project is quietly *deadlocked* — every
+  remaining task either blocked or waiting on an incomplete dependency,
+  so nothing in it will ever become ready without intervention. Re-
+  implements `ExecutiveOrchestrator.isReady()`'s exact readiness rule
+  locally rather than depending on the orchestrator, which requires real
+  departments this detector has no need for.
+- **`executiveRecommendations.js` vs. `consolidation.js`'s
+  `recommendations` field / `learning.recommend()`**: both of those are
+  LLM-narrated prose. This is a rule-based synthesis of the three
+  modules above into a short, concrete action list (resolve this
+  deadlock, unblock this task, revisit this stalled goal, prioritize
+  this high-urgency project) — no narration, no judgment call an
+  operator can't independently verify against the underlying data.
+- **`dailyBriefing.js` vs. `consolidation.js`**: consolidation looks
+  *backward* at recent activity and narrates it via one LLM call.
+  The daily briefing looks *forward* — what needs attention today — by
+  assembling the four rule-based engines above into one snapshot, with
+  zero LLM calls of its own.
+- **`weeklyReport.js` vs. `consolidation.js`**: consolidation runs
+  nightly and narrates; the weekly report runs weekly and *counts* —
+  completed projects/tasks, new projects, blockers encountered, briefings
+  and recommendations issued, and reuses `consolidation.history()`/
+  `selfMonitor.history()` rather than re-gathering raw activity a second
+  time.
+
+### Design notes
+
+- **None of the six need real departments.** Every one takes only
+  `{ planner, projectManager }` (or composes the others, which
+  themselves only need those two) — they're read-only/derived views over
+  memory and the roadmap, exactly like `planner.roadmap()` or
+  `orchestrator.report()` already are. This is why all five (priority
+  ranking, goal monitor, blocker detector, recommendations, daily
+  briefing) are constructed eagerly in `core/executive/index.js`'s
+  facade alongside `planner`/`decomposer`/`projectManager`, and why
+  `daily-briefing`/`weekly-report` could join `registerBuiltInJobs()`
+  (always-on, module-load time) rather than needing the opt-in
+  `registerExecutionJob()` treatment `execute-tasks` requires (see
+  "Implement autonomous execution loop" above) — no departments, no LLM
+  calls, nothing unattended to worry about.
+- **Some scans are deliberately global, not scoped to one project** —
+  `BlockerDetector.findBlockedTasks()` and half of `WeeklyOperatingReport`'s
+  counts (`completedThisWindow()`'s task count, `blockersEncounteredThisWindow()`)
+  read the *entire* memory store, not just one project's tasks, because
+  a blocker detector or a weekly operating report is supposed to be
+  system-wide by nature. This tripped up the first draft of the test
+  suite: a test asserting an exact-zero count on a global scan broke the
+  moment an *earlier test in the same file* had created a blocked task
+  of its own (memory is shared across a test file's whole run, same as
+  every other executive test file). Fixed by asserting presence/absence
+  of *this test's own* entry (by id) or a before/after *delta* on global
+  counts, rather than an absolute value — the same technique
+  `tests/tools.test.js`'s `memory.overview` test already used for
+  exactly this reason.
+- **Persisted vs. live-only**: `recommendations`/`dailyBriefing`/
+  `weeklyOperatingReport` persist a real memory entry every run (tagged
+  `executive-recommendation`/`executive-briefing`/
+  `executive-weekly-report` respectively) — these are the actual
+  "insights stored in memory" this phase asked for. `priorityRank`/
+  `goalIssues`/`blockers` are intentionally live-only (recomputed fresh
+  on every call, like `planner.roadmap()` itself) — their output becomes
+  part of the persisted daily briefing rather than being persisted
+  redundantly on their own.
+- **Staleness in tests needs a real old timestamp, and `memory.update()`
+  won't give you one** — it always stamps `updated` to `Date.now()`
+  regardless of what's in `changes` (see `core/memory/store.js`).
+  Simulating a stale entry for `goalMonitor.js`'s tests means editing
+  `database.json` directly (find the entry, backdate `updated`, write
+  the file back) — the same direct-file-manipulation technique
+  `tests/automation-engine.test.js` already uses to simulate a due
+  schedule.
+
+27 new tests across 6 new test files
+(`tests/priority-ranking.test.js`, `tests/goal-monitor.test.js`,
+`tests/blocker-detection.test.js`, `tests/executive-recommendations.test.js`,
+`tests/daily-briefing.test.js`, `tests/weekly-report.test.js`), covering
+every rule's explainability output, both the global-scan and scoped
+behaviors above, and full persist/history round trips.

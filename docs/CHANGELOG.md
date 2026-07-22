@@ -167,13 +167,73 @@ return well-formed JSON, and every new element id cross-checked
 against `index.html`. No headless browser was available in this
 environment, so full interactive/visual verification wasn't performed.
 
+## Phase 10 -- Operational Validation
+
+Not covered in detail here -- see `docs/PRODUCTION_READINESS.md` and
+`docs/DEVELOPMENT_REPORT.md` for the full account. Summary: end-to-end
+operator workflow tests (including a sandbox company simulation) and a
+security audit that found and fixed a real cross-company data leak in
+the reasoning-context path, plus a follow-up that wired company role
+enforcement into the executive pipeline itself (`ExecutiveOrchestrator.authorizeExecution()`
+-- see `docs/Architecture.md`'s "Company access control in the executive
+pipeline"). Test count reached 240 by the end of that pass.
+
+## Phase 11 -- Executive Intelligence Layer
+
+Moves VERONICA from command-driven (you ask, it answers) toward
+proactive: six additive, 100% rule-based subsystems, none replacing
+anything existing. Full design reasoning -- including why none of these
+duplicate `MemoryConsolidation`/`LearningEngine.recommend()`/
+`SelfMonitor`, which already covered adjacent ground -- is in
+`docs/Architecture.md`'s "Phase 11 -- Executive Intelligence Layer".
+
+- **Priority ranking** (`core/executive/priorityRanking.js`): live
+  re-scoring of the active roadmap against *today's* date (not the
+  frozen priority stored at `plan()` time), plus bonuses for being
+  blocked or blocking other projects -- every score cites its exact
+  components.
+- **Goal monitoring** (`core/executive/goalMonitor.js`): flags projects/
+  milestones with no activity in 5+ days, independent of deadline
+  status entirely (distinct from `selfMonitor.js`'s deadline-only
+  check).
+- **Blocker detection** (`core/executive/blockerDetection.js`): every
+  currently-blocked task system-wide, plus projects that are quietly
+  deadlocked (nothing left in them can become ready without
+  intervention), each with the specific holdup named.
+- **Executive recommendations** (`core/executive/executiveRecommendations.js`):
+  rule-based synthesis of the three above into a short, concrete action
+  list -- no LLM narration, unlike `consolidation.js`'s/
+  `learning.recommend()`'s recommendation fields.
+- **Daily briefing engine** (`core/executive/dailyBriefing.js`): the
+  "read this each morning" snapshot, assembling all of the above --
+  zero LLM calls.
+- **Weekly operating reports** (`core/executive/weeklyReport.js`):
+  backward-looking structured counts (completed work, new projects,
+  blockers, briefings/recommendations issued), reusing
+  `consolidation.history()`/`selfMonitor.history()` rather than
+  re-gathering raw activity.
+
+All six persist their insights to memory where that's the point
+(recommendations/briefings/reports are stored artifacts with real
+history; the three live-check engines feed those rather than
+persisting redundantly on their own). `daily-briefing`/`weekly-report`
+joined the automation engine's always-on built-in jobs (24h/7-day
+cadence) -- safe to do since neither needs real departments or makes an
+LLM call, unlike `execute-tasks`.
+
+Wired into the executive facade, 9 new tools, dashboard routes plus a
+new "Executive Intelligence" panel, and terminal commands -- the same
+three surfaces every prior phase's capabilities got.
+
+27 new tests across 6 new test files. All passing; no existing test
+broken.
+
 ## Totals
 
-- 9 commits, one per logical milestone, each with `npm test` green
-  before committing.
-- Test count: 210 (Executive Core + autonomous loop + memory + company
-  isolation + integrations + device capabilities) growing to 222 by the
-  end of this pass, all passing throughout.
+- 11 commits across Phases 10-11 combined with the earlier 9, each with
+  `npm test` green before committing.
+- Test count: 210 -> 222 (end of the original 9-phase pass) -> 240 (end
+  of Phase 10) -> 267 (end of Phase 11), all passing throughout.
 - No existing test broken; no existing public API removed or changed
   incompatibly.
 

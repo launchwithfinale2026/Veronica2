@@ -16,6 +16,15 @@ const CONSOLIDATE_INTERVAL_MS = 24 * 60 * 60 * 1000; // nightly, per the milesto
 const RECOMMEND_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const SELF_MONITOR_INTERVAL_MS = 60 * 60 * 1000; // hourly -- cheap to run (skips the real API call entirely when nothing's wrong)
 
+// Phase 11 (Executive Intelligence Layer) -- daily/weekly cadence,
+// matching what they're named for. Both are fully rule-based (no LLM
+// call, see each module's own header comment), so -- like consolidate/
+// learning-recommend/self-monitor above, and unlike execute-tasks below
+// -- there's no unattended-cost or unattended-action risk in always
+// scheduling them.
+const DAILY_BRIEFING_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const WEEKLY_REPORT_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+
 // Every 5 minutes -- unlike the three jobs above, each run of this one
 // can make a real, billed department.run() call (a genuine LLM
 // reasoning pass) if any task is ready. Conservative on purpose: this is
@@ -38,6 +47,8 @@ function registerBuiltInJobs(engine){
 
     engine.registerJob("consolidate", () => executive.consolidate());
     engine.registerJob("learning-recommend", () => learning.recommend());
+    engine.registerJob("daily-briefing", () => executive.dailyBriefing());
+    engine.registerJob("weekly-report", () => executive.weeklyOperatingReport());
 
     // `engine` here is the live AutomationEngine instance this very
     // function was called with -- passed directly to SelfMonitor rather
@@ -52,6 +63,8 @@ function registerBuiltInJobs(engine){
     engine.schedule("consolidate", CONSOLIDATE_INTERVAL_MS);
     engine.schedule("learning-recommend", RECOMMEND_INTERVAL_MS);
     engine.schedule("self-monitor", SELF_MONITOR_INTERVAL_MS);
+    engine.schedule("daily-briefing", DAILY_BRIEFING_INTERVAL_MS);
+    engine.schedule("weekly-report", WEEKLY_REPORT_INTERVAL_MS);
 
 }
 

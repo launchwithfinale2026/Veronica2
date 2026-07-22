@@ -162,6 +162,24 @@ executive.selfCheck
 
 executive.selfMonitorHistory
 
+executive.priorityRank
+
+executive.goalIssues
+
+executive.blockers
+
+executive.recommendations
+
+executive.recommendationHistory
+
+executive.dailyBriefing
+
+executive.dailyBriefingHistory
+
+executive.weeklyOperatingReport
+
+executive.weeklyOperatingReportHistory
+
 learning.overview
 
 learning.departments
@@ -648,9 +666,117 @@ device.capabilities") {
 
 
         // SELF-MONITORING HISTORY
-        else if (command === "executive.selfMonitorHistory") {
+        else if (command === "executive.selfMonitorHistory
 
-            console.log(executive.selfMonitorHistory());
+executive.priorityRank
+
+executive.goalIssues
+
+executive.blockers
+
+executive.recommendations
+
+executive.recommendationHistory
+
+executive.dailyBriefing
+
+executive.dailyBriefingHistory
+
+executive.weeklyOperatingReport
+
+executive.weeklyOperatingReportHistory") {
+
+            console.log(executive.selfMonitorHistory
+
+executive.priorityRank
+
+executive.goalIssues
+
+executive.blockers
+
+executive.recommendations
+
+executive.recommendationHistory
+
+executive.dailyBriefing
+
+executive.dailyBriefingHistory
+
+executive.weeklyOperatingReport
+
+executive.weeklyOperatingReportHistory());
+
+        }
+
+
+        // PHASE 11 -- LIVE PRIORITY RANKING
+        else if (command === "executive.priorityRank") {
+
+            console.log(executive.priorityRank());
+
+        }
+
+
+        // PHASE 11 -- GOAL MONITORING (stalled projects/milestones)
+        else if (command === "executive.goalIssues") {
+
+            console.log(executive.goalIssues());
+
+        }
+
+
+        // PHASE 11 -- BLOCKER DETECTION
+        else if (command === "executive.blockers") {
+
+            console.log(executive.blockers());
+
+        }
+
+
+        // PHASE 11 -- GENERATE + PERSIST EXECUTIVE RECOMMENDATIONS
+        else if (command === "executive.recommendations") {
+
+            console.log(executive.recommendations());
+
+        }
+
+
+        // PHASE 11 -- EXECUTIVE RECOMMENDATION HISTORY
+        else if (command === "executive.recommendationHistory") {
+
+            console.log(executive.recommendationHistory());
+
+        }
+
+
+        // PHASE 11 -- GENERATE + PERSIST TODAY'S DAILY BRIEFING
+        else if (command === "executive.dailyBriefing") {
+
+            console.log(executive.dailyBriefing());
+
+        }
+
+
+        // PHASE 11 -- DAILY BRIEFING HISTORY
+        else if (command === "executive.dailyBriefingHistory") {
+
+            console.log(executive.dailyBriefingHistory());
+
+        }
+
+
+        // PHASE 11 -- GENERATE + PERSIST A WEEKLY OPERATING REPORT
+        else if (command === "executive.weeklyOperatingReport") {
+
+            console.log(executive.weeklyOperatingReport());
+
+        }
+
+
+        // PHASE 11 -- WEEKLY OPERATING REPORT HISTORY
+        else if (command === "executive.weeklyOperatingReportHistory") {
+
+            console.log(executive.weeklyOperatingReportHistory());
 
         }
 
@@ -900,6 +1026,24 @@ executive.consolidate
 executive.consolidations
 executive.selfCheck
 executive.selfMonitorHistory
+
+executive.priorityRank
+
+executive.goalIssues
+
+executive.blockers
+
+executive.recommendations
+
+executive.recommendationHistory
+
+executive.dailyBriefing
+
+executive.dailyBriefingHistory
+
+executive.weeklyOperatingReport
+
+executive.weeklyOperatingReportHistory
 learning.overview
 learning.departments
 learning.agents
