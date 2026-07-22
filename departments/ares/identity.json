@@ -1,0 +1,13 @@
+{
+  "id": "ares",
+  "name": "ARES",
+  "domain": "Operations Execution",
+  "status": "active",
+  "primaryAgent": "NIKE",
+  "role": "Execution Commander",
+  "capabilities": [
+    "planning",
+    "execution",
+    "task management"
+  ]
+}

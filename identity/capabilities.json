@@ -1,0 +1,12 @@
+{
+  "system": "VERONICA",
+  "version": "0.1.0",
+  "capabilities": [
+    "memory_management",
+    "agent_coordination",
+    "department_management",
+    "tool_execution",
+    "dashboard_generation",
+    "knowledge_retrieval"
+  ]
+}

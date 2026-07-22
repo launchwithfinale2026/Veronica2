@@ -1,0 +1,28 @@
+{
+  "roles": [
+    {
+      "id": "executive",
+      "name": "VERONICA Executive Core",
+      "permissions": [
+        "system_boot",
+        "department_control",
+        "memory_access"
+      ]
+    },
+    {
+      "id": "department_manager",
+      "name": "Department Manager",
+      "permissions": [
+        "execute_tasks",
+        "manage_agents"
+      ]
+    },
+    {
+      "id": "agent",
+      "name": "Worker Agent",
+      "permissions": [
+        "execute_tools"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Editor / OS artifacts
+*.save
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Sandboxed tool workspace (agent-generated scratch files)
+data/workspace/*
+!data/workspace/.gitkeep
+
+# Per-machine device identity (unique per device, not shared/synced)
+core/device/device.local.json

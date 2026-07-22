@@ -1,0 +1,10 @@
+{
+  "permissions": [
+    "read_memory",
+    "write_memory",
+    "execute_tools",
+    "manage_agents",
+    "create_reports",
+    "communicate"
+  ]
+}

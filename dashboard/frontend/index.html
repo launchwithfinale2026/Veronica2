@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VERONICA</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>VERONICA</h1>
+  <p id="status-banner" class="status-banner">Connecting...</p>
+</header>
+
+<main class="grid">
+
+  <section class="panel">
+    <h2>System</h2>
+    <div class="widget-group">
+      <h3>Health</h3>
+      <div id="system-health" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Agents</h3>
+      <div id="system-agents" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Departments</h3>
+      <div id="system-departments" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Activity</h3>
+      <div id="system-activity" class="widget"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Personal</h2>
+    <div class="widget-group">
+      <h3>Goals</h3>
+      <div id="personal-goals" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Projects</h3>
+      <div id="personal-projects" class="widget"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Business</h2>
+    <div class="widget-group">
+      <h3>Businesses</h3>
+      <div id="business-memories" class="widget"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Intelligence</h2>
+    <div class="widget-group">
+      <h3>Decisions</h3>
+      <div id="intelligence-decisions" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Knowledge Graph</h3>
+      <div id="intelligence-knowledge" class="widget"></div>
+    </div>
+  </section>
+
+  <section class="panel panel-wide">
+    <h2>Actions</h2>
+    <p class="hint">
+      Write actions require an API token (set <code>API_TOKEN</code> on
+      the server). Stored locally in this browser only.
+    </p>
+
+    <div class="widget-group">
+      <h3>API Token</h3>
+      <form id="token-form" class="inline-form">
+        <input type="password" id="token-input" placeholder="API token" autocomplete="off">
+        <button type="submit">Save</button>
+      </form>
+      <p id="token-status" class="hint"></p>
+    </div>
+
+    <div class="widget-group">
+      <h3>Remember</h3>
+      <form id="remember-form" class="stacked-form">
+        <input type="text" id="remember-content" placeholder="Memory content" required>
+        <select id="remember-type">
+          <option value="general">general</option>
+          <option value="personal">personal</option>
+          <option value="projects">projects</option>
+          <option value="businesses">businesses</option>
+          <option value="technical knowledge">technical knowledge</option>
+          <option value="preferences">preferences</option>
+          <option value="decisions">decisions</option>
+          <option value="goals">goals</option>
+        </select>
+        <button type="submit">Store memory</button>
+      </form>
+      <p id="remember-result" class="hint"></p>
+    </div>
+
+    <div class="widget-group">
+      <h3>Run a department task</h3>
+      <form id="department-run-form" class="stacked-form">
+        <select id="department-select"></select>
+        <input type="text" id="department-task" placeholder="Task for the department's agent" required>
+        <button type="submit">Run (calls Claude)</button>
+      </form>
+      <p id="department-run-result" class="hint"></p>
+    </div>
+
+  </section>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

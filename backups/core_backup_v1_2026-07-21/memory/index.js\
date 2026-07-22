@@ -1,0 +1,209 @@
+// ==================================
+// VERONICA MEMORY CORE
+// ==================================
+
+const fs = require("fs");
+const path = require("path");
+
+
+class Memory {
+
+
+    constructor(){
+
+
+        this.file =
+        path.join(
+            __dirname,
+            "memory.json"
+        );
+
+
+        this.data = {
+
+
+            memories: [],
+
+            facts: [],
+
+            events: []
+
+
+        };
+
+
+        this.load();
+
+
+    }
+
+
+
+
+    load(){
+
+
+        if(
+            fs.existsSync(this.file)
+        ){
+
+
+            this.data =
+            JSON.parse(
+                fs.readFileSync(
+                    this.file,
+                    "utf8"
+                )
+            );
+
+
+        }
+
+
+        else {
+
+
+            this.save();
+
+
+        }
+
+
+
+        // safety repair
+
+        this.data.memories =
+        this.data.memories || [];
+
+
+        this.data.facts =
+        this.data.facts || [];
+
+
+        this.data.events =
+        this.data.events || [];
+
+
+
+    }
+
+
+
+
+    save(){
+
+
+        fs.writeFileSync(
+
+            this.file,
+
+            JSON.stringify(
+                this.data,
+                null,
+                2
+            )
+
+        );
+
+
+    }
+
+
+
+
+
+    remember(type, content){
+
+
+        if(
+            !this.data[type]
+        ){
+
+            this.data[type] = [];
+
+        }
+
+
+
+        this.data[type].push({
+
+
+            content,
+
+
+            timestamp:
+            new Date().toISOString()
+
+
+
+        });
+
+
+
+        this.save();
+
+
+
+        console.log(
+            "[MEMORY STORED]",
+            content
+        );
+
+
+    }
+
+
+
+
+
+
+    recall(type){
+
+
+        return (
+
+            this.data[type]
+            ||
+            []
+
+        );
+
+
+    }
+
+
+
+
+
+
+    status(){
+
+
+        return {
+
+
+            memories:
+            this.data.memories.length,
+
+
+            facts:
+            this.data.facts.length,
+
+
+            events:
+            this.data.events.length
+
+
+        };
+
+
+    }
+
+
+
+}
+
+
+
+module.exports =
+new Memory();

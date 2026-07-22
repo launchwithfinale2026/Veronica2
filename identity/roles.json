@@ -1,0 +1,36 @@
+{
+  "roles": [
+    {
+      "id": "executive",
+      "name": "VERONICA Executive Core",
+      "permissions": [
+        "read_memory",
+        "write_memory",
+        "execute_tools",
+        "manage_agents",
+        "create_reports",
+        "communicate"
+      ]
+    },
+    {
+      "id": "department_manager",
+      "name": "Department Manager",
+      "permissions": [
+        "read_memory",
+        "write_memory",
+        "execute_tools",
+        "manage_agents",
+        "create_reports"
+      ]
+    },
+    {
+      "id": "agent",
+      "name": "Worker Agent",
+      "permissions": [
+        "read_memory",
+        "write_memory",
+        "execute_tools"
+      ]
+    }
+  ]
+}

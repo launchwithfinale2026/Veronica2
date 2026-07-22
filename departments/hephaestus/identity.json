@@ -1,0 +1,14 @@
+{
+  "id": "hephaestus",
+  "name": "HEPHAESTUS",
+  "domain": "Engineering Systems",
+  "status": "active",
+  "primaryAgent": "DAEDALUS",
+  "role": "Chief Systems Engineer",
+  "capabilities": [
+    "software architecture",
+    "engineering",
+    "system design",
+    "automation"
+  ]
+}

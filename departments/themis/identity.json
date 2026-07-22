@@ -1,0 +1,13 @@
+{
+  "id": "themis",
+  "name": "THEMIS",
+  "domain": "Governance Security",
+  "status": "active",
+  "primaryAgent": "ASTREA",
+  "role": "Security Guardian",
+  "capabilities": [
+    "security",
+    "risk management",
+    "protection"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "id": "hades",
+  "name": "HADES",
+  "domain": "Finance Resources",
+  "status": "active",
+  "primaryAgent": "PLUTUS",
+  "role": "Financial Intelligence",
+  "capabilities": [
+    "finance",
+    "budgeting",
+    "forecasting",
+    "financial analysis"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "id": "hermes",
+  "name": "HERMES",
+  "domain": "Commerce Relationships",
+  "status": "active",
+  "primaryAgent": "IRIS",
+  "role": "Relationship Intelligence",
+  "capabilities": [
+    "communication",
+    "networking",
+    "customer relations"
+  ]
+}

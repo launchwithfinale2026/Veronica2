@@ -1,0 +1,13 @@
+{
+  "id": "artemis",
+  "name": "ARTEMIS",
+  "domain": "Human Performance",
+  "status": "active",
+  "primaryAgent": "SELENE",
+  "role": "Human Optimization",
+  "capabilities": [
+    "health",
+    "performance",
+    "habits"
+  ]
+}

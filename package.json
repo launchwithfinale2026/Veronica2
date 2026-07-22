@@ -1,0 +1,17 @@
+{
+  "name": "veronica",
+  "version": "1.0.0",
+  "description": "VERONICA AI Operating System",
+  "main": "core/interface/terminal.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node core/interface/terminal.js",
+    "dashboard": "node dashboard/backend/server.js",
+    "test": "node --test --test-concurrency=1 tests/*.test.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.112.4",
+    "dotenv": "^17.4.2",
+    "openai": "^6.48.0"
+  }
+}

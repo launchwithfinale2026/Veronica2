@@ -1,0 +1,58 @@
+{
+  "departments": [
+    {
+      "id": "athena",
+      "name": "ATHENA",
+      "domain": "Knowledge Intelligence",
+      "status": "active"
+    },
+    {
+      "id": "hephaestus",
+      "name": "HEPHAESTUS",
+      "domain": "Engineering Systems",
+      "status": "active"
+    },
+    {
+      "id": "apollo",
+      "name": "APOLLO",
+      "domain": "Growth Creative",
+      "status": "active"
+    },
+    {
+      "id": "hermes",
+      "name": "HERMES",
+      "domain": "Commerce Relationships",
+      "status": "active"
+    },
+    {
+      "id": "hades",
+      "name": "HADES",
+      "domain": "Finance Resources",
+      "status": "active"
+    },
+    {
+      "id": "ares",
+      "name": "ARES",
+      "domain": "Operations Execution",
+      "status": "active"
+    },
+    {
+      "id": "artemis",
+      "name": "ARTEMIS",
+      "domain": "Human Performance",
+      "status": "active"
+    },
+    {
+      "id": "themis",
+      "name": "THEMIS",
+      "domain": "Governance Security",
+      "status": "active"
+    },
+    {
+      "id": "orion",
+      "name": "ORION",
+      "domain": "Analytics Intelligence",
+      "status": "active"
+    }
+  ]
+}

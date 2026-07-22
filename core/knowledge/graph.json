@@ -1,0 +1,311 @@
+{
+  "entities": [
+    {
+      "id": "1637ce3c-3d3c-4800-a5bb-32e6b6c51d76",
+      "name": "Jacob",
+      "type": "person",
+      "attributes": {},
+      "created": "2026-07-22T00:04:41.347Z"
+    },
+    {
+      "id": "423103ab-3366-4b1c-b017-b367a6bc4993",
+      "name": "VERONICA",
+      "type": "system",
+      "attributes": {},
+      "created": "2026-07-22T00:04:41.349Z"
+    },
+    {
+      "id": "dee966cf-e4c3-472b-b0b5-0b8c89a3a786",
+      "name": "Claude",
+      "type": "technology",
+      "attributes": {},
+      "created": "2026-07-22T00:04:41.349Z"
+    },
+    {
+      "id": "1fc7a1c1-b090-406b-acff-e0a5d586d225",
+      "name": "METIS",
+      "type": "agent",
+      "attributes": {
+        "role": "Chief Knowledge Analyst"
+      },
+      "created": "2026-07-22T00:04:41.350Z"
+    },
+    {
+      "id": "2e3942b7-e5aa-41cd-ba0d-9edfc0a4136b",
+      "name": "athena",
+      "type": "department",
+      "attributes": {},
+      "created": "2026-07-22T00:04:41.351Z"
+    },
+    {
+      "id": "be03c8ab-1e51-4065-9dde-8ec31c638975",
+      "name": "DAEDALUS",
+      "type": "agent",
+      "attributes": {
+        "role": "Chief Systems Engineer"
+      },
+      "created": "2026-07-22T00:04:41.352Z"
+    },
+    {
+      "id": "672e4192-c833-4a7a-8d5e-e245814d46e8",
+      "name": "hephaestus",
+      "type": "department",
+      "attributes": {},
+      "created": "2026-07-22T00:04:41.353Z"
+    },
+    {
+      "id": "9d362bbf-6f4c-4b47-9fb2-b422a1232242",
+      "name": "HELIOS",
+      "type": "agent",
+      "attributes": {
+        "role": "Creative Growth Strategist"
+      },
+      "created": "2026-07-22T00:04:41.354Z"
+    },
+    {
+      "id": "04519c91-ef23-46e5-a340-09415d8442c4",
+      "name": "apollo",
+      "type": "department",
+      "attributes": {},
+      "created": "2026-07-22T00:04:41.354Z"
+    },
+    {
+      "id": "c0b1d30a-94ab-4134-b7f2-851bc51d48e2",
+      "name": "IRIS",
+      "type": "agent",
+      "attributes": {
+        "role": "Relationship Intelligence"
+      },
+      "created": "2026-07-22T00:04:41.355Z"
+    },
+    {
+      "id": "f6bca18b-e2ae-404f-b605-0b5af4dd6f7a",
+      "name": "hermes",
+      "type": "department",
+      "attributes": {},
+      "created": "2026-07-22T00:04:41.356Z"
+    },
+    {
+      "id": "f7ee74b6-9357-478f-92cf-92003caaa740",
+      "name": "PLUTUS",
+      "type": "agent",
+      "attributes": {
+        "role": "Financial Intelligence"
+      },
+      "created": "2026-07-22T00:04:41.358Z"
+    },
+    {
+      "id": "3f8b94fe-2191-4a59-8019-726fc9717fc9",
+      "name": "hades",
+      "type": "department",
+      "attributes": {},
+      "created": "2026-07-22T00:04:41.359Z"
+    },
+    {
+      "id": "d8303f2b-8df2-4d90-bf1c-37555744239b",
+      "name": "NIKE",
+      "type": "agent",
+      "attributes": {
+        "role": "Execution Commander"
+      },
+      "created": "2026-07-22T00:04:41.360Z"
+    },
+    {
+      "id": "a59a18cb-8397-478c-ae0c-819823261e7a",
+      "name": "ares",
+      "type": "department",
+      "attributes": {},
+      "created": "2026-07-22T00:04:41.362Z"
+    },
+    {
+      "id": "580ce96a-9d47-4457-ad50-684b02d53786",
+      "name": "SELENE",
+      "type": "agent",
+      "attributes": {
+        "role": "Human Optimization"
+      },
+      "created": "2026-07-22T00:04:41.363Z"
+    },
+    {
+      "id": "27524162-5dcc-4c6a-ad02-4ef4674a599a",
+      "name": "artemis",
+      "type": "department",
+      "attributes": {},
+      "created": "2026-07-22T00:04:41.364Z"
+    },
+    {
+      "id": "7d9dbf22-abd6-4bb2-a275-31b3484ec97f",
+      "name": "ASTREA",
+      "type": "agent",
+      "attributes": {
+        "role": "Security Guardian"
+      },
+      "created": "2026-07-22T00:04:41.365Z"
+    },
+    {
+      "id": "7fbd5507-4777-40c0-a9b8-380aacab36ee",
+      "name": "themis",
+      "type": "department",
+      "attributes": {},
+      "created": "2026-07-22T00:04:41.366Z"
+    },
+    {
+      "id": "9eb5d5a4-d094-414e-ad44-e803a5e270a3",
+      "name": "ATLAS",
+      "type": "agent",
+      "attributes": {
+        "role": "Analytics Intelligence"
+      },
+      "created": "2026-07-22T00:04:41.367Z"
+    },
+    {
+      "id": "c7307ad6-fb01-4818-b825-63b9c6d35d0b",
+      "name": "orion",
+      "type": "department",
+      "attributes": {},
+      "created": "2026-07-22T00:04:41.367Z"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "513dcb9a-d967-4f1d-bf53-f785397479c4",
+      "from": "Jacob",
+      "to": "VERONICA",
+      "type": "builds",
+      "created": "2026-07-22T00:04:41.350Z"
+    },
+    {
+      "id": "b6e51be1-dbee-4577-89a7-4cbf668f9515",
+      "from": "VERONICA",
+      "to": "Claude",
+      "type": "uses",
+      "created": "2026-07-22T00:04:41.350Z"
+    },
+    {
+      "id": "76b2aeea-aedc-4176-be26-d577f79a0e9c",
+      "from": "VERONICA",
+      "to": "METIS",
+      "type": "contains",
+      "created": "2026-07-22T00:04:41.351Z"
+    },
+    {
+      "id": "3b78abfa-2520-4165-9231-75f15f2661c2",
+      "from": "METIS",
+      "to": "athena",
+      "type": "belongsTo",
+      "created": "2026-07-22T00:04:41.352Z"
+    },
+    {
+      "id": "b2748700-0094-4683-aca2-0120e426a65d",
+      "from": "VERONICA",
+      "to": "DAEDALUS",
+      "type": "contains",
+      "created": "2026-07-22T00:04:41.352Z"
+    },
+    {
+      "id": "1226057f-6e3d-47c8-a2e6-9b7bd9c3a4bc",
+      "from": "DAEDALUS",
+      "to": "hephaestus",
+      "type": "belongsTo",
+      "created": "2026-07-22T00:04:41.353Z"
+    },
+    {
+      "id": "e5d80cda-8a55-4c9a-9de0-fc3564762389",
+      "from": "VERONICA",
+      "to": "HELIOS",
+      "type": "contains",
+      "created": "2026-07-22T00:04:41.354Z"
+    },
+    {
+      "id": "4a5232c3-938e-4b53-9b8d-f2eb18af07aa",
+      "from": "HELIOS",
+      "to": "apollo",
+      "type": "belongsTo",
+      "created": "2026-07-22T00:04:41.355Z"
+    },
+    {
+      "id": "21812dbe-71ca-45c9-813e-421454002066",
+      "from": "VERONICA",
+      "to": "IRIS",
+      "type": "contains",
+      "created": "2026-07-22T00:04:41.356Z"
+    },
+    {
+      "id": "507d5259-e2a6-439c-ba98-1208f644154f",
+      "from": "IRIS",
+      "to": "hermes",
+      "type": "belongsTo",
+      "created": "2026-07-22T00:04:41.357Z"
+    },
+    {
+      "id": "5bbef38c-0750-42d5-80cc-c9b28d572e05",
+      "from": "VERONICA",
+      "to": "PLUTUS",
+      "type": "contains",
+      "created": "2026-07-22T00:04:41.359Z"
+    },
+    {
+      "id": "2a9e1dba-6127-4603-a344-8793ddfe0c72",
+      "from": "PLUTUS",
+      "to": "hades",
+      "type": "belongsTo",
+      "created": "2026-07-22T00:04:41.360Z"
+    },
+    {
+      "id": "3ac1bac9-8af6-4171-93a4-4baee040f867",
+      "from": "VERONICA",
+      "to": "NIKE",
+      "type": "contains",
+      "created": "2026-07-22T00:04:41.361Z"
+    },
+    {
+      "id": "e78c754d-65ae-4559-ad44-2f239d644b8c",
+      "from": "NIKE",
+      "to": "ares",
+      "type": "belongsTo",
+      "created": "2026-07-22T00:04:41.362Z"
+    },
+    {
+      "id": "4272916b-1a85-47ec-97eb-6c3e3d61f38e",
+      "from": "VERONICA",
+      "to": "SELENE",
+      "type": "contains",
+      "created": "2026-07-22T00:04:41.363Z"
+    },
+    {
+      "id": "6ec1fd87-0412-4e81-baca-ae502c6f7dc1",
+      "from": "SELENE",
+      "to": "artemis",
+      "type": "belongsTo",
+      "created": "2026-07-22T00:04:41.364Z"
+    },
+    {
+      "id": "91b5e0a8-87e1-49a2-b78e-b49a5e9ff9e8",
+      "from": "VERONICA",
+      "to": "ASTREA",
+      "type": "contains",
+      "created": "2026-07-22T00:04:41.365Z"
+    },
+    {
+      "id": "ed1865bc-7ab0-41df-97a8-bb85923ecd0b",
+      "from": "ASTREA",
+      "to": "themis",
+      "type": "belongsTo",
+      "created": "2026-07-22T00:04:41.366Z"
+    },
+    {
+      "id": "7b4edab9-960d-4342-88ce-0d71cc22105b",
+      "from": "VERONICA",
+      "to": "ATLAS",
+      "type": "contains",
+      "created": "2026-07-22T00:04:41.367Z"
+    },
+    {
+      "id": "0b40aeec-ead3-47ce-a0ba-6c9e2357384c",
+      "from": "ATLAS",
+      "to": "orion",
+      "type": "belongsTo",
+      "created": "2026-07-22T00:04:41.368Z"
+    }
+  ]
+}

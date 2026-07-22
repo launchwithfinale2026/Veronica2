@@ -1,0 +1,13 @@
+{
+  "id": "orion",
+  "name": "ORION",
+  "domain": "Analytics Intelligence",
+  "status": "active",
+  "primaryAgent": "ATLAS",
+  "role": "Analytics Intelligence",
+  "capabilities": [
+    "analytics",
+    "metrics",
+    "data interpretation"
+  ]
+}

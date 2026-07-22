@@ -1,0 +1,14 @@
+{
+  "id": "apollo",
+  "name": "APOLLO",
+  "domain": "Growth Creative",
+  "status": "active",
+  "primaryAgent": "HELIOS",
+  "role": "Creative Growth Strategist",
+  "capabilities": [
+    "marketing",
+    "branding",
+    "growth strategy",
+    "creative direction"
+  ]
+}

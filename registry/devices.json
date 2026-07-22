@@ -1,0 +1,24 @@
+{
+  "roles": [
+    {
+      "id": "laptop",
+      "name": "Laptop",
+      "permissions": ["read_memory", "write_memory", "execute_tools", "sync"]
+    },
+    {
+      "id": "desktop",
+      "name": "Desktop",
+      "permissions": ["read_memory", "write_memory", "execute_tools", "sync"]
+    },
+    {
+      "id": "phone",
+      "name": "Phone",
+      "permissions": ["read_memory", "sync"]
+    },
+    {
+      "id": "server",
+      "name": "Server",
+      "permissions": ["read_memory", "write_memory", "execute_tools", "manage_agents", "sync"]
+    }
+  ]
+}

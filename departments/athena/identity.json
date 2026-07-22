@@ -1,0 +1,14 @@
+{
+  "id": "athena",
+  "name": "ATHENA",
+  "domain": "Knowledge Intelligence",
+  "status": "active",
+  "primaryAgent": "METIS",
+  "role": "Chief Knowledge Analyst",
+  "capabilities": [
+    "knowledge analysis",
+    "research",
+    "information synthesis",
+    "strategy"
+  ]
+}

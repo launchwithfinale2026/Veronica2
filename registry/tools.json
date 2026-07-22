@@ -1,0 +1,71 @@
+{
+  "tools": [
+    {
+      "id": "memory.remember",
+      "description": "Store a structured memory entry in VERONICA's memory system.",
+      "permission": "write_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "content": { "type": "string", "description": "The memory content to store" },
+          "type": {
+            "type": "string",
+            "enum": ["personal", "projects", "businesses", "technical knowledge", "preferences", "decisions", "goals", "general"],
+            "description": "Memory category; defaults to \"general\" if omitted"
+          },
+          "importance": { "type": "integer", "minimum": 1, "maximum": 5, "description": "1 (low) to 5 (high); defaults to 3" },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["content"]
+      }
+    },
+    {
+      "id": "memory.recall",
+      "description": "Search VERONICA's stored memories by keyword.",
+      "permission": "read_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": { "type": "string", "description": "Keyword search query; omit to get every memory, ranked by importance/recency" }
+        }
+      }
+    },
+    {
+      "id": "knowledge.query",
+      "description": "Find entities and their connections in the knowledge graph.",
+      "permission": "read_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "description": "Entity name (or substring) to search for" }
+        },
+        "required": ["name"]
+      }
+    },
+    {
+      "id": "filesystem.readFile",
+      "description": "Read a text file from VERONICA's sandboxed workspace directory (data/workspace).",
+      "permission": "execute_tools",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string", "description": "Relative path within the sandboxed workspace" }
+        },
+        "required": ["path"]
+      }
+    },
+    {
+      "id": "filesystem.writeFile",
+      "description": "Write a text file into VERONICA's sandboxed workspace directory (data/workspace).",
+      "permission": "execute_tools",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string", "description": "Relative path within the sandboxed workspace" },
+          "content": { "type": "string", "description": "Text content to write" }
+        },
+        "required": ["path", "content"]
+      }
+    }
+  ]
+}
