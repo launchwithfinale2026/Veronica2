@@ -440,6 +440,61 @@
       "inputSchema": { "type": "object", "properties": {} }
     },
     {
+      "id": "executive.generateProposals",
+      "description": "Phase 15: Observation -> Recommendation -> Proposal. Converts fresh executive recommendations into pending action proposals ({ id, action, reason, department, risk, approvalRequired, status }), persisted for review.",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "executive.listProposals",
+      "description": "Lists action proposals, optionally filtered by status (pending/approved/rejected/executed).",
+      "permission": "read_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "enum": ["pending", "approved", "rejected", "executed"] }
+        }
+      }
+    },
+    {
+      "id": "executive.approveProposal",
+      "description": "Approves a pending action proposal. Does not execute it -- execution is always a separate, explicit step.",
+      "permission": "manage_agents",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "note": { "type": "string" }
+        },
+        "required": ["id"]
+      }
+    },
+    {
+      "id": "executive.rejectProposal",
+      "description": "Rejects a pending action proposal.",
+      "permission": "manage_agents",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "note": { "type": "string" }
+        },
+        "required": ["id"]
+      }
+    },
+    {
+      "id": "executive.executeProposal",
+      "description": "Executes an approved action proposal (the real state change it represents). Fails if the proposal is not currently \"approved\" -- no autonomous external action without approval.",
+      "permission": "manage_agents",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" }
+        },
+        "required": ["id"]
+      }
+    },
+    {
       "id": "learning.overview",
       "description": "System-wide execution stats: total/successful/failed department runs and tool calls, and average execution time.",
       "permission": "read_memory",

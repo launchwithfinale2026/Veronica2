@@ -309,13 +309,34 @@ times -- noted explicitly rather than pretended around.
 7 new tests. Wired into the executive facade, 4 new tools, dashboard,
 the `daily-review` automation job, and terminal commands.
 
+## Phase 15 -- Controlled Autonomy
+
+Full design reasoning in `docs/Architecture.md`'s "Phase 15 -- Controlled
+Autonomy". Completes the pipeline: Observation (Phase 11) ->
+Recommendation (Phase 11) -> **Proposal -> Approval -> Execution**
+(this phase, `core/executive/actionProposal.js`).
+
+"No autonomous external action without approval" is enforced
+structurally: `execute()` throws unless status is exactly `"approved"`,
+unconditionally -- `approvalRequired` (real, computed per action kind)
+signals review urgency but never bypasses the gate. Execution itself
+is administrative (roadmap status changes, e.g. unblocking a task),
+handing eligible work back to the already-authorized orchestrator/
+automation flow (Phase 10) rather than building a second execution
+pipeline.
+
+6 new tests including a full approve -> execute round trip verified
+against the real `ProjectManager`. Wired into the executive facade, 5
+new tools, dashboard (routes + widget + forms), and terminal commands.
+
 ## Totals
 
-- 15 commits across Phases 10-14 combined with the earlier 9, each with
+- 16 commits across Phases 10-15 combined with the earlier 9, each with
   `npm test` green before committing.
 - Test count: 210 -> 222 (end of the original 9-phase pass) -> 240 (end
   of Phase 10) -> 267 (end of Phase 11) -> 291 (end of Phase 12) -> 300
-  (end of Phase 13) -> 307 (end of Phase 14), all passing throughout.
+  (end of Phase 13) -> 307 (end of Phase 14) -> 313 (end of Phase 15),
+  all passing throughout.
 - No existing test broken; no existing public API removed or changed
   incompatibly.
 

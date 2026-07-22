@@ -220,6 +220,31 @@
       </form>
       <p id="daily-review-result" class="hint"></p>
     </div>
+    <div class="widget-group">
+      <h3>Action proposals (Phase 15 -- controlled autonomy)</h3>
+      <p class="hint">
+        Observation -&gt; Recommendation -&gt; Proposal -&gt; Approval -&gt; Execution.
+        No autonomous external action without approval -- executing a
+        proposal always requires it to be approved first, regardless of
+        risk level.
+      </p>
+      <div id="action-proposals" class="widget"></div>
+      <form id="generate-proposals-form" class="inline-form">
+        <button type="submit">Generate proposals from fresh recommendations</button>
+      </form>
+      <p id="generate-proposals-result" class="hint"></p>
+      <form id="proposal-action-form" class="stacked-form">
+        <input type="text" id="proposal-action-id" placeholder="Proposal id" required>
+        <select id="proposal-action-type">
+          <option value="approve">Approve</option>
+          <option value="reject">Reject</option>
+          <option value="execute">Execute (must already be approved)</option>
+        </select>
+        <input type="text" id="proposal-action-note" placeholder="Note (optional, approve/reject only)">
+        <button type="submit">Submit</button>
+      </form>
+      <p id="proposal-action-result" class="hint"></p>
+    </div>
   </section>
 
   <section class="panel">

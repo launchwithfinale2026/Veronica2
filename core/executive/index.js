@@ -23,6 +23,7 @@ const DailyBriefingEngine = require("./dailyBriefing");
 const WeeklyOperatingReport = require("./weeklyReport");
 const DailyReviewEngine = require("./dailyReview");
 const DailyCycleEngine = require("./dailyCycle");
+const ActionProposalEngine = require("./actionProposal");
 
 const planner = new ExecutivePlanner();
 const decomposer = new GoalDecomposer({ planner });
@@ -44,6 +45,11 @@ const weeklyReport = new WeeklyOperatingReport({ planner, projectManager, dailyB
 // cycle, plus a thin orchestrator over both halves.
 const dailyReviewEngine = new DailyReviewEngine({ planner, projectManager, priorityRanking, recommendationEngine });
 const dailyCycle = new DailyCycleEngine({ briefingEngine: dailyBriefingEngine, reviewEngine: dailyReviewEngine });
+
+// Phase 15 (Controlled Autonomy) -- Observation -> Recommendation ->
+// Proposal -> Approval -> Execution. No autonomous external action
+// without approval; see actionProposal.js's own header comment.
+const actionProposalEngine = new ActionProposalEngine({ planner, projectManager, recommendationEngine, blockerDetector });
 
 // SelfMonitor's constructor would otherwise default `executive` to
 // require("../executive") -- this exact file, still mid-load right now.
@@ -141,6 +147,17 @@ module.exports = {
 
     runMorningCycle: () => dailyCycle.runMorning(),
 
-    runEveningCycle: () => dailyCycle.runEvening()
+    runEveningCycle: () => dailyCycle.runEvening(),
+
+    // Phase 15 -- Controlled Autonomy.
+    generateProposals: () => actionProposalEngine.generateProposals(),
+
+    listProposals: (status) => actionProposalEngine.list(status),
+
+    approveProposal: (id, note) => actionProposalEngine.approve(id, note),
+
+    rejectProposal: (id, note) => actionProposalEngine.reject(id, note),
+
+    executeProposal: (id) => actionProposalEngine.execute(id)
 
 };

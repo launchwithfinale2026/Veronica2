@@ -106,6 +106,43 @@ module.exports = {
 
     "executive.runMorningCycle": () => require("../../executive").runMorningCycle(),
 
-    "executive.runEveningCycle": () => require("../../executive").runEveningCycle()
+    "executive.runEveningCycle": () => require("../../executive").runEveningCycle(),
+
+    // Phase 15 -- Controlled Autonomy: Observation -> Recommendation ->
+    // Proposal -> Approval -> Execution. No autonomous external action
+    // without approval.
+    "executive.generateProposals": () => require("../../executive").generateProposals(),
+
+    "executive.listProposals": ({ status } = {}) => require("../../executive").listProposals(status),
+
+    "executive.approveProposal": ({ id, note } = {}) => {
+
+        if(!id){
+            throw new Error("An id is required");
+        }
+
+        return require("../../executive").approveProposal(id, note);
+
+    },
+
+    "executive.rejectProposal": ({ id, note } = {}) => {
+
+        if(!id){
+            throw new Error("An id is required");
+        }
+
+        return require("../../executive").rejectProposal(id, note);
+
+    },
+
+    "executive.executeProposal": ({ id } = {}) => {
+
+        if(!id){
+            throw new Error("An id is required");
+        }
+
+        return require("../../executive").executeProposal(id);
+
+    }
 
 };

@@ -209,6 +209,8 @@ const ROUTES = {
 
     "GET /api/executive/daily-reviews": () => executive.dailyReviewHistory(),
 
+    "GET /api/executive/proposals": () => executive.listProposals(),
+
     "GET /api/executive/report": () => orchestrator.report(),
 
     "GET /api/companies": () => executive.listCompanies(),
@@ -646,6 +648,66 @@ function createServer(){
                 }
 
                 return sendJSON(res, 200, executive.dailyReview());
+
+            }
+
+            // Phase 15 -- Controlled Autonomy: Observation ->
+            // Recommendation -> Proposal -> Approval -> Execution.
+            if(parsed.pathname === "/api/executive/proposals/generate" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                return sendJSON(res, 200, executive.generateProposals());
+
+            }
+
+            const proposalApproveMatch = parsed.pathname.match(/^\/api\/executive\/proposals\/([^/]+)\/approve$/);
+
+            if(proposalApproveMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { note } = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, executive.approveProposal(decodeURIComponent(proposalApproveMatch[1]), note));
+
+            }
+
+            const proposalRejectMatch = parsed.pathname.match(/^\/api\/executive\/proposals\/([^/]+)\/reject$/);
+
+            if(proposalRejectMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { note } = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, executive.rejectProposal(decodeURIComponent(proposalRejectMatch[1]), note));
+
+            }
+
+            const proposalExecuteMatch = parsed.pathname.match(/^\/api\/executive\/proposals\/([^/]+)\/execute$/);
+
+            if(proposalExecuteMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                return sendJSON(res, 200, executive.executeProposal(decodeURIComponent(proposalExecuteMatch[1])));
 
             }
 

@@ -2036,3 +2036,60 @@ learned in Phase 11's blocker detection tests) plus the cycle
 orchestrator. Wired into the executive facade, 4 new tools, dashboard
 (route + widget + trigger form), the `daily-review` automation job, and
 terminal commands.
+
+---
+
+## Phase 15 — Controlled Autonomy
+
+**Goal:** complete the pipeline the last few phases built toward:
+Observation (Phase 11's `PriorityRanking`/`GoalMonitor`/`BlockerDetector`)
+-> Recommendation (Phase 11's `ExecutiveRecommendationEngine`) ->
+**Proposal** -> **Approval** -> **Execution** — the last three steps,
+added here in `core/executive/actionProposal.js`'s `ActionProposalEngine`.
+
+**The hard rule — "no autonomous external actions without approval" —
+is enforced structurally, not by convention**: `execute(id)` throws
+unless the proposal's persisted `status` is exactly `"approved"`.
+There is no code path that skips this check. `approvalRequired` is a
+real, varying field (computed per action kind, not hardcoded `true`) —
+it signals review urgency to a human (does this action change real
+roadmap state, or is it purely informational), but it does **not**
+bypass the approval gate itself, which is unconditional either way.
+Only `"high_urgency"` proposals (informational only — the project is
+already correctly prioritized, executing it is just an acknowledgment
+with no state change) have `approvalRequired: false`; every action that
+actually touches roadmap state (`resolve_deadlock`, `unblock_task`,
+`revisit_stalled_goal`) requires it.
+
+**Proposal shape** matches what was asked (`{ id, action, reason,
+department, risk, approvalRequired, status }`), plus `subject` (which
+task/project the action applies to — needed to actually perform it,
+not in the literal spec but a natural implementation necessity) and
+timestamps. Statuses: `pending -> approved/rejected -> executed`, with
+`approve()`/`reject()` both requiring the proposal currently be
+`"pending"` (a decided proposal can't be re-decided) and `execute()`
+requiring `"approved"`.
+
+**`performAction()` is deliberately administrative, not a second
+execution pipeline**: it changes roadmap *status* (e.g. resetting a
+blocked task back to `"planned"`), handing eligible work back to the
+**normal** orchestrator/automation flow — which is already authorized
+per its own rules (`ExecutiveOrchestrator.authorizeExecution()`, Phase
+10) — rather than dispatching department work directly from here. This
+avoids building a second, parallel authorization system when one
+already exists and is already tested.
+
+If `performAction()` itself throws (e.g. the underlying project got
+independently completed in the meantime), the proposal stays
+`"approved"` rather than transitioning to a broken `"executed"` state —
+retriable, not a dead end, same philosophy as a blocked task elsewhere
+in this system.
+
+6 new tests (`tests/action-proposal.test.js`), including a full
+approve -> execute round trip that verifies the real task got unblocked
+via the real `ProjectManager`, not just that the proposal's own status
+field changed. Wired into the executive facade, 5 new tools (approve/
+reject/execute gated at `manage_agents`, matching
+`executive.updateStatus`'s existing permission level for consequential
+state changes), dashboard (routes + widget + two trigger forms), and
+terminal commands.

@@ -201,6 +201,16 @@ executive.runMorningCycle
 
 executive.runEveningCycle
 
+executive.generateProposals
+
+executive.listProposals [status]
+
+executive.approveProposal <id> [note]
+
+executive.rejectProposal <id> [note]
+
+executive.executeProposal <id>
+
 learning.overview
 
 learning.departments
@@ -857,6 +867,56 @@ Recommended focus: ${summary.recommendedFocus ? `${summary.recommendedFocus.titl
         }
 
 
+        // PHASE 15 -- GENERATE ACTION PROPOSALS FROM FRESH RECOMMENDATIONS
+        else if (command === "executive.generateProposals") {
+
+            console.log(executive.generateProposals());
+
+        }
+
+
+        // PHASE 15 -- LIST ACTION PROPOSALS (optional status filter)
+        else if (command.startsWith("executive.listProposals")) {
+
+            const status = command.substring(24).trim() || undefined;
+
+            console.log(executive.listProposals(status));
+
+        }
+
+
+        // PHASE 15 -- APPROVE A PENDING ACTION PROPOSAL
+        else if (command.startsWith("executive.approveProposal ")) {
+
+            const rest = command.substring(27).trim();
+            const [id, ...noteParts] = rest.split(" ");
+
+            console.log(executive.approveProposal(id, noteParts.join(" ") || undefined));
+
+        }
+
+
+        // PHASE 15 -- REJECT A PENDING ACTION PROPOSAL
+        else if (command.startsWith("executive.rejectProposal ")) {
+
+            const rest = command.substring(26).trim();
+            const [id, ...noteParts] = rest.split(" ");
+
+            console.log(executive.rejectProposal(id, noteParts.join(" ") || undefined));
+
+        }
+
+
+        // PHASE 15 -- EXECUTE AN APPROVED ACTION PROPOSAL
+        else if (command.startsWith("executive.executeProposal ")) {
+
+            const id = command.substring(27).trim();
+
+            console.log(executive.executeProposal(id));
+
+        }
+
+
         // LEARNING OVERVIEW
         else if (command === "learning.overview") {
 
@@ -1131,6 +1191,11 @@ executive.dailyReview
 executive.dailyReviewHistory
 executive.runMorningCycle
 executive.runEveningCycle
+executive.generateProposals
+executive.listProposals [status]
+executive.approveProposal <id> [note]
+executive.rejectProposal <id> [note]
+executive.executeProposal <id>
 learning.overview
 learning.departments
 learning.agents

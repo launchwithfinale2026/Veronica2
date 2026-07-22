@@ -335,6 +335,20 @@ async function loadDailyReview(){
 }
 
 
+async function loadActionProposals(){
+
+    const proposals = await fetchJSON("/api/executive/proposals");
+
+    renderList(
+        "action-proposals",
+        proposals,
+        "No action proposals yet.",
+        proposal => `[${proposal.status}] (${proposal.risk} risk${proposal.approvalRequired ? "" : ", no approval required"}) ${proposal.action} -- ${proposal.reason} (id ${proposal.id})`
+    );
+
+}
+
+
 async function loadLearningOverview(){
 
     const overview = await fetchJSON("/api/learning/overview");
@@ -558,6 +572,7 @@ async function loadDashboard(){
             loadDailyBriefing(),
             loadWeeklyReport(),
             loadDailyReview(),
+            loadActionProposals(),
             loadLearningOverview(),
             loadLearningDepartments(),
             loadLearningTools(),
@@ -1154,6 +1169,76 @@ function setupDailyReviewForm(){
 }
 
 
+function setupGenerateProposalsForm(){
+
+    const form = document.getElementById("generate-proposals-form");
+    const result = document.getElementById("generate-proposals-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        result.textContent = "Generating...";
+
+        try {
+
+            const proposals = await authedFetch("/api/executive/proposals/generate", { method: "POST" });
+
+            result.textContent = proposals.length ? `${proposals.length} proposal(s) generated.` : "Nothing to propose.";
+
+            loadDashboard();
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupProposalActionForm(){
+
+    const form = document.getElementById("proposal-action-form");
+    const result = document.getElementById("proposal-action-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const id = document.getElementById("proposal-action-id").value;
+        const action = document.getElementById("proposal-action-type").value;
+        const note = document.getElementById("proposal-action-note").value;
+
+        result.textContent = "Submitting...";
+
+        try {
+
+            const body = action === "execute" ? {} : { note };
+
+            const updated = await authedFetch(`/api/executive/proposals/${encodeURIComponent(id)}/${action}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body)
+            });
+
+            result.textContent = `Proposal ${updated.id} is now "${updated.status}".`;
+
+            loadDashboard();
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
 function setupSelfCheckForm(){
 
     const form = document.getElementById("self-check-form");
@@ -1661,6 +1746,8 @@ document.addEventListener("DOMContentLoaded", () => {
     setupDailyBriefingForm();
     setupWeeklyReportForm();
     setupDailyReviewForm();
+    setupGenerateProposalsForm();
+    setupProposalActionForm();
     setupRecommendForm();
     setupAutomationRunForm();
     setupCollabMessageForm();
