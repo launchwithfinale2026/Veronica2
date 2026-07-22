@@ -34,6 +34,11 @@ core/automation/state.json
 # (what's installed/active on THIS machine), not source
 core/capabilities/state.json
 
+# Phase 33: a corrupt state.json is preserved (timestamped, alongside
+# the good one) rather than silently discarded when registry.js recovers
+# from one -- see that file's load()
+core/capabilities/state.json.corrupt-*
+
 # Semantic memory embeddings cache -- regenerable from memory content via
 # reindex(), not source, and can grow large
 core/memory/embeddings.json

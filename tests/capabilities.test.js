@@ -14,11 +14,21 @@ const STATE_BACKUP = path.join(os.tmpdir(), `veronica-capabilities-state-backup-
 const DB_PATH = path.join(__dirname, "..", "core", "memory", "database.json");
 const DB_BACKUP = path.join(os.tmpdir(), `veronica-database-backup-capabilities-${process.pid}.json`);
 
+// The Phase 33 corruption-recovery test below triggers a real
+// log.error() call, persisted to errors.log -- same backup/restore
+// discipline as tests/credential-manager.test.js.
+const ERROR_LOG_PATH = path.join(__dirname, "..", "core", "logging", "errors.log");
+const ERROR_LOG_EXISTED_BEFORE = fs.existsSync(ERROR_LOG_PATH);
+const ERROR_LOG_BACKUP = path.join(os.tmpdir(), `veronica-errors-log-backup-capabilities-${process.pid}.log`);
+
 test.before(() => {
     if(STATE_EXISTED_BEFORE){
         fs.copyFileSync(STATE_PATH, STATE_BACKUP);
     }
     fs.copyFileSync(DB_PATH, DB_BACKUP);
+    if(ERROR_LOG_EXISTED_BEFORE){
+        fs.copyFileSync(ERROR_LOG_PATH, ERROR_LOG_BACKUP);
+    }
 });
 
 test.after(() => {
@@ -30,6 +40,12 @@ test.after(() => {
     }
     fs.copyFileSync(DB_BACKUP, DB_PATH);
     fs.unlinkSync(DB_BACKUP);
+    if(ERROR_LOG_EXISTED_BEFORE){
+        fs.copyFileSync(ERROR_LOG_BACKUP, ERROR_LOG_PATH);
+        fs.unlinkSync(ERROR_LOG_BACKUP);
+    } else if(fs.existsSync(ERROR_LOG_PATH)){
+        fs.unlinkSync(ERROR_LOG_PATH);
+    }
 });
 
 const registry = require("../core/capabilities/registry");
@@ -41,6 +57,42 @@ const planner = require("../core/capabilities/planner");
 const ActionProposalEngine = require("../core/executive/actionProposal");
 
 const EXAMPLE_PACKAGE_DIR = path.join(__dirname, "..", "packages", "example");
+
+
+test("registry recovers from a real corrupted state.json instead of crashing every loader (Phase 33)", () => {
+
+    registry.register({ name: "test-cap-corrupt-xqzcorrupt1", version: "0.1.0", description: "test" });
+    assert.ok(registry.isInstalled("test-cap-corrupt-xqzcorrupt1"));
+
+    fs.writeFileSync(STATE_PATH, "{ this is not valid json {{{");
+
+    let corruptBackupPath;
+
+    try {
+
+        // The corrupted install above is unrecoverable by design (that's
+        // the whole point -- a corrupt file can't be trusted), but the
+        // registry itself must come back up, seeded to defaults, not
+        // throw and take every loader down with it.
+        const capabilities = registry.list();
+
+        assert.ok(capabilities.some(c => c.name === "memory" && c.core === true));
+        assert.strictEqual(registry.isInstalled("test-cap-corrupt-xqzcorrupt1"), false);
+
+        const dir = fs.readdirSync(path.dirname(STATE_PATH));
+        const corruptBackupName = dir.find(name => name.startsWith("state.json.corrupt-"));
+        assert.ok(corruptBackupName, "expected the corrupt file to be preserved for forensics");
+
+        corruptBackupPath = path.join(path.dirname(STATE_PATH), corruptBackupName);
+        assert.strictEqual(fs.readFileSync(corruptBackupPath, "utf8"), "{ this is not valid json {{{");
+
+    } finally {
+        if(corruptBackupPath && fs.existsSync(corruptBackupPath)){
+            fs.unlinkSync(corruptBackupPath);
+        }
+    }
+
+});
 
 
 test("registry.list() is seeded with the real built-in capabilities, all core and active", () => {

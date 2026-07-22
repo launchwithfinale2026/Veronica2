@@ -70,7 +70,14 @@ function packageDepartmentConfigs(){
         .map(pkg => ({
             departmentConfig: pkg.manifest.department,
             packageName: pkg.name,
-            managerPath: path.join(pkg.source, "department", "manager.js")
+            managerPath: path.join(pkg.source, "department", "manager.js"),
+            // Phase 33: DepartmentManager's activity log defaults to
+            // departments/<id>/logs/ (relative to core/departments/base.js),
+            // which doesn't exist for a package -- passing the package's
+            // own directory lets the base class log under
+            // <packageDir>/logs/activity.log instead. See
+            // core/departments/base.js's own comment.
+            packageDir: pkg.source
         }));
 
 }

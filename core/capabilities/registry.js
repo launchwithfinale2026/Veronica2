@@ -17,6 +17,8 @@
 const fs = require("fs");
 const path = require("path");
 
+const log = require("../logging");
+
 const STATE_FILE = path.join(__dirname, "state.json");
 
 const STATUSES = ["installed", "active", "disabled", "error"];
@@ -63,11 +65,39 @@ function ensureFile(){
 }
 
 
+// Phase 33 (Core Stabilization): since Phase 25 wired this registry into
+// core/agents/loader.js/core/tools/loader.js/core/departments/loader.js,
+// a corrupted state.json (e.g. the process was killed mid-write) would
+// otherwise crash EVERY loader -- meaning even the built-in agent
+// roster couldn't load. Recovers the same way credentialManager fails
+// closed on a missing connector: log the real problem (never silently
+// swallowed), preserve the corrupt file for forensics (timestamped,
+// alongside the good one), and reinitialize to the known-good default
+// rather than taking the whole boot sequence down over one bad file.
 function load(){
 
     ensureFile();
 
-    return JSON.parse(fs.readFileSync(STATE_FILE, "utf8"));
+    const raw = fs.readFileSync(STATE_FILE, "utf8");
+
+    try {
+        return JSON.parse(raw);
+    } catch(error){
+
+        const corruptBackup = `${STATE_FILE}.corrupt-${Date.now()}`;
+        fs.writeFileSync(corruptBackup, raw);
+
+        log.error(
+            "capabilities",
+            `state.json was corrupt (${error.message}) -- preserved as ${path.basename(corruptBackup)} and reinitialized to defaults. Any packages installed since the last valid save must be reinstalled.`
+        );
+
+        const fresh = seedDefault();
+        save(fresh);
+
+        return fresh;
+
+    }
 
 }
 

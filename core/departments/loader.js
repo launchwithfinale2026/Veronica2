@@ -42,7 +42,7 @@ function loadDepartments(agents){
     // manager.js factory convention as the built-in departments above --
     // just loaded from the package's own directory instead of
     // departments/<id>/.
-    const packageDepartments = activation.packageDepartmentConfigs().map(({ departmentConfig, managerPath }) => {
+    const packageDepartments = activation.packageDepartmentConfigs().map(({ departmentConfig, managerPath, packageDir }) => {
 
         const createManager = require(managerPath);
 
@@ -52,7 +52,12 @@ function loadDepartments(agents){
 
         return createManager({
             ...departmentConfig,
-            agents: deptAgents
+            agents: deptAgents,
+            // Phase 33: see core/departments/base.js's constructor
+            // comment -- logs to <packageDir>/logs/activity.log instead
+            // of a departments/<id>/ path that doesn't exist for a
+            // package.
+            logDir: packageDir
         });
 
     });

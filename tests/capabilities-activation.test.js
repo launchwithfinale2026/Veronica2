@@ -185,6 +185,14 @@ test("loadDepartments() includes a real, active package department using the sta
     const found = departments.find(d => d.id === "xqzact5dept");
     assert.ok(found, "expected the package department to be loaded");
 
+    // The real Phase 33 fix: a package department logs to
+    // <packageDir>/logs/activity.log (created on construction), NOT the
+    // nonexistent departments/xqzact5dept/logs/ -- this would throw
+    // ENOENT without it.
+    assert.strictEqual(found.logFile, path.join(dir, "logs", "activity.log"));
+    assert.doesNotThrow(() => found.log({ test: "xqzact5" }));
+    assert.ok(fs.readFileSync(found.logFile, "utf8").includes("xqzact5"));
+
     registry.remove("test-activation-dept-xqzact5");
 
 });

@@ -20,7 +20,14 @@ const bus = require("../bus");
 
 class DepartmentManager {
 
-    constructor({ id, name, domain, status, agents }){
+    // `logDir` (Phase 33): a package-declared department (see
+    // core/capabilities/activation.js's packageDepartmentConfigs()) lives
+    // under packages/<name>/, not departments/<id>/ -- passing its real
+    // directory here lets this class log to <packageDir>/logs/activity.log
+    // instead of a departments/<id>/ path that doesn't exist for it.
+    // Built-in departments don't pass this, so they keep their existing
+    // path unchanged.
+    constructor({ id, name, domain, status, agents, logDir }){
 
         this.id = id;
         this.name = name;
@@ -38,8 +45,19 @@ class DepartmentManager {
         this.intelligence = new IntelligenceEngine();
 
         this.logFile = path.join(
-            __dirname, "../../departments", this.id, "logs", "activity.log"
+            logDir || path.join(__dirname, "../../departments", this.id),
+            "logs", "activity.log"
         );
+
+        // Phase 33: on a fresh clone, departments/<id>/logs/ isn't
+        // guaranteed to exist (it's runtime output, not checked into
+        // git) -- and a package's logs/ directory never exists until
+        // now. fs.appendFileSync() (see log() below) throws ENOENT if
+        // its parent directory is missing, so this ensures it's there
+        // once, at construction, rather than on the first real log()
+        // call (which would otherwise surface as a confusing failure
+        // deep inside a department's first run()).
+        fs.mkdirSync(path.dirname(this.logFile), { recursive: true });
 
     }
 
