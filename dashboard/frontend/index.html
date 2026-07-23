@@ -514,6 +514,40 @@
   </section>
 
   <section class="panel">
+    <h2>Executive Constitution (Phase 51)</h2>
+    <p class="hint">The identity, mission, values, and operating principles automatically injected into every single reasoning call this system makes -- not just documentation. Editing mission/vision below changes what every department actually sees.</p>
+    <div class="widget-group">
+      <h3>Current</h3>
+      <pre id="constitution-view" class="widget code-block"></pre>
+    </div>
+    <div class="widget-group">
+      <h3>Set a field</h3>
+      <form id="constitution-set-form" class="inline-form">
+        <input type="text" id="constitution-set-path" placeholder="Field path (e.g. mission, identity.role)" required>
+        <input type="text" id="constitution-set-value" placeholder="Value" required>
+        <button type="submit">Set</button>
+      </form>
+      <p id="constitution-set-result" class="hint"></p>
+    </div>
+    <div class="widget-group">
+      <h3>Add to a list field</h3>
+      <form id="constitution-add-form" class="inline-form">
+        <select id="constitution-add-field">
+          <option value="values">values</option>
+          <option value="operatingPrinciples">operatingPrinciples</option>
+          <option value="decisionHierarchy">decisionHierarchy</option>
+          <option value="escalationRules">escalationRules</option>
+          <option value="autonomyRules">autonomyRules</option>
+          <option value="executivePriorities">executivePriorities</option>
+        </select>
+        <input type="text" id="constitution-add-value" placeholder="Value" required>
+        <button type="submit">Add</button>
+      </form>
+      <p id="constitution-add-result" class="hint"></p>
+    </div>
+  </section>
+
+  <section class="panel">
     <h2>Executive</h2>
     <div class="widget-group">
       <h3>Roadmap</h3>

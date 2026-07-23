@@ -716,6 +716,38 @@
       }
     },
     {
+      "id": "constitution.summary",
+      "description": "Phase 51: the Executive Constitution -- identity, mission, vision, brand voice, values, operating principles, decision hierarchy, risk/approval/leadership/memory/learning philosophy, escalation rules, and autonomy rules. The same content automatically injected into every reasoning call via core/context/engine.js.",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "constitution.set",
+      "description": "Sets one explicit constitution field by dot path (e.g. \"identity.role\", \"mission\", \"riskPhilosophy\").",
+      "permission": "write_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string" },
+          "value": { "type": "string" }
+        },
+        "required": ["path"]
+      }
+    },
+    {
+      "id": "constitution.add",
+      "description": "Appends a value to a list constitution field (values, operatingPrinciples, decisionHierarchy, escalationRules, autonomyRules, or executivePriorities).",
+      "permission": "write_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "field": { "type": "string", "enum": ["values", "operatingPrinciples", "decisionHierarchy", "escalationRules", "autonomyRules", "executivePriorities"] },
+          "value": { "type": "string" }
+        },
+        "required": ["field", "value"]
+      }
+    },
+    {
       "id": "system.understand",
       "description": "Returns VERONICA's full self-knowledge: projects, missions, companies, departments, devices, knowledge graph, memories, capabilities/packages, automations, connectors, planning, and executive recommendations -- one real, live snapshot of the entire system.",
       "permission": "read_memory",

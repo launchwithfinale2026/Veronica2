@@ -1,89 +1,98 @@
 # VERONICA — Next Steps
 
-Snapshot as of Phase 50 (Department Collaboration). 673/673 tests
-passing. **Phase 41-46 closed the entire "make every Division
-production-ready" arc**, **Phase 47 closed the recommendation feedback
-loop**, **Phase 48 added the cross-department synthesis layer**,
-**Phase 49 connected every Division's real entities into the knowledge
-graph**, and **Phase 50 added a real, rule-based framework for
-departments to automatically request work from each other** -- see
-`docs/CHANGELOG.md` for the full history, and
-`docs/NEXT_HUMAN_ACTIONS.md`/`docs/EXTERNAL_DEPENDENCIES.md` for what
-still needs a human.
+Snapshot as of Phase 51 (Executive Constitution). 679/679 tests
+passing. **The standing objective changed here**: from "clear the next
+numbered phase" to "continue autonomously until there is genuinely
+nothing left that can be built locally without external credentials,
+hardware, OAuth, a legal/business decision, or browser-based visual
+verification." Phases 52-60 (Continuous Observation Engine, Universal
+Event Bus, Automation Engine 2.0, Multi-Model Intelligence, Personal
+Intelligence Engine, Knowledge Acquisition Engine, Mission Control
+Dashboard, Autonomous Capability Builder, Personal Operating System)
+are being pursued under that open-ended condition, not as a fixed list
+to finish and stop -- see `docs/CHANGELOG.md` for the full history.
 
 ## Resolved since the last snapshot
 
-- **Department Collaboration** (Phase 50):
-  `core/collaboration/collaborationRules.js` -- a declarative rule
-  framework (not hardcoded per-pair glue) detecting real
-  cross-department collaboration opportunities from each Division's
-  already-real state: `sales_requests_marketing` (open pipeline, no
-  campaign), `marketing_requests_research` (campaign with an audience,
-  no research), `operations_requests_department` (off-track KPI owned
-  by another department). Every detected opportunity becomes a pending,
-  approval-gated `ActionProposalEngine` proposal (a new
-  `request_department_collaboration` external action) -- nothing
-  delegates automatically without a human approving it; execution
-  reuses `core/collaboration/engine.js`'s existing, already-real
-  `delegate()`.
+- **Executive Constitution** (Phase 51): `core/executive/constitution.js`
+  -- identity/mission/vision/brand voice (operator-authored, honestly
+  unset by default) plus values/operating principles/decision
+  hierarchy/risk/approval/leadership/memory/communication/learning
+  philosophy/escalation rules/autonomy rules (shipped with real
+  defaults describing this system's own already-demonstrated behavior,
+  not invented opinions). Wired into `core/context/engine.js`'s
+  `retrieve()`, which every single `Intelligence.think()` call already
+  runs automatically -- proven with a real test asserting the
+  constitution's content appears in the literal constructed prompt
+  string, not just an unused context field. Editable via
+  `constitution.set()`/`.add()`, a new tool handler, and dashboard
+  routes/panel.
 
-## Resolved earlier (Phase 41-49, unchanged from the last snapshot)
+## Resolved earlier (Phase 41-50, unchanged from the last snapshot)
 
-- **Organizational Knowledge Graph expansion** (Phase 49): leads,
-  opportunities, campaigns, invoices/subscriptions (via their real
-  client), portfolios, research missions, SOPs, KPIs, and meetings are
-  now all connected into the graph. `GET /api/knowledge/query` exposes
-  the graph's own `retrieve()`.
-- **Executive Intelligence** (Phase 48):
-  `core/executive/executiveIntelligence.js` -- real company health
-  scoring, risk forecasting, cross-department recommendations,
-  quarterly/annual planning, and an LLM-synthesized executive brief.
-- **All six Divisions are production-ready** (Phase 41-46): Marketing,
-  Sales, Finance, Research, Trading Research, Business Operations.
+- **Department Collaboration** (Phase 50): a declarative rule framework
+  detecting real cross-department requests, routed through the
+  existing approval pipeline.
+- **Organizational Knowledge Graph expansion** (Phase 49): every
+  Division's real entities connected; `GET /api/knowledge/query` added.
+- **Executive Intelligence** (Phase 48): company health scoring, risk
+  forecasting, cross-department recommendations, quarterly/annual
+  planning, executive briefs.
+- **All six Divisions are production-ready** (Phase 41-46).
 - **The recommendation feedback loop is closed** (Phase 47).
-- **A real, recurring circular-require bug class was found and fixed
-  four times** (Sales, proactively Marketing, Research's `missions.js`
-  AND `engine.js` itself, designed around from the start in Trading and
-  Business Operations): any module reachable from a package tool
-  handler must not top-level-require anything in the
-  `core/learning`/`core/intelligence`/`core/brain` chain.
+- **A real, recurring circular-require bug class** was found and fixed
+  four times: any module reachable from a package tool handler must not
+  top-level-require anything in the `core/learning`/`core/intelligence`/
+  `core/brain` chain.
 - **Minor, unrelated finding, not yet fixed**: `dashboard/frontend/index.html`
-  has a pre-existing (predates this session) duplicate
-  `id="system-health"` on two different `<div>`s.
+  has a pre-existing duplicate `id="system-health"`.
 
-## Recommended Phase 51+
+## In progress -- Phases 52-60 (open-ended, not a fixed backlog)
 
-1. **More collaboration rules.** Only 3 real rules ship today
-   (`sales_requests_marketing`, `marketing_requests_research`,
-   `operations_requests_department`) -- the mega-prompt's other named
-   pairs ("Finance advises executive planning", "Research supports
-   every department") are genuine candidates, and the framework
-   (`core/collaboration/collaborationRules.js`'s `RULES` array) was
-   specifically built so adding one is a single declarative object, not
-   a structural change. Audit `executiveIntelligence.riskForecast()`'s
-   real signals (low runway, off-track KPIs) as a starting point for a
-   Finance-initiated rule.
-2. **A dedicated visual/browser-tested dashboard pass.** Every dashboard
-   change across this entire project has been verified at the endpoint/
-   content level only -- no browser is available in this environment.
-   This would also be the moment to fix the pre-existing
-   "system-health" duplicate id, build a real "Knowledge Graph Explorer"
-   panel over `/api/knowledge/query`, and consider the mega-prompt's
-   broader ~25-panel "command-center" dashboard vision.
-3. **The six architecture-debt/upgrade items** flagged in
-   `core/system/selfImprovement.js` -- genuinely the operator's call.
-4. **Extend the autonomous capability builder's tool generation** to
-   generate real implementations for well-known tool shapes.
-5. **Additional external connectors** -- GitHub webhook receiver,
-   Gmail/Calendar/Drive writes, a second real publishing connector
-   beyond Discord, a real market-data feed, a real broker connector
-   (still explicitly unbuilt/approval-gated by design).
-6. **The remaining human actions** (see `docs/NEXT_HUMAN_ACTIONS.md`):
-   `API_TOKEN`, `GITHUB_TOKEN`, `DISCORD_BOT_TOKEN`
-   (+`DISCORD_CLIENT_ID`), Google's two-step configure-then-authorize
-   flow, and the LaunchAgent install. None of these block further
-   *development*.
-7. **The git-history rewrite question** and **knowledge-graph company
-   isolation** (both Phase 10, still open) -- Phase 49 deliberately did
-   NOT redesign the graph's name-based entity identity; still an open
-   business/architecture decision for the operator.
+1. **Phase 52 — Continuous Observation Engine.** Convert polling-based
+   checks into real event generation wherever practical (filesystem,
+   git, memory, knowledge graph, projects, goals, calendar, automation
+   jobs, department health, connector health, capability installs,
+   mission progress). Audit `core/bus/` (already real, already used by
+   `knowledge.updated`/`memory.updated`/`department.activity`/
+   `collaboration.*`/`automation.jobCompleted`) before adding anything --
+   this may already be most of the mechanism Phase 52 needs.
+2. **Phase 53 — Universal Event Bus.** Audit whether `core/bus/` already
+   IS the universal event bus (it dispatches SSE to the dashboard today)
+   before building a second one; the real work may be widening its
+   vocabulary and consumers, not building new infrastructure.
+3. **Phase 54 — Automation Engine 2.0.** Audit `core/automation/` (jobs,
+   scheduling, retries already exist per `docs/Architecture.md`
+   "Automation Engine") before adding branching/conditions/rollback/
+   templates -- extend, don't replace.
+4. **Phase 55 — Multi-Model Intelligence.** Audit `core/brain/providers/`
+   (Claude + OpenAI fallback already exist) before building new routing
+   -- the real gap may just be routing logic, not new provider
+   integrations (no Gemini/local-model credentials exist to test
+   against).
+5. **Phase 56 — Personal Intelligence Engine.** Audit
+   `core/profile/personalContextEngine.js` and the new Constitution
+   (Phase 51) before adding new "evolving models" -- must only infer
+   from real observed evidence, never invent facts about the operator,
+   clients, or companies.
+6. **Phase 57 — Knowledge Acquisition Engine.** Audit
+   `core/integrations/fileIntelligence.js`, `core/integrations/obsidian.js`,
+   and `core/research/` before building new ingestion -- likely mostly
+   real already; the gap may be connecting more source types into the
+   existing knowledge graph pipeline (Phase 49 already did this for six
+   Divisions' entities).
+7. **Phase 58 — Mission Control Dashboard.** The ~25-panel command-center
+   redesign genuinely needs browser-based visual iteration this
+   environment cannot do responsibly headless -- flagged as a real stop
+   condition, not skipped by choice.
+8. **Phase 59 — Autonomous Capability Builder.** Audit
+   `core/capabilities/autonomousBuilder.js` (already exists, Phase 26)
+   before treating this as new -- the real gap may be extending it to
+   generate real tool implementations for well-known shapes, not
+   building the lifecycle from scratch.
+9. **Phase 60 — Personal Operating System (boot/resident supervisor).**
+   Genuinely requires a real LaunchAgent install and macOS-level
+   integration decisions -- a human action, not something to fabricate
+   the appearance of from inside this environment.
+10. **The git-history rewrite question** and **knowledge-graph company
+    isolation** (both Phase 10, still open) -- unchanged.

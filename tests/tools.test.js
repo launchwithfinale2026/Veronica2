@@ -202,6 +202,9 @@ test("registry loads every built-in tool with a real handler", () => {
         "profile.add",
         "profile.set",
         "profile.summary",
+        "constitution.add",
+        "constitution.set",
+        "constitution.summary",
         "system.understand",
         "vision.analyzeImage",
         "web.fetch"

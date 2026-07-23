@@ -76,6 +76,13 @@ backups/
 # default file if one doesn't exist.
 core/profile/veronica.profile.json
 
+# Phase 51: real, operator-authored Executive Constitution (mission,
+# vision, brand voice) -- same "real data, not source" treatment as
+# veronica.profile.json above. core/executive/constitution.js bootstraps
+# a default file (with honest, unset personal fields) if one doesn't
+# exist.
+core/profile/constitution.json
+
 # Phase 19: real Google OAuth2 tokens (access + refresh) -- the most
 # sensitive file this project has generated yet. Never committed, never
 # logged. core/integrations/google/oauth.js bootstraps nothing here

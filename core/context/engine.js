@@ -19,6 +19,7 @@ const path = require("path");
 const memory = require("../memory");
 const knowledge = require("../knowledge");
 const device = require("../device");
+const ExecutiveConstitution = require("../executive/constitution");
 
 const DEPARTMENTS_REGISTRY = path.join(__dirname, "../../registry/departments.json");
 
@@ -56,6 +57,11 @@ function loadDepartments(){
 
 
 class ContextEngine {
+
+    constructor(){
+        this.constitution = new ExecutiveConstitution();
+    }
+
 
     // options.companyId scopes in a company summary -- optional, since
     // most reasoning calls (an agent answering a free-text task) have no
@@ -100,6 +106,14 @@ class ContextEngine {
         return {
 
             query,
+
+            // Phase 51 (Executive Constitution): the same automatic
+            // injection every other field here already gets -- every
+            // department genuinely references this because every
+            // reasoning call already goes through this one method
+            // (see core/intelligence/index.js's think()), not because
+            // each department was individually wired to read it.
+            constitution: this.constitution.forContext(),
 
             memories,
 

@@ -3335,3 +3335,96 @@ a real package department instead of a fake one), plus 1 new dashboard
 test for the GET route.
 
 673 tests (666 -> 673), `npm test` green.
+
+## Executive Constitution (Phase 51)
+
+**A reframed objective, starting here:** the standing instruction
+changed from "clear the next numbered phase" to "continue until there
+is genuinely nothing left that can be built without external
+credentials, hardware, or a human decision." Phases 51-60 are a
+sequence pursued under that open-ended stopping condition, not a fixed
+backlog -- each phase below still gets its own audit, its own tests,
+its own commit and push, exactly like every phase before it.
+
+**Audit first, and it paid off immediately.** Before writing anything,
+the search was for an existing "gets injected into every department's
+reasoning automatically" mechanism -- because if VERONICA already had
+one, Phase 51's actual job was writing real content into it, not
+building a second injection pathway. `core/context/engine.js`'s
+`ContextEngine.retrieve()` was exactly that mechanism: `core/intelligence/index.js`'s
+`think()` calls it unconditionally on every single reasoning call
+(department-driven task, mission decomposition, proposal review, every
+one of them) and JSON-stringifies its return value directly into the
+prompt every agent receives. This was already true before Phase 51 --
+memories, knowledge, active goals, department roster, company scope,
+device identity all already flow through it. Adding the constitution
+here means "every department references this" is structurally
+guaranteed, not asserted -- there is no department that reasons through
+any path other than this one.
+
+**`core/executive/constitution.js` -- split the same way
+`core/profile/personalContextEngine.js` already splits personal data.**
+Two kinds of fields, deliberately:
+
+- **Operator-authored** (`identity.role`, `mission`, `vision`,
+  `brandVoice`, `executivePriorities`): real, per-operator content that
+  can't honestly be invented, so it ships unset (`null` / `[]`) by
+  default -- exactly the same "an unset default is more honest than a
+  fabricated one" principle `PersonalContextEngine`'s own
+  `DEFAULT_PROFILE` already established. Persisted in
+  `core/profile/constitution.json`, gitignored (added to `.gitignore`
+  alongside `veronica.profile.json`) -- real operator data, not source.
+- **Architectural** (`values`, `operatingPrinciples`,
+  `decisionHierarchy`, `riskPhilosophy`, `approvalPhilosophy`,
+  `leadershipPhilosophy`, `memoryPhilosophy`, `communicationStyle`,
+  `learningPhilosophy`, `escalationRules`, `autonomyRules`): these ship
+  with real, populated defaults, because they aren't personal opinions
+  to guess at -- they're accurate, checkable descriptions of how this
+  system has already behaved across every prior phase.
+  `approvalPhilosophy`'s default text ("every external action... requires
+  explicit human approval before execution -- enforced structurally...
+  not by convention") is literally, verifiably true of
+  `core/executive/actionProposal.js`'s `execute()`/`executeExternal()`
+  today, the same way `riskPhilosophy`'s default describes the real
+  `ACTION_RISK`/`EXTERNAL_ACTION_RISK` classification that already
+  exists. Writing the constitution here is documentation of proven
+  behavior, not aspiration -- and it stays editable (`set()`/`add()`,
+  same dot-path/list-append convention as `PersonalContextEngine`) since
+  an operator may reasonably want to amend it as the system grows.
+
+**`forContext()`, a condensed view, not the whole document.** Every
+`think()` call already injects memories/knowledge/active goals/
+department roster into the prompt -- adding the FULL constitution
+(every philosophy paragraph, every rule) on top of that would bloat
+every single reasoning call for content most tasks don't need.
+`forContext()` returns only identity, mission, values, operating
+principles, risk philosophy, approval philosophy, and autonomy rules --
+enough for an agent to act consistently and know its real boundary,
+without duplicating what a human reading the full document via
+`GET /api/constitution` would want (decision hierarchy, escalation
+rules, leadership/memory/learning philosophy stay out of the
+per-call prompt, available on demand instead).
+
+**Wired into the Tool Registry the same way `profile.*` already is:**
+a new `core/tools/handlers/constitution.js` (top-level require of
+`ExecutiveConstitution` is safe here -- unlike `profile.js`'s own
+lazy-require comment, this module's only dependency is `fs`/`path`, no
+circular chain), registered in `core/tools/loader.js`'s
+`HANDLER_MODULES` array, with 3 new entries in `registry/tools.json`
+(`constitution.summary/set/add`). Dashboard: `GET /api/constitution`,
+gated `POST /api/constitution/set`/`POST /api/constitution/add` (added
+to `tests/dashboard.test.js`'s `ALL_POST_ROUTES`), plus a new dashboard
+panel to view and edit it directly.
+
+**Tests, including proof the wiring is real, not cosmetic:**
+`tests/executive-constitution.test.js` covers real defaults, real
+`set()`/`add()`, the condensed `forContext()` shape, and -- the test
+that actually mattered -- a real (only-the-LLM-response-mocked)
+`Intelligence.think()` call whose ACTUAL constructed prompt STRING
+(`thought.cognition.prompt`, not just the attached context object) is
+asserted to contain live-set constitution content. Without that last
+test, "wired into every department" would be an unverified claim about
+an object nobody reads; with it, it's a proven fact about the literal
+text sent to the model.
+
+679 tests (673 -> 679), `npm test` green.

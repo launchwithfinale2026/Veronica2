@@ -1722,6 +1722,85 @@ function setupCollabConsensusForm(){
 }
 
 
+async function loadConstitution(){
+
+    try {
+        const constitution = await fetchJSON("/api/constitution");
+        document.getElementById("constitution-view").textContent = JSON.stringify(constitution, null, 2);
+    } catch(error){
+        document.getElementById("constitution-view").textContent = `Error: ${error.message}`;
+    }
+
+}
+
+
+function setupConstitutionForms(){
+
+    const setForm = document.getElementById("constitution-set-form");
+    const setResult = document.getElementById("constitution-set-result");
+
+    setForm.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const path = document.getElementById("constitution-set-path").value;
+        const value = document.getElementById("constitution-set-value").value;
+
+        try {
+
+            await authedFetch("/api/constitution/set", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ path, value })
+            });
+
+            setResult.textContent = "Saved.";
+            setForm.reset();
+            loadConstitution();
+
+        } catch(error){
+
+            setResult.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+    const addForm = document.getElementById("constitution-add-form");
+    const addResult = document.getElementById("constitution-add-result");
+
+    addForm.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const field = document.getElementById("constitution-add-field").value;
+        const value = document.getElementById("constitution-add-value").value;
+
+        try {
+
+            await authedFetch("/api/constitution/add", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ field, value })
+            });
+
+            addResult.textContent = "Added.";
+            addForm.reset();
+            loadConstitution();
+
+        } catch(error){
+
+            addResult.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+    loadConstitution();
+
+}
+
+
 function setupCollabOpportunitiesForm(){
 
     const form = document.getElementById("collab-opportunities-form");
@@ -3775,6 +3854,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupCollabReviewForm();
     setupCollabConsensusForm();
     setupCollabOpportunitiesForm();
+    setupConstitutionForms();
     setupSemanticSearchForm();
     setupReindexEmbeddingsForm();
     setupCompanyLookupForm();

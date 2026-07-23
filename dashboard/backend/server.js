@@ -101,6 +101,8 @@ const collaboration = new CollaborationEngine(departments);
 const orchestrator = automation.registerExecutionJob(departments);
 
 const personalContext = new PersonalContextEngine();
+const ExecutiveConstitution = require("../../core/executive/constitution");
+const constitution = new ExecutiveConstitution();
 
 const deviceManager = new DeviceManager();
 
@@ -475,6 +477,9 @@ const ROUTES = {
     "GET /api/organization/overview": () => organizationOverview.generate(),
 
     "GET /api/profile": () => personalContext.summary(),
+
+    // Phase 51 (Executive Constitution).
+    "GET /api/constitution": () => constitution.load(),
 
     "GET /api/logs/errors": () => log.readErrors()
 
@@ -987,6 +992,43 @@ function createServer(){
                 }
 
                 return sendJSON(res, 200, await executiveIntelligence.generateExecutiveBrief(companyId));
+
+            }
+
+            // Phase 51 (Executive Constitution).
+            if(parsed.pathname === "/api/constitution/set" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { path: fieldPath, value } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!fieldPath){
+                    return sendJSON(res, 400, { error: "path is required" });
+                }
+
+                return sendJSON(res, 200, constitution.set(fieldPath, value));
+
+            }
+
+            if(parsed.pathname === "/api/constitution/add" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { field, value } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!field){
+                    return sendJSON(res, 400, { error: "field is required" });
+                }
+
+                return sendJSON(res, 200, constitution.add(field, value));
 
             }
 

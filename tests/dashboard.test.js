@@ -76,6 +76,17 @@ if(NETWORK_EXISTED_BEFORE){
     fs.copyFileSync(NETWORK_PATH, NETWORK_BACKUP);
 }
 
+// Phase 51 (Executive Constitution): POST /api/constitution/set below
+// writes real, gitignored operator data -- same backup/restore
+// discipline as NETWORK_PATH above.
+const CONSTITUTION_PATH = path.join(__dirname, "..", "core", "profile", "constitution.json");
+const CONSTITUTION_EXISTED_BEFORE = fs.existsSync(CONSTITUTION_PATH);
+const CONSTITUTION_BACKUP = path.join(os.tmpdir(), `veronica-constitution-backup-dashboard-${process.pid}.json`);
+
+if(CONSTITUTION_EXISTED_BEFORE){
+    fs.copyFileSync(CONSTITUTION_PATH, CONSTITUTION_BACKUP);
+}
+
 const { createServer } = require("../dashboard/backend/server");
 
 let server;
@@ -149,6 +160,13 @@ test.after(async () => {
         fs.unlinkSync(NETWORK_BACKUP);
     } else if(fs.existsSync(NETWORK_PATH)){
         fs.unlinkSync(NETWORK_PATH);
+    }
+
+    if(CONSTITUTION_EXISTED_BEFORE){
+        fs.copyFileSync(CONSTITUTION_BACKUP, CONSTITUTION_PATH);
+        fs.unlinkSync(CONSTITUTION_BACKUP);
+    } else if(fs.existsSync(CONSTITUTION_PATH)){
+        fs.unlinkSync(CONSTITUTION_PATH);
     }
 
     delete process.env.API_TOKEN;
@@ -349,6 +367,38 @@ test("GET /api/knowledge/query returns real matching entities and their real rel
     assert.ok(body.relationships.some(rel => rel.from === "VERONICA" || rel.to === "VERONICA"));
 
 });
+
+test("GET/POST /api/constitution reads and updates the real Executive Constitution (Phase 51)", async () => {
+
+    process.env.API_TOKEN = "test-api-secret";
+
+    const authedHeaders = {
+        Authorization: "Bearer test-api-secret",
+        "Content-Type": "application/json"
+    };
+
+    const initial = await (await fetch(`${baseUrl}/api/constitution`)).json();
+    assert.strictEqual(initial.identity.name, "VERONICA");
+
+    const setRes = await fetch(`${baseUrl}/api/constitution/set`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ path: "mission", value: "Dashboard mission XQZDASH10" })
+    });
+    assert.strictEqual((await setRes.json()).mission, "Dashboard mission XQZDASH10");
+
+    const addRes = await fetch(`${baseUrl}/api/constitution/add`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ field: "values", value: "Dashboard value XQZDASH10" })
+    });
+    assert.ok((await addRes.json()).values.includes("Dashboard value XQZDASH10"));
+
+    const after = await (await fetch(`${baseUrl}/api/constitution`)).json();
+    assert.strictEqual(after.mission, "Dashboard mission XQZDASH10");
+
+});
+
 
 test("GET /api/tools returns the real registered tools", async () => {
 
@@ -1359,6 +1409,8 @@ const ALL_POST_ROUTES = [
     "/api/companies/test-id/decisions",
     "/api/executive/proposals/external",
     "/api/executive/brief",
+    "/api/constitution/set",
+    "/api/constitution/add",
     "/api/marketing/campaigns",
     "/api/marketing/campaigns/test-id/schedule-content",
     "/api/marketing/campaigns/test-id/generate-draft",

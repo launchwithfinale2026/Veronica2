@@ -1717,3 +1717,59 @@ wouldn't have reached the copy actually invoked; fixed by giving
 plus 1 new dashboard test for the GET route.
 
 666 -> 673 tests, all passing.
+
+## Phase 51 -- Executive Constitution
+
+**Reframed objective:** starting this phase, the standing instruction
+changed from "build numbered phases" to "continue until there is
+genuinely nothing left that can be built without external credentials,
+hardware, or a human decision." Phase 51-60 are pursued under that
+open-ended condition, not a fixed list to clear and stop.
+
+**Audit first:** looked for an existing "every department references
+this" injection point before writing anything. Found one:
+`core/context/engine.js`'s `retrieve()` already runs automatically on
+every single `Intelligence.think()` call (see `core/intelligence/index.js`),
+and its result is JSON-stringified directly into every agent's prompt.
+This is the real mechanism Phase 51 needed -- not a new one.
+
+**Added:** `core/executive/constitution.js` -- identity, mission,
+vision, brand voice, executive priorities (operator-authored, honestly
+unset by default, same real/gitignored-file pattern
+`core/profile/personalContextEngine.js` already established for
+`veronica.profile.json`), plus values, operating principles, decision
+hierarchy, risk/approval/leadership/memory/communication/learning
+philosophy, escalation rules, and autonomy rules -- these ship with
+real defaults because they're not invented opinions, they're accurate
+descriptions of how this system has already behaved across 50 prior
+phases (e.g. "every external action requires approval" is literally
+true in `core/executive/actionProposal.js` today, not aspirational).
+
+**Actually wired in, not just accessible:** `ContextEngine.retrieve()`
+gained a `constitution: this.constitution.forContext()` field --
+`forContext()` is a condensed view (identity, mission, values,
+operating principles, risk/approval philosophy, autonomy rules) sized
+for a prompt, not the full document. Because every department already
+converges on this one method, no department had to be individually
+wired -- "every department references this" is true structurally, the
+same way Persistent Context Engine's other fields already are.
+
+**Editable:** `constitution.set(path, value)` / `.add(field, value)`,
+same dot-path/list-append convention `PersonalContextEngine` already
+uses. Exposed via a new `core/tools/handlers/constitution.js` (3 tool
+ids registered in `registry/tools.json`: `constitution.summary/set/add`)
+and dashboard routes (`GET /api/constitution`,
+`POST /api/constitution/set`, `POST /api/constitution/add`, added to
+`tests/dashboard.test.js`'s `ALL_POST_ROUTES`), plus a new dashboard
+panel.
+
+**Tests:** `tests/executive-constitution.test.js` (5 tests) -- real
+defaults, real set/add, the condensed `forContext()` view, and two
+tests proving the wiring is real rather than cosmetic:
+`ContextEngine.retrieve()` actually includes a live-set mission, and
+`Intelligence.think()`'s ACTUAL constructed prompt string (not just an
+unused context object) contains real constitution content after a
+real, non-mocked `think()` call with only the LLM response mocked.
+Plus 1 new dashboard test for the GET/POST routes.
+
+673 -> 679 tests, all passing.
