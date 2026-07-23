@@ -196,6 +196,38 @@ test("generate() surfaces real Department Health and Campaign Health (Phase 41 E
 });
 
 
+test("generate() surfaces real Sales Health (Phase 42 Executive Daily Operations)", () => {
+
+    const opportunities = require("../core/sales/opportunities");
+    const leads = require("../core/sales/leads");
+
+    const realPlanner = new ExecutivePlanner();
+    const briefing = makeBriefingEngine(realPlanner);
+
+    const quietCompany = briefing.companyManager.createCompany({ name: "Sales Briefing Quiet Co XQZBRIEF8" });
+    const activeCompany = briefing.companyManager.createCompany({ name: "Sales Briefing Active Co XQZBRIEF8" });
+
+    leads.createLead({ companyId: activeCompany.id, name: "Briefing Lead XQZBRIEF8" });
+
+    const opp = opportunities.createOpportunity({ companyId: activeCompany.id, name: "Briefing Deal XQZBRIEF8", value: 4000 });
+    opportunities.setStage(opp.id, "qualified");
+    opportunities.scheduleFollowUp(opp.id, { date: "2020-01-01T00:00:00.000Z", note: "Overdue follow-up XQZBRIEF8" });
+
+    const result = briefing.generate();
+
+    // A company with zero leads and zero opportunities must not appear.
+    assert.ok(!result.salesHealth.some(entry => entry.companyId === quietCompany.id));
+
+    const activeHealth = result.salesHealth.find(entry => entry.companyId === activeCompany.id);
+    assert.ok(activeHealth);
+    assert.strictEqual(activeHealth.openLeads, 1);
+    assert.strictEqual(activeHealth.openOpportunities, 1);
+    assert.strictEqual(activeHealth.weightedForecast, 1000);
+    assert.strictEqual(activeHealth.overdueFollowUps, 1);
+
+});
+
+
 test("generate() and run()'s recommendations are computed identically", () => {
 
     const realPlanner = new ExecutivePlanner();

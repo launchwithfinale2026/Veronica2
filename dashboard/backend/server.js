@@ -42,6 +42,10 @@ const autonomousBuilder = require("../../core/capabilities/autonomousBuilder");
 const marketingCampaigns = require("../../core/marketing/campaigns");
 const marketingContentGenerator = require("../../core/marketing/contentGenerator");
 const marketingAnalytics = require("../../core/marketing/analytics");
+const salesLeads = require("../../core/sales/leads");
+const salesOpportunities = require("../../core/sales/opportunities");
+const salesProposalGenerator = require("../../core/sales/proposalGenerator");
+const salesAnalytics = require("../../core/sales/analytics");
 const ResearchEngine = require("../../core/research/engine");
 const SelfImprovementEngine = require("../../core/system/selfImprovement");
 const OrganizationOverview = require("../../core/executive/organizationOverview");
@@ -351,6 +355,19 @@ const ROUTES = {
     "GET /api/marketing/calendar": (searchParams) => marketingCampaigns.calendar(searchParams.get("companyId")),
 
     "GET /api/marketing/analytics": (searchParams) => marketingAnalytics.campaignPerformance(searchParams.get("companyId")),
+
+    // Phase 42 (Sales Division). Real, per-company lead/pipeline/
+    // analytics reads -- see core/sales/leads.js, core/sales/
+    // opportunities.js, core/sales/analytics.js. Mutating routes live
+    // below as dynamic routes (need a POST body and/or a lead/
+    // opportunity id in the path).
+    "GET /api/sales/leads": (searchParams) => salesLeads.listLeads(searchParams.get("companyId")),
+
+    "GET /api/sales/opportunities": (searchParams) => salesOpportunities.listOpportunities(searchParams.get("companyId")),
+
+    "GET /api/sales/forecast": (searchParams) => salesOpportunities.forecast(searchParams.get("companyId")),
+
+    "GET /api/sales/analytics": (searchParams) => salesAnalytics.salesOverview(searchParams.get("companyId")),
 
     "GET /api/research/history": (searchParams) => researchEngine.history(searchParams.get("topic") || undefined),
 
@@ -1562,6 +1579,223 @@ function createServer(){
             if(campaignDetailMatch && req.method === "GET"){
 
                 return sendJSON(res, 200, marketingCampaigns.getCampaign(decodeURIComponent(campaignDetailMatch[1])));
+
+            }
+
+            // Phase 42 (Sales Division): lead lifecycle routes.
+            if(parsed.pathname === "/api/sales/leads" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const input = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, salesLeads.createLead(input));
+
+            }
+
+            const leadInteractionMatch = parsed.pathname.match(/^\/api\/sales\/leads\/([^/]+)\/interactions$/);
+
+            if(leadInteractionMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const interaction = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, { interactions: salesLeads.logInteraction(decodeURIComponent(leadInteractionMatch[1]), interaction) });
+
+            }
+
+            const leadSignalsMatch = parsed.pathname.match(/^\/api\/sales\/leads\/([^/]+)\/signals$/);
+
+            if(leadSignalsMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const signals = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, { signals: salesLeads.setSignals(decodeURIComponent(leadSignalsMatch[1]), signals) });
+
+            }
+
+            const leadStatusMatch = parsed.pathname.match(/^\/api\/sales\/leads\/([^/]+)\/status$/);
+
+            if(leadStatusMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { status } = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, { status: salesLeads.setStatus(decodeURIComponent(leadStatusMatch[1]), status) });
+
+            }
+
+            const leadScoreMatch = parsed.pathname.match(/^\/api\/sales\/leads\/([^/]+)\/score$/);
+
+            if(leadScoreMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                return sendJSON(res, 200, salesLeads.scoreLead(decodeURIComponent(leadScoreMatch[1])));
+
+            }
+
+            // Read-only: no auth required -- must come after the write
+            // routes above since they share the /api/sales/leads/:id...
+            // prefix.
+            const leadDetailMatch = parsed.pathname.match(/^\/api\/sales\/leads\/([^/]+)$/);
+
+            if(leadDetailMatch && req.method === "GET"){
+
+                return sendJSON(res, 200, salesLeads.getLead(decodeURIComponent(leadDetailMatch[1])));
+
+            }
+
+            // Phase 42 (Sales Division): opportunity lifecycle routes.
+            if(parsed.pathname === "/api/sales/opportunities" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const input = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, salesOpportunities.createOpportunity(input));
+
+            }
+
+            const opportunityStageMatch = parsed.pathname.match(/^\/api\/sales\/opportunities\/([^/]+)\/stage$/);
+
+            if(opportunityStageMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { stage, reason } = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, salesOpportunities.setStage(decodeURIComponent(opportunityStageMatch[1]), stage, { reason }));
+
+            }
+
+            const opportunityContactMatch = parsed.pathname.match(/^\/api\/sales\/opportunities\/([^/]+)\/contacts$/);
+
+            if(opportunityContactMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const contact = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, { contacts: salesOpportunities.addContact(decodeURIComponent(opportunityContactMatch[1]), contact) });
+
+            }
+
+            const opportunityFollowUpMatch = parsed.pathname.match(/^\/api\/sales\/opportunities\/([^/]+)\/follow-ups$/);
+
+            if(opportunityFollowUpMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const item = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, { followUps: salesOpportunities.scheduleFollowUp(decodeURIComponent(opportunityFollowUpMatch[1]), item) });
+
+            }
+
+            const opportunityFollowUpCompleteMatch = parsed.pathname.match(/^\/api\/sales\/opportunities\/([^/]+)\/follow-ups\/([^/]+)\/complete$/);
+
+            if(opportunityFollowUpCompleteMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                return sendJSON(res, 200, salesOpportunities.completeFollowUp(
+                    decodeURIComponent(opportunityFollowUpCompleteMatch[1]),
+                    decodeURIComponent(opportunityFollowUpCompleteMatch[2])
+                ));
+
+            }
+
+            // Real LLM call (core/sales/proposalGenerator.js) -- auth
+            // required, same as any other real-cost action.
+            const opportunityProposalMatch = parsed.pathname.match(/^\/api\/sales\/opportunities\/([^/]+)\/generate-proposal$/);
+
+            if(opportunityProposalMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const proposalDraft = await salesProposalGenerator.generateProposal(decodeURIComponent(opportunityProposalMatch[1]));
+
+                return sendJSON(res, 200, { proposalDraft });
+
+            }
+
+            const opportunityLessonMatch = parsed.pathname.match(/^\/api\/sales\/opportunities\/([^/]+)\/lessons$/);
+
+            if(opportunityLessonMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { lesson } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!lesson){
+                    return sendJSON(res, 400, { error: "lesson is required" });
+                }
+
+                return sendJSON(res, 200, { lessonsLearned: salesOpportunities.recordLessonLearned(decodeURIComponent(opportunityLessonMatch[1]), lesson) });
+
+            }
+
+            // Read-only: no auth required -- must come after the write
+            // routes above since they share the
+            // /api/sales/opportunities/:id... prefix.
+            const opportunityDetailMatch = parsed.pathname.match(/^\/api\/sales\/opportunities\/([^/]+)$/);
+
+            if(opportunityDetailMatch && req.method === "GET"){
+
+                return sendJSON(res, 200, salesOpportunities.getOpportunity(decodeURIComponent(opportunityDetailMatch[1])));
 
             }
 

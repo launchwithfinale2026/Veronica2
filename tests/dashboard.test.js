@@ -437,6 +437,132 @@ test("Marketing Division: create a company, set its brand profile, plan a real c
 
 });
 
+test("Sales Division: create a company, a lead, an opportunity, move it through the pipeline, and read real analytics back (Phase 42)", async () => {
+
+    process.env.API_TOKEN = "test-api-secret";
+
+    const authedHeaders = {
+        Authorization: "Bearer test-api-secret",
+        "Content-Type": "application/json"
+    };
+
+    const companyRes = await fetch(`${baseUrl}/api/companies`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ name: "Dashboard Sales Co XQZDASH2" })
+    });
+    const company = await companyRes.json();
+
+    const leadRes = await fetch(`${baseUrl}/api/sales/leads`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ companyId: company.id, name: "Dashboard Lead XQZDASH2", email: "lead@xqzdash2.com" })
+    });
+    assert.strictEqual(leadRes.status, 200);
+    const lead = await leadRes.json();
+
+    const interactionRes = await fetch(`${baseUrl}/api/sales/leads/${lead.id}/interactions`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ type: "call", summary: "Intro call XQZDASH2" })
+    });
+    assert.strictEqual((await interactionRes.json()).interactions.length, 1);
+
+    const signalsRes = await fetch(`${baseUrl}/api/sales/leads/${lead.id}/signals`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ budget: true })
+    });
+    assert.strictEqual((await signalsRes.json()).signals.budget, true);
+
+    const scoreRes = await fetch(`${baseUrl}/api/sales/leads/${lead.id}/score`, {
+        method: "POST",
+        headers: authedHeaders
+    });
+    const scored = await scoreRes.json();
+    assert.ok(scored.score > 0);
+
+    const statusRes = await fetch(`${baseUrl}/api/sales/leads/${lead.id}/status`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ status: "qualified" })
+    });
+    assert.strictEqual((await statusRes.json()).status, "qualified");
+
+    const leadDetailRes = await fetch(`${baseUrl}/api/sales/leads/${lead.id}`);
+    assert.strictEqual((await leadDetailRes.json()).status, "qualified");
+
+    const oppRes = await fetch(`${baseUrl}/api/sales/opportunities`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ companyId: company.id, leadId: lead.id, name: "Dashboard Deal XQZDASH2", value: 12000 })
+    });
+    assert.strictEqual(oppRes.status, 200);
+    const opportunity = await oppRes.json();
+
+    const contactRes = await fetch(`${baseUrl}/api/sales/opportunities/${opportunity.id}/contacts`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ name: "Dashboard Lead XQZDASH2", role: "Champion" })
+    });
+    assert.strictEqual((await contactRes.json()).contacts.length, 1);
+
+    const followUpRes = await fetch(`${baseUrl}/api/sales/opportunities/${opportunity.id}/follow-ups`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ date: "2026-09-01", note: "Send proposal XQZDASH2" })
+    });
+    const followUps = (await followUpRes.json()).followUps;
+    assert.strictEqual(followUps.length, 1);
+
+    const completeRes = await fetch(`${baseUrl}/api/sales/opportunities/${opportunity.id}/follow-ups/${followUps[0].id}/complete`, {
+        method: "POST",
+        headers: authedHeaders
+    });
+    assert.strictEqual((await completeRes.json()).done, true);
+
+    const stageRes = await fetch(`${baseUrl}/api/sales/opportunities/${opportunity.id}/stage`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ stage: "qualified" })
+    });
+    assert.strictEqual((await stageRes.json()).stage, "qualified");
+
+    const closeRes = await fetch(`${baseUrl}/api/sales/opportunities/${opportunity.id}/stage`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ stage: "closed_won", reason: "Great fit XQZDASH2" })
+    });
+    assert.strictEqual((await closeRes.json()).winReason, "Great fit XQZDASH2");
+
+    const lessonRes = await fetch(`${baseUrl}/api/sales/opportunities/${opportunity.id}/lessons`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ lesson: "Fast follow-up won the deal XQZDASH2" })
+    });
+    assert.strictEqual((await lessonRes.json()).lessonsLearned.length, 1);
+
+    const oppDetailRes = await fetch(`${baseUrl}/api/sales/opportunities/${opportunity.id}`);
+    assert.strictEqual((await oppDetailRes.json()).stage, "closed_won");
+
+    const listRes = await fetch(`${baseUrl}/api/sales/opportunities?companyId=${company.id}`);
+    assert.strictEqual((await listRes.json()).length, 1);
+
+    const forecastRes = await fetch(`${baseUrl}/api/sales/forecast?companyId=${company.id}`);
+    const forecast = await forecastRes.json();
+    assert.strictEqual(forecast.totalOpenValue, 0);
+
+    const analyticsRes = await fetch(`${baseUrl}/api/sales/analytics?companyId=${company.id}`);
+    const analyticsBody = await analyticsRes.json();
+    assert.strictEqual(analyticsBody.winLoss.won, 1);
+    assert.strictEqual(analyticsBody.winLoss.avgWonValue, 12000);
+    assert.strictEqual(analyticsBody.leadCount, 1);
+
+    const leadsListRes = await fetch(`${baseUrl}/api/sales/leads?companyId=${company.id}`);
+    assert.strictEqual((await leadsListRes.json()).length, 1);
+
+});
+
 test("GET /api/memory without a filter returns the real stored memories", async () => {
 
     const res = await fetch(`${baseUrl}/api/memory`);
@@ -798,6 +924,18 @@ const ALL_POST_ROUTES = [
     "/api/marketing/campaigns/test-id/approval-status",
     "/api/marketing/campaigns/test-id/metrics",
     "/api/marketing/campaigns/test-id/lessons",
+    "/api/sales/leads",
+    "/api/sales/leads/test-id/interactions",
+    "/api/sales/leads/test-id/signals",
+    "/api/sales/leads/test-id/status",
+    "/api/sales/leads/test-id/score",
+    "/api/sales/opportunities",
+    "/api/sales/opportunities/test-id/stage",
+    "/api/sales/opportunities/test-id/contacts",
+    "/api/sales/opportunities/test-id/follow-ups",
+    "/api/sales/opportunities/test-id/follow-ups/test-followup-id/complete",
+    "/api/sales/opportunities/test-id/generate-proposal",
+    "/api/sales/opportunities/test-id/lessons",
     "/api/departments/athena/run",
     "/api/tools/memory.recall/run"
 ];

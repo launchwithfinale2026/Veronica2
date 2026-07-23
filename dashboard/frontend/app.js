@@ -1965,6 +1965,150 @@ function setupCompanyBrainForm(){
 }
 
 
+function setupLeadCreateForm(){
+
+    const form = document.getElementById("lead-create-form");
+    const result = document.getElementById("lead-create-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const companyId = document.getElementById("lead-company-id").value;
+        const name = document.getElementById("lead-name").value;
+        const email = document.getElementById("lead-email").value;
+        const organization = document.getElementById("lead-organization").value;
+
+        result.textContent = "Creating...";
+
+        try {
+
+            const lead = await authedFetch("/api/sales/leads", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ companyId, name, email: email || undefined, organization: organization || undefined })
+            });
+
+            result.textContent = `Created lead "${lead.name}" (id: ${lead.id})`;
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupLeadLookupForm(){
+
+    const form = document.getElementById("lead-lookup-form");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const companyId = document.getElementById("lead-lookup-company-id").value;
+
+        try {
+
+            const leadsFound = await fetchJSON(`/api/sales/leads?companyId=${encodeURIComponent(companyId)}`);
+
+            renderList(
+                "lead-list",
+                leadsFound,
+                "No leads for this company yet.",
+                lead => `${lead.name} — ${lead.status}${lead.score !== null ? ` (score: ${lead.score})` : ""} — ${lead.organization || "no organization"}`
+            );
+
+        } catch(error){
+
+            document.getElementById("lead-list").textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupOpportunityCreateForm(){
+
+    const form = document.getElementById("opportunity-create-form");
+    const result = document.getElementById("opportunity-create-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const companyId = document.getElementById("opportunity-company-id").value;
+        const name = document.getElementById("opportunity-name").value;
+        const value = Number(document.getElementById("opportunity-value").value);
+
+        result.textContent = "Creating...";
+
+        try {
+
+            const opportunity = await authedFetch("/api/sales/opportunities", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ companyId, name, value })
+            });
+
+            result.textContent = `Created opportunity "${opportunity.name}" at stage "${opportunity.stage}" (id: ${opportunity.id})`;
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupSalesAnalyticsForm(){
+
+    const form = document.getElementById("sales-analytics-form");
+    const result = document.getElementById("sales-analytics-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const companyId = document.getElementById("sales-analytics-company-id").value;
+
+        result.textContent = "Loading...";
+
+        try {
+
+            const opportunitiesFound = await fetchJSON(`/api/sales/opportunities?companyId=${encodeURIComponent(companyId)}`);
+
+            renderList(
+                "opportunity-list",
+                opportunitiesFound,
+                "No opportunities for this company yet.",
+                opportunity => `${opportunity.name} — ${opportunity.stage} — $${opportunity.value}`
+            );
+
+            const analytics = await fetchJSON(`/api/sales/analytics?companyId=${encodeURIComponent(companyId)}`);
+
+            result.textContent = JSON.stringify(analytics, null, 2);
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
 function setupCompanyCreateForm(){
 
     const form = document.getElementById("company-create-form");
@@ -2649,6 +2793,10 @@ document.addEventListener("DOMContentLoaded", () => {
     setupCampaignPlanForm();
     setupCampaignLookupForm();
     setupCompanyBrainForm();
+    setupLeadCreateForm();
+    setupLeadLookupForm();
+    setupOpportunityCreateForm();
+    setupSalesAnalyticsForm();
     setupCapabilityAnalysisForm();
     setupCapabilityInstallForm();
     setupCapabilitySearchForm();

@@ -198,6 +198,49 @@
     </div>
   </section>
 
+  <section class="panel panel-wide">
+    <h2>Sales Division (Phase 42)</h2>
+    <p class="hint">Look up a company id from the Companies list above, then create a lead, score it, convert it into a real pipeline opportunity, and view real win/loss + forecast analytics.</p>
+    <div class="widget-group">
+      <h3>Create a Lead</h3>
+      <form id="lead-create-form" class="stacked-form">
+        <input type="text" id="lead-company-id" placeholder="Company id" required>
+        <input type="text" id="lead-name" placeholder="Lead name" required>
+        <input type="text" id="lead-email" placeholder="Email (optional)">
+        <input type="text" id="lead-organization" placeholder="Organization (optional)">
+        <button type="submit">Create Lead</button>
+      </form>
+      <p id="lead-create-result" class="hint"></p>
+    </div>
+    <div class="widget-group">
+      <h3>Leads</h3>
+      <form id="lead-lookup-form" class="inline-form">
+        <input type="text" id="lead-lookup-company-id" placeholder="Company id" required>
+        <button type="submit">Load</button>
+      </form>
+      <div id="lead-list" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Create an Opportunity</h3>
+      <form id="opportunity-create-form" class="stacked-form">
+        <input type="text" id="opportunity-company-id" placeholder="Company id" required>
+        <input type="text" id="opportunity-name" placeholder="Opportunity name" required>
+        <input type="number" id="opportunity-value" placeholder="Deal value" required>
+        <button type="submit">Create Opportunity</button>
+      </form>
+      <p id="opportunity-create-result" class="hint"></p>
+    </div>
+    <div class="widget-group">
+      <h3>Pipeline &amp; Analytics</h3>
+      <form id="sales-analytics-form" class="inline-form">
+        <input type="text" id="sales-analytics-company-id" placeholder="Company id" required>
+        <button type="submit">Load</button>
+      </form>
+      <div id="opportunity-list" class="widget"></div>
+      <pre id="sales-analytics-result" class="widget code-block"></pre>
+    </div>
+  </section>
+
   <section class="panel">
     <h2>Executive</h2>
     <div class="widget-group">

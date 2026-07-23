@@ -51,7 +51,7 @@ class DailyBriefingEngine {
 
     static TAG = BRIEFING_TAG;
 
-    constructor({ planner, projectManager, priorityRanking, goalMonitor, blockerDetector, recommendationEngine, actionProposalEngine, companyManager, missionEngine, learning, organizationOverview, marketingCampaigns } = {}){
+    constructor({ planner, projectManager, priorityRanking, goalMonitor, blockerDetector, recommendationEngine, actionProposalEngine, companyManager, missionEngine, learning, organizationOverview, marketingCampaigns, salesOpportunities, salesLeads } = {}){
 
         this.planner = planner || new ExecutivePlanner();
         this.projectManager = projectManager || new ProjectManager({ planner: this.planner });
@@ -108,6 +108,10 @@ class DailyBriefingEngine {
         });
 
         this.marketingCampaigns = marketingCampaigns || require("../marketing/campaigns");
+
+        // Phase 42 (Sales Division).
+        this.salesOpportunities = salesOpportunities || require("../sales/opportunities");
+        this.salesLeads = salesLeads || require("../sales/leads");
 
     }
 
@@ -244,6 +248,53 @@ class DailyBriefingEngine {
     }
 
 
+    // Phase 42 (Sales Division): same per-company rollup pattern as
+    // campaignHealth() above, over core/sales/opportunities.js's/
+    // core/sales/leads.js's real, already-persisted state. Companies
+    // with zero leads AND zero opportunities are omitted, same "keep
+    // the morning read short" principle.
+    salesHealth(){
+
+        const now = Date.now();
+
+        return this.companyManager.listCompanies()
+            .map(company => {
+
+                const companyLeads = this.salesLeads.listLeads(company.id);
+                const companyOpportunities = this.salesOpportunities.listOpportunities(company.id);
+
+                if(!companyLeads.length && !companyOpportunities.length){
+                    return null;
+                }
+
+                const openLeads = companyLeads.filter(lead => !["converted", "disqualified"].includes(lead.status)).length;
+
+                const openOpportunities = companyOpportunities.filter(
+                    opportunity => opportunity.stage !== "closed_won" && opportunity.stage !== "closed_lost"
+                );
+
+                const overdueFollowUps = companyOpportunities
+                    .flatMap(opportunity => opportunity.followUps)
+                    .filter(followUp => !followUp.done && new Date(followUp.date).getTime() < now)
+                    .length;
+
+                const forecast = this.salesOpportunities.forecast(company.id);
+
+                return {
+                    companyId: company.id,
+                    companyName: company.name,
+                    openLeads,
+                    openOpportunities: openOpportunities.length,
+                    weightedForecast: forecast.weightedForecast,
+                    overdueFollowUps
+                };
+
+            })
+            .filter(Boolean);
+
+    }
+
+
     // Assembles the briefing's contents WITHOUT persisting -- exposed
     // separately so a caller (or a test) can inspect what would be
     // generated without adding to the daily history.
@@ -277,7 +328,9 @@ class DailyBriefingEngine {
             learningSummary: this.learningSummary(),
             // Phase 41 additions -- see each method's own comment.
             departmentHealth: this.departmentHealth(),
-            campaignHealth: this.campaignHealth()
+            campaignHealth: this.campaignHealth(),
+            // Phase 42 addition.
+            salesHealth: this.salesHealth()
         };
 
     }
