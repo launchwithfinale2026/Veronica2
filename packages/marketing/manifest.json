@@ -1,0 +1,49 @@
+{
+    "name": "marketing",
+    "description": "Marketing department -- campaign management, content strategy, and analytics, matching core/capabilities/planner.js's \"marketing\" capability catalog entry.",
+    "version": "0.1.0",
+    "agents": [
+        {
+            "name": "CampaignManager",
+            "department": "marketing-dept",
+            "role": "Campaign Manager",
+            "capabilities": [
+                "campaign management"
+            ]
+        },
+        {
+            "name": "ContentStrategist",
+            "department": "marketing-dept",
+            "role": "Content Strategist",
+            "capabilities": [
+                "content creation"
+            ]
+        },
+        {
+            "name": "MarketingAnalyticsAgent",
+            "department": "marketing-dept",
+            "role": "Analytics Agent",
+            "capabilities": [
+                "audience research",
+                "analytics"
+            ]
+        }
+    ],
+    "tools": [
+        {
+            "id": "marketing.campaign.plan",
+            "description": "Draft a campaign plan for a given objective (skeleton -- not yet implemented; needs a real ad platform API).",
+            "permission": "read"
+        }
+    ],
+    "dependencies": [],
+    "permissions": [
+        "external_api"
+    ],
+    "department": {
+        "id": "marketing-dept",
+        "name": "Marketing",
+        "domain": "Growth"
+    },
+    "approvalRequired": true
+}

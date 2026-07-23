@@ -1,0 +1,42 @@
+{
+    "name": "business-operations",
+    "description": "Business Operations department -- workflow review and operational process analysis.",
+    "version": "0.1.0",
+    "agents": [
+        {
+            "name": "OperationsManager",
+            "department": "bizops",
+            "role": "Operations Manager",
+            "capabilities": [
+                "workflow design",
+                "process optimization"
+            ]
+        },
+        {
+            "name": "ProcessAnalyst",
+            "department": "bizops",
+            "role": "Process Analyst",
+            "capabilities": [
+                "process analysis",
+                "efficiency review"
+            ]
+        }
+    ],
+    "tools": [
+        {
+            "id": "bizops.workflow.review",
+            "description": "Review a described workflow for bottlenecks (skeleton -- not yet implemented).",
+            "permission": "read"
+        }
+    ],
+    "dependencies": [],
+    "permissions": [
+        "read"
+    ],
+    "department": {
+        "id": "bizops",
+        "name": "Business Operations",
+        "domain": "Operations"
+    },
+    "approvalRequired": true
+}

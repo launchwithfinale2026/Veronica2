@@ -1,0 +1,48 @@
+{
+    "name": "trading-research",
+    "description": "Trading Research department -- market intelligence, strategy, and risk analysis, matching core/capabilities/planner.js's \"trading\" capability catalog entry. Research/analysis only -- no execution capability (real trade execution would need financial_execution permission and a real broker connector, neither of which exist).",
+    "version": "0.1.0",
+    "agents": [
+        {
+            "name": "MarketAnalyst",
+            "department": "trading-dept",
+            "role": "Market Analyst",
+            "capabilities": [
+                "market intelligence"
+            ]
+        },
+        {
+            "name": "StrategyAnalyst",
+            "department": "trading-dept",
+            "role": "Strategy Analyst",
+            "capabilities": [
+                "strategy analysis"
+            ]
+        },
+        {
+            "name": "TradingRiskAnalyst",
+            "department": "trading-dept",
+            "role": "Risk Analyst",
+            "capabilities": [
+                "risk management"
+            ]
+        }
+    ],
+    "tools": [
+        {
+            "id": "trading.portfolio.review",
+            "description": "Review a described portfolio's composition (skeleton -- not yet implemented; needs a real market data API).",
+            "permission": "read"
+        }
+    ],
+    "dependencies": [],
+    "permissions": [
+        "external_api"
+    ],
+    "department": {
+        "id": "trading-dept",
+        "name": "Trading Research",
+        "domain": "Trading"
+    },
+    "approvalRequired": true
+}

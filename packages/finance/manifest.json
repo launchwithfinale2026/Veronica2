@@ -1,0 +1,48 @@
+{
+    "name": "finance",
+    "description": "Finance department -- bookkeeping, forecasting, and compliance, matching core/capabilities/planner.js's \"finance\" capability catalog entry.",
+    "version": "0.1.0",
+    "agents": [
+        {
+            "name": "Bookkeeper",
+            "department": "finance-dept",
+            "role": "Bookkeeper",
+            "capabilities": [
+                "bookkeeping"
+            ]
+        },
+        {
+            "name": "FinancialAnalyst",
+            "department": "finance-dept",
+            "role": "Financial Analyst",
+            "capabilities": [
+                "forecasting"
+            ]
+        },
+        {
+            "name": "ComplianceOfficer",
+            "department": "finance-dept",
+            "role": "Compliance Officer",
+            "capabilities": [
+                "compliance"
+            ]
+        }
+    ],
+    "tools": [
+        {
+            "id": "finance.report.generate",
+            "description": "Generate a financial summary report (skeleton -- not yet implemented).",
+            "permission": "read"
+        }
+    ],
+    "dependencies": [],
+    "permissions": [
+        "financial_data"
+    ],
+    "department": {
+        "id": "finance-dept",
+        "name": "Finance",
+        "domain": "Finance"
+    },
+    "approvalRequired": true
+}

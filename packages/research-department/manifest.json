@@ -1,0 +1,41 @@
+{
+    "name": "research-department",
+    "description": "Research department -- information synthesis and analysis, matching core/capabilities/planner.js's \"research\" capability catalog entry. Distinct from core/research/engine.js (Phase 29), which is the core, already-real research/citation engine this department's agents would actually use once implemented.",
+    "version": "0.1.0",
+    "agents": [
+        {
+            "name": "ResearchAgent",
+            "department": "research-dept",
+            "role": "Research Agent",
+            "capabilities": [
+                "information synthesis",
+                "data collection"
+            ]
+        },
+        {
+            "name": "AnalysisAgent",
+            "department": "research-dept",
+            "role": "Analysis Agent",
+            "capabilities": [
+                "analysis"
+            ]
+        }
+    ],
+    "tools": [
+        {
+            "id": "research.dept.synthesize",
+            "description": "Synthesize findings on a topic (skeleton -- not yet implemented; real implementation should call core/research/engine.js).",
+            "permission": "read"
+        }
+    ],
+    "dependencies": [],
+    "permissions": [
+        "external_api"
+    ],
+    "department": {
+        "id": "research-dept",
+        "name": "Research",
+        "domain": "Knowledge"
+    },
+    "approvalRequired": true
+}

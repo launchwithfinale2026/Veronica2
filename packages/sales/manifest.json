@@ -1,0 +1,51 @@
+{
+    "name": "sales",
+    "description": "Sales department -- pipeline management and account review.",
+    "version": "0.1.0",
+    "agents": [
+        {
+            "name": "SalesAgent",
+            "department": "sales-dept",
+            "role": "Sales Representative",
+            "capabilities": [
+                "lead qualification",
+                "outreach"
+            ]
+        },
+        {
+            "name": "AccountManager",
+            "department": "sales-dept",
+            "role": "Account Manager",
+            "capabilities": [
+                "account management",
+                "renewals"
+            ]
+        },
+        {
+            "name": "PipelineAnalyst",
+            "department": "sales-dept",
+            "role": "Pipeline Analyst",
+            "capabilities": [
+                "pipeline analysis",
+                "forecasting"
+            ]
+        }
+    ],
+    "tools": [
+        {
+            "id": "sales.pipeline.review",
+            "description": "Summarize a described sales pipeline (skeleton -- not yet implemented).",
+            "permission": "read"
+        }
+    ],
+    "dependencies": [],
+    "permissions": [
+        "read"
+    ],
+    "department": {
+        "id": "sales-dept",
+        "name": "Sales",
+        "domain": "Revenue"
+    },
+    "approvalRequired": true
+}
