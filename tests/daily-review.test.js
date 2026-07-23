@@ -102,6 +102,24 @@ test("failedToday() reflects a real execution failure logged today (presence, si
 });
 
 
+test("performanceMetrics() reflects a real success/failure delta today, reusing core/learning/engine.js's real summarize() arithmetic (Project J)", () => {
+
+    const review = new DailyReviewEngine({ planner: new ExecutivePlanner() });
+
+    const before = review.performanceMetrics();
+
+    learningLog.record({ kind: "tool_call", tool: "test.tool.xqzrev-perf", outcome: "success", durationMs: 100 });
+    learningLog.record({ kind: "tool_call", tool: "test.tool.xqzrev-perf", outcome: "failure", durationMs: 200, error: "simulated XQZREV-PERF" });
+
+    const after = review.performanceMetrics();
+
+    assert.strictEqual(after.total, before.total + 2);
+    assert.strictEqual(after.successes, before.successes + 1);
+    assert.strictEqual(after.failures, before.failures + 1);
+
+});
+
+
 test("learnedToday() surfaces today's recommendation details", () => {
 
     const realPlanner = new ExecutivePlanner();

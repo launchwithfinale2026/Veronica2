@@ -149,6 +149,26 @@ class DailyBriefingEngine {
     }
 
 
+    // Project J (Daily Executive Operating System): "Upcoming
+    // Deadlines" as its own named section -- not a new computation,
+    // `roadmapSummary()` above already groups the real roadmap by
+    // `deadlineStatus` via `planner.evaluateDeadlines()` (Phase 11),
+    // just nested inside `roadmap.deadlines` where a reader has to know
+    // to look for it. This re-surfaces the two groups an operator
+    // actually needs to see without digging: overdue (already late) and
+    // due soon (planner.js's own real, explainable near-term window).
+    upcomingDeadlines(){
+
+        const { overdue, due_soon: dueSoon } = this.planner.evaluateDeadlines();
+
+        return {
+            overdue: overdue.map(project => ({ id: project.id, title: project.title, deadline: project.deadline })),
+            dueSoon: dueSoon.map(project => ({ id: project.id, title: project.title, deadline: project.deadline }))
+        };
+
+    }
+
+
     // "Executive awareness" of external connector activity (Phase 19) --
     // reuses core/integrations/eventIngestion.js's recentEvents() rather
     // than re-reading memory directly, same "one shared read path" this
@@ -514,7 +534,9 @@ class DailyBriefingEngine {
             // Phase 46 addition.
             operationsStatus: this.operationsStatus(),
             // Phase 48 addition.
-            strategicHealth: this.strategicHealth()
+            strategicHealth: this.strategicHealth(),
+            // Project J (Daily Executive Operating System) addition.
+            upcomingDeadlines: this.upcomingDeadlines()
         };
 
     }

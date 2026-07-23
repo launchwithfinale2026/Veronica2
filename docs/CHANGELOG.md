@@ -2478,3 +2478,45 @@ generated spec's real dashboard field, and a full, real end-to-end
 round trip). Plus 1 new dashboard test.
 
 745 -> 751 tests, all passing.
+
+## Project B (verify script) + Project J (daily briefing/review gaps)
+
+**Project B:** the audit found `scripts/install-launch-agent.sh`/
+`uninstall-launch-agent.sh` already real and working, but no
+`verify-launch-agent.sh` -- a way to check, without installing or
+changing anything, whether the LaunchAgent is genuinely working right
+now. Added `scripts/verify-launch-agent.sh`: read-only, three real
+checks (the plist file exists at the real install path; `launchctl`
+actually reports it loaded, not just present on disk; the dashboard
+responds to a real HTTP call against `/api/status`, the same endpoint
+`core/system/startupManager.js`'s own health check uses) -- each
+reported pass/fail with a clear summary and a real non-zero exit code
+on any failure. Cross-referenced from the install script's own output.
+
+**Project J:** the audit found the morning briefing/evening review
+already cover most of what this project asks for -- department
+summary, blocked work, today's priorities, recommendations (morning);
+completed work, lessons, tomorrow's plan (evening) -- with two small,
+real gaps:
+
+- `core/executive/dailyBriefing.js` gained `upcomingDeadlines()` -- NOT
+  a new computation, `roadmapSummary()` already groups the real roadmap
+  by `deadlineStatus` via `planner.evaluateDeadlines()` (Phase 11), just
+  nested inside `roadmap.deadlines` where a reader has to know to look
+  for it. This re-surfaces `overdue`/`dueSoon` as their own named,
+  top-level field.
+- `core/executive/dailyReview.js` gained `performanceMetrics()` -- real,
+  TODAY-scoped success/failure/avg-duration stats, reusing
+  `core/learning/engine.js`'s own `summarize()` arithmetic (newly
+  exported, same convention `core/research/engine.js` already
+  established for `extractText()`/`extractTitle()`) over a pre-filtered,
+  today-only event list, rather than re-implementing the same
+  calculation a second time.
+
+**Tests:** 1 new in `tests/daily-briefing.test.js` (three real projects
+with real overdue/due-soon/on-track deadlines, asserting each lands in
+exactly the right bucket and none other) and 1 new in
+`tests/daily-review.test.js` (a real before/after delta proving a real
+success and a real failure logged today are correctly reflected).
+
+751 -> 753 tests, all passing.

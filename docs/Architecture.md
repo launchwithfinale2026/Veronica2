@@ -4341,3 +4341,26 @@ returns an array and the six real Divisions correctly do NOT appear in
 it.
 
 751 tests (745 -> 751), `npm test` green.
+
+## Project B verify script + Project J briefing/review gaps
+
+`scripts/verify-launch-agent.sh` -- read-only, three real checks (plist
+file present, `launchctl` reports it loaded, a real HTTP call to
+`/api/status` succeeds), clear pass/fail summary, real exit code.
+Cross-referenced from the install script.
+
+`core/executive/dailyBriefing.js`'s `upcomingDeadlines()` re-surfaces
+`planner.evaluateDeadlines()`'s already-real overdue/due-soon grouping
+(already computed inside `roadmapSummary()`, just nested) as its own
+named top-level field -- no new computation. `core/executive/dailyReview.js`'s
+`performanceMetrics()` reuses `core/learning/engine.js`'s own
+`summarize()` (newly exported, same convention `core/research/engine.js`
+already established for `extractText()`/`extractTitle()`) over a
+today-filtered event list, rather than re-implementing the same
+success/failure/avg-duration arithmetic a second time.
+
+2 new tests (real overdue/due-soon/on-track projects landing in the
+correct bucket; a real before/after delta for today's performance
+metrics).
+
+753 tests (751 -> 753), `npm test` green.

@@ -157,6 +157,24 @@ class DailyReviewEngine {
     }
 
 
+    // Project J (Daily Executive Operating System): real, TODAY-scoped
+    // performance metrics -- distinct from failedToday() above (which
+    // lists individual failures) and core/learning's own overview()
+    // (which is all-time, not scoped to today). Reuses
+    // core/learning/engine.js's own real summarize() arithmetic over a
+    // pre-filtered, today-only event list, rather than re-implementing
+    // the same success/failure/avgDuration calculation a second time.
+    performanceMetrics(){
+
+        const LearningEngine = require("../learning/engine");
+
+        const todayEvents = learningLog.readAll().filter(entry => isToday(entry.timestamp));
+
+        return LearningEngine.summarize(todayEvents);
+
+    }
+
+
     // A same-day preview of what tomorrow's morning briefing will open
     // with -- reuses Phase 11's live priority ranking rather than a
     // second calculation.
@@ -179,7 +197,9 @@ class DailyReviewEngine {
             newMemoriesCount: this.newMemoriesToday(),
             tomorrowPriorities: this.tomorrowPriorities(),
             externalEvents: this.externalEventsToday(),
-            knowledgeEvolution: this.knowledgeEvolutionToday()
+            knowledgeEvolution: this.knowledgeEvolutionToday(),
+            // Project J (Daily Executive Operating System) addition.
+            performanceMetrics: this.performanceMetrics()
         };
 
     }

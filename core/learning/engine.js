@@ -242,3 +242,12 @@ class LearningEngine {
 
 
 module.exports = LearningEngine;
+
+// Project J (Daily Executive Operating System): exported so
+// core/executive/dailyReview.js can compute the exact same real
+// success/failure/avgDuration arithmetic over a pre-filtered (today-
+// only) event list, instead of re-implementing it -- same convention
+// core/research/engine.js already established for extractText()/
+// extractTitle() (a real, reusable helper attached to the class export,
+// not a second copy of the logic).
+module.exports.summarize = summarize;

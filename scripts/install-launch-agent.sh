@@ -10,8 +10,9 @@
 # result to ~/Library/LaunchAgents/ (per-user, unprivileged -- never
 # /Library/LaunchDaemons/), and loads it with launchctl.
 #
-# Usage: bash scripts/install-launch-agent.sh
-# Undo:  bash scripts/uninstall-launch-agent.sh
+# Usage:  bash scripts/install-launch-agent.sh
+# Verify: bash scripts/verify-launch-agent.sh
+# Undo:   bash scripts/uninstall-launch-agent.sh
 
 set -euo pipefail
 
@@ -37,4 +38,5 @@ launchctl load "$DEST"
 
 echo "Installed and loaded: $DEST"
 echo "VERONICA's dashboard will now start automatically at login."
+echo "To verify: bash ${REPO_DIR}/scripts/verify-launch-agent.sh"
 echo "To undo: bash ${REPO_DIR}/scripts/uninstall-launch-agent.sh"

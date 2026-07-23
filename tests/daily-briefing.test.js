@@ -387,6 +387,45 @@ test("generate() surfaces real, per-company Strategic Health from Executive Inte
 });
 
 
+test("generate() surfaces real Upcoming Deadlines -- overdue and due-soon, reusing planner.evaluateDeadlines() (Project J)", () => {
+
+    const realPlanner = new ExecutivePlanner();
+
+    const overdueProject = realPlanner.plan({
+        title: "Briefing overdue project XQZBRIEF14",
+        department: "ares",
+        deadline: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
+    });
+
+    const dueSoonProject = realPlanner.plan({
+        title: "Briefing due-soon project XQZBRIEF14",
+        department: "ares",
+        deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
+    });
+
+    const onTrackProject = realPlanner.plan({
+        title: "Briefing on-track project XQZBRIEF14",
+        department: "ares",
+        deadline: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString()
+    });
+
+    const scoped = scopedPlanner(realPlanner, [overdueProject.id, dueSoonProject.id, onTrackProject.id]);
+    const briefing = makeBriefingEngine(scoped);
+
+    const result = briefing.generate();
+
+    assert.strictEqual(result.upcomingDeadlines.overdue.length, 1);
+    assert.strictEqual(result.upcomingDeadlines.overdue[0].id, overdueProject.id);
+
+    assert.strictEqual(result.upcomingDeadlines.dueSoon.length, 1);
+    assert.strictEqual(result.upcomingDeadlines.dueSoon[0].id, dueSoonProject.id);
+
+    assert.ok(!result.upcomingDeadlines.overdue.some(p => p.id === onTrackProject.id));
+    assert.ok(!result.upcomingDeadlines.dueSoon.some(p => p.id === onTrackProject.id));
+
+});
+
+
 test("generate() and run()'s recommendations are computed identically", () => {
 
     const realPlanner = new ExecutivePlanner();

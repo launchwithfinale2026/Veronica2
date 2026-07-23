@@ -1,8 +1,8 @@
 # VERONICA — Next Steps
 
-Snapshot as of **Project A + Project M (modular, package-injected
-dashboard panels)**. 751/751 tests passing. Objective: "make VERONICA
-operational for daily use." Projects A-N, pursued autonomously.
+Snapshot as of **Project B (verify script) + Project J (briefing/review
+gaps)**. 753/753 tests passing. Objective: "make VERONICA operational
+for daily use." Projects A-N, pursued autonomously.
 
 - **Project A** — Mission Control Dashboard: modular panel injection
   done; Memory Timeline/Analytics, Conversation History, Notification
@@ -40,6 +40,11 @@ operational for daily use." Projects A-N, pursued autonomously.
 
 ## Resolved since the last snapshot
 
+- **Project B**: `scripts/verify-launch-agent.sh` -- real, read-only
+  checks (plist present, launchctl loaded, dashboard responding).
+- **Project J**: `dailyBriefing.js`'s `upcomingDeadlines()` and
+  `dailyReview.js`'s `performanceMetrics()` -- both reuse existing real
+  computations, no new signals invented.
 - **Project H**: real path-finding, type filtering, and N-hop expansion
   added to `core/knowledge/index.js`; a dedicated Knowledge Graph
   Explorer panel.
