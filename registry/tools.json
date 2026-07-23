@@ -714,6 +714,12 @@
         },
         "required": ["field", "value"]
       }
+    },
+    {
+      "id": "system.understand",
+      "description": "Returns VERONICA's full self-knowledge: projects, missions, companies, departments, devices, knowledge graph, memories, capabilities/packages, automations, connectors, planning, and executive recommendations -- one real, live snapshot of the entire system.",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
     }
   ]
 }

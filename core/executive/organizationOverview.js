@@ -29,12 +29,13 @@ const ProjectManager = require("./projectManager");
 const CompanyManager = require("./companyManager");
 const MissionEngine = require("./missionEngine");
 const ActionProposalEngine = require("./actionProposal");
+const ExecutiveRecommendationEngine = require("./executiveRecommendations");
 const DeviceManager = require("../device/deviceManager");
 
 
 class OrganizationOverview {
 
-    constructor({ departments, agents, planner, projectManager, companyManager, missionEngine, actionProposalEngine, deviceManager, learning, automation, knowledge, credentialManager, capabilitiesRegistry, capabilitiesMarketplace } = {}){
+    constructor({ departments, agents, planner, projectManager, companyManager, missionEngine, actionProposalEngine, recommendationEngine, deviceManager, learning, automation, knowledge, memory, credentialManager, capabilitiesRegistry, capabilitiesMarketplace, integrationRegistry } = {}){
 
         if(!departments || !agents){
             throw new Error("Real, already-loaded departments and agents are required");
@@ -48,6 +49,7 @@ class OrganizationOverview {
         this.companyManager = companyManager || new CompanyManager({ planner: this.planner });
         this.missionEngine = missionEngine || new MissionEngine({ planner: this.planner, projectManager: this.projectManager });
         this.actionProposalEngine = actionProposalEngine || new ActionProposalEngine({ planner: this.planner, projectManager: this.projectManager });
+        this.recommendationEngine = recommendationEngine || new ExecutiveRecommendationEngine({ planner: this.planner, projectManager: this.projectManager });
         this.deviceManager = deviceManager || new DeviceManager();
 
         // Lazy-safe requires (facades with no path back to core/executive)
@@ -56,9 +58,11 @@ class OrganizationOverview {
         this.learning = learning || require("../learning");
         this.automation = automation || require("../automation");
         this.knowledge = knowledge || require("../knowledge");
+        this.memory = memory || require("../memory");
         this.credentialManager = credentialManager || require("../integrations/credentialManager");
         this.capabilitiesRegistry = capabilitiesRegistry || require("../capabilities/registry");
         this.capabilitiesMarketplace = capabilitiesMarketplace || require("../capabilities/marketplace");
+        this.integrationRegistry = integrationRegistry || require("../integrations/registry");
 
     }
 
@@ -245,6 +249,42 @@ class OrganizationOverview {
     }
 
 
+    // Phase 40 (Personal Operating System): a real memory-store snapshot
+    // -- total count and a breakdown by lifecycle stage (Phase 12) --
+    // "memories" from this phase's own understand-everything list, not
+    // yet represented anywhere in this aggregation.
+    memoriesOverview(){
+
+        const entries = this.memory.view();
+
+        const byLifecycle = {};
+
+        for(const entry of entries){
+            const stage = entry.metadata?.lifecycle || "unclassified";
+            byLifecycle[stage] = (byLifecycle[stage] || 0) + 1;
+        }
+
+        return { total: entries.length, byLifecycle };
+
+    }
+
+
+    // Phase 40: every connector's real status (Phase 19's integration
+    // registry) -- "connectors," explicitly named in this phase's list,
+    // wasn't in this aggregation before.
+    connectors(){
+        return this.integrationRegistry.overview();
+    }
+
+
+    // Phase 40: fresh executive recommendations (Phase 11) -- "executive
+    // recommendations," the last item on this phase's understand-
+    // everything list.
+    executiveRecommendationsOverview(){
+        return this.recommendationEngine.generate();
+    }
+
+
     generate(){
 
         return {
@@ -257,6 +297,9 @@ class OrganizationOverview {
             capabilityMap: this.capabilityMap(),
             missionStatus: this.missionStatus(),
             knowledgeGrowth: this.knowledgeGrowth(),
+            memoriesOverview: this.memoriesOverview(),
+            connectors: this.connectors(),
+            executiveRecommendations: this.executiveRecommendationsOverview(),
             automationStatus: this.automationStatus(),
             deviceNetwork: this.deviceNetwork(),
             approvalQueue: this.approvalQueue(),

@@ -130,6 +130,46 @@ test("knowledgeGrowth() reports the real current entity/relationship counts", ()
 });
 
 
+test("memoriesOverview() reports a real total matching memory.view(), broken down by real lifecycle stage (Phase 40)", () => {
+
+    const overview = new OrganizationOverview({ departments, agents });
+    const memory = require("../core/memory");
+
+    const result = overview.memoriesOverview();
+    const realEntries = memory.view();
+
+    assert.strictEqual(result.total, realEntries.length);
+
+    const summedByLifecycle = Object.values(result.byLifecycle).reduce((sum, count) => sum + count, 0);
+    assert.strictEqual(summedByLifecycle, realEntries.length);
+
+});
+
+
+test("connectors() reuses the real integration registry wholesale (Phase 40)", () => {
+
+    const overview = new OrganizationOverview({ departments, agents });
+    const integrationRegistry = require("../core/integrations/registry");
+
+    const result = overview.connectors();
+    const real = integrationRegistry.overview();
+
+    assert.strictEqual(result.total, real.total);
+    assert.deepStrictEqual(result.integrations.map(i => i.id).sort(), real.integrations.map(i => i.id).sort());
+
+});
+
+
+test("executiveRecommendationsOverview() returns a real, fresh recommendation set (Phase 40)", () => {
+
+    const overview = new OrganizationOverview({ departments, agents });
+    const result = overview.executiveRecommendationsOverview();
+
+    assert.ok(Array.isArray(result));
+
+});
+
+
 test("generate() assembles every section without throwing, against real system state", () => {
 
     const overview = new OrganizationOverview({ departments, agents });

@@ -2082,9 +2082,12 @@ async function loadOrganizationOverview(){
         `Missions: ${overview.missionStatus.length}`,
         `Capabilities: ${overview.capabilityMap.installed.length} installed, ${overview.capabilityMap.available.length} available, ${overview.capabilityMap.broken.length} broken`,
         `Knowledge: ${overview.knowledgeGrowth.entityCount} entities, ${overview.knowledgeGrowth.relationshipCount} relationships`,
+        `Memories: ${overview.memoriesOverview.total}`,
         `Cross-department dependencies: ${overview.crossDepartmentDependencies.length}`,
         `Automation: ${overview.automationStatus.running ? "running" : "stopped"}`,
         `Devices: ${overview.deviceNetwork.length}`,
+        `Connectors: ${overview.connectors.configured}/${overview.connectors.total} configured`,
+        `Fresh executive recommendations: ${overview.executiveRecommendations.length}`,
         `Unconfigured connectors: ${overview.liveSystemHealth.credentials.filter(c => !c.configured).map(c => c.id).join(", ") || "none"}`
     ];
 

@@ -195,6 +195,7 @@ test("registry loads all 72 tools with real handlers", () => {
         "profile.add",
         "profile.set",
         "profile.summary",
+        "system.understand",
         "vision.analyzeImage",
         "web.fetch"
     ]);
