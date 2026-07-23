@@ -88,4 +88,26 @@ function overview(entries){
 }
 
 
-module.exports = { classify, overview, CLASSES };
+// Project 3/E (Memory Timeline): every entry in real chronological order
+// (newest first), each with its real class alongside it -- no new
+// storage, no fabricated "events," just core/memory/store.js's own
+// `created` timestamp used for what it already is.
+function timeline(entries, limit = 50){
+
+    return [...entries]
+        .sort((a, b) => new Date(b.created) - new Date(a.created))
+        .slice(0, limit)
+        .map(entry => ({
+            id: entry.id,
+            type: entry.type,
+            class: classify(entry.type),
+            source: entry.source || "unknown",
+            importance: entry.importance,
+            created: entry.created,
+            preview: (entry.content || "").slice(0, 160)
+        }));
+
+}
+
+
+module.exports = { classify, overview, timeline, CLASSES };

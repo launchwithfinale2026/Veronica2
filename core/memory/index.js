@@ -111,6 +111,12 @@ module.exports = {
         return classification.overview(store.recall());
     },
 
+    // Project 3/E (Memory Timeline): real entries in real chronological
+    // order -- see core/memory/classification.js's timeline().
+    timeline(limit){
+        return classification.timeline(store.recall(), limit);
+    },
+
     // Phase 12 (Memory Evolution) -- the daily-cycle sweep: re-classifies
     // and re-scores every entry and applies any due lifecycle transition
     // (temporary -> active -> persistent, or -> archived). Returns just

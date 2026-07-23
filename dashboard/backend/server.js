@@ -334,6 +334,8 @@ const ROUTES = {
 
     "GET /api/memory/overview": () => memory.overview(),
 
+    "GET /api/memory/timeline": (searchParams) => memory.timeline(Number(searchParams.get("limit")) || undefined),
+
     "GET /api/memory/lifecycle": () => memory.lifecycleOverview(),
 
     "GET /api/executive/roadmap": () => executive.roadmap(),

@@ -251,6 +251,19 @@ async function loadMemoryLifecycle(){
 }
 
 
+async function loadMemoryTimeline(){
+
+    const entries = await fetchJSON("/api/memory/timeline?limit=25");
+
+    const container = document.getElementById("memory-timeline");
+
+    container.textContent = entries.length
+        ? entries.map(e => `[${e.created}] (${e.class}/${e.source}) ${e.preview}`).join("\n")
+        : "No memory entries yet.";
+
+}
+
+
 async function loadExecutiveDeadlines(){
 
     const grouped = await fetchJSON("/api/executive/deadlines");
@@ -815,6 +828,7 @@ async function loadDashboard(){
             loadExecutiveReport(),
             loadMemoryOverview(),
             loadMemoryLifecycle(),
+            loadMemoryTimeline(),
             loadConsolidationHistory(),
             loadSelfMonitorHistory(),
             loadPriorityRank(),

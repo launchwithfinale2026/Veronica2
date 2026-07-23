@@ -77,3 +77,40 @@ test("overview() returns zeroed counts for an empty entry list", () => {
     assert.deepStrictEqual(result.bySource, {});
 
 });
+
+
+test("timeline() orders real entries newest-first and includes each one's real class/source/preview (Project 3/E)", () => {
+
+    const entries = [
+        { id: "a", type: "personal", source: "manual", importance: 3, created: "2026-01-01T00:00:00.000Z", content: "oldest entry" },
+        { id: "b", type: "goals", source: "roadmap", importance: 5, created: "2026-01-03T00:00:00.000Z", content: "newest entry" },
+        { id: "c", type: "workflow", source: "automation", importance: 4, created: "2026-01-02T00:00:00.000Z", content: "middle entry" }
+    ];
+
+    const result = classification.timeline(entries);
+
+    assert.strictEqual(result.length, 3);
+    assert.strictEqual(result[0].id, "b");
+    assert.strictEqual(result[0].class, "organizational");
+    assert.strictEqual(result[1].id, "c");
+    assert.strictEqual(result[2].id, "a");
+    assert.strictEqual(result[2].preview, "oldest entry");
+
+});
+
+
+test("timeline() respects a real limit", () => {
+
+    const entries = [
+        { id: "a", type: "general", source: "x", created: "2026-01-01T00:00:00.000Z", content: "1" },
+        { id: "b", type: "general", source: "x", created: "2026-01-02T00:00:00.000Z", content: "2" },
+        { id: "c", type: "general", source: "x", created: "2026-01-03T00:00:00.000Z", content: "3" }
+    ];
+
+    const result = classification.timeline(entries, 2);
+
+    assert.strictEqual(result.length, 2);
+    assert.strictEqual(result[0].id, "c");
+    assert.strictEqual(result[1].id, "b");
+
+});
