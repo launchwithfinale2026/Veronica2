@@ -230,9 +230,34 @@ function remove(name){
 }
 
 
+// Phase 33 ("improve startup validation"): the capability-registry
+// counterpart to credentialManager.validateStartup() -- surfaces any
+// capability already in "error" or "disabled" status at boot (log
+// only, never throws), so a broken/disabled capability is visible
+// immediately at startup rather than only when someone happens to open
+// the dashboard's capability panel.
+function validateStartup(){
+
+    const capabilities = list();
+
+    for(const capability of capabilities){
+
+        if(capability.status === "error"){
+            log.error("capabilities", `"${capability.name}" v${capability.version} is in "error" status -- see its history for the last failure`);
+        } else if(capability.status === "disabled"){
+            log.warn("capabilities", `"${capability.name}" v${capability.version} is disabled`);
+        }
+
+    }
+
+    return capabilities;
+
+}
+
+
 module.exports = {
     STATUSES,
     BUILT_IN_CAPABILITIES,
     list, get, isInstalled, register, requireCapability,
-    setStatus, remove, snapshot, restore
+    setStatus, remove, snapshot, restore, validateStartup
 };

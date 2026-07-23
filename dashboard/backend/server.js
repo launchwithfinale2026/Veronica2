@@ -1420,6 +1420,11 @@ if(require.main === module){
     // that one connector; it never stops the dashboard from booting.
     credentialManager.validateStartup();
 
+    // Phase 33: surfaces any capability already in "error"/"disabled"
+    // status at boot -- same log-only, never-throws posture as
+    // credentialManager's own validateStartup() above.
+    capabilitiesRegistry.validateStartup();
+
     const PORT = process.env.DASHBOARD_PORT || 4000;
 
     // Binds to localhost only by default -- multi-device reach (Phase 8)

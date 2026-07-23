@@ -26,12 +26,17 @@ const CollaborationEngine = require("../collaboration/engine");
 const ExecutiveOrchestrator = require("../executive/orchestrator");
 const PersonalContextEngine = require("../profile/personalContextEngine");
 const credentialManager = require("../integrations/credentialManager");
+const capabilitiesRegistry = require("../capabilities/registry");
 
 // Reports which connectors have their required env vars present, logging
 // only variable NAMES that are missing -- never a value. A missing
 // credential disables that one connector; it never stops the terminal
 // from booting (see core/integrations/credentialManager.js).
 credentialManager.validateStartup();
+
+// Phase 33: surfaces any capability already in "error"/"disabled"
+// status at boot -- same log-only, never-throws posture as above.
+capabilitiesRegistry.validateStartup();
 
 const identity = JSON.parse(
     fs.readFileSync(

@@ -142,6 +142,23 @@ test("registry.setStatus() records history, and remove() refuses a core capabili
 });
 
 
+test("registry.validateStartup() never throws, logs error/disabled capabilities, and returns the full list", () => {
+
+    registry.register({ name: "test-cap-xqzstartup1", version: "0.1.0", description: "test" });
+    registry.setStatus("test-cap-xqzstartup1", "active");
+    registry.setStatus("test-cap-xqzstartup1", "error", "simulated for test");
+
+    let result;
+    assert.doesNotThrow(() => { result = registry.validateStartup(); });
+
+    assert.ok(result.some(c => c.name === "test-cap-xqzstartup1" && c.status === "error"));
+    assert.ok(result.some(c => c.name === "memory")); // built-ins included too
+
+    registry.remove("test-cap-xqzstartup1");
+
+});
+
+
 test("registry.snapshot()/restore() round-trips real state", () => {
 
     const before = registry.snapshot();
