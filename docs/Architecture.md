@@ -4214,3 +4214,43 @@ currently-missing credential, a real pending-approval round trip via
 `ActionProposalEngine`), plus 1 dashboard test.
 
 741 tests (737 -> 741), `npm test` green.
+
+## Project H -- Knowledge Graph Explorer
+
+**Audit confirmed a real, narrow gap.** `core/knowledge/index.js`'s
+`connections()` is exactly one hop; `find()` matches on `name`
+substring only, never `type`; there was no path-finding at all. Three
+real graph algorithms were added directly onto the `KnowledgeGraph`
+class, each reusing the exact same `read()`/case-insensitive-name
+convention every existing method already follows:
+
+- `findByType(type)` -- a straightforward filter, the first real query
+  against the `type` field.
+- `expand(name, hops)` -- real BFS, generalizing `connections()`'s fixed
+  1-hop reach to N, deduping by a `visitedNames` set so an entity
+  reached at hop 2 is never re-processed if a later path would reach it
+  again at hop 3.
+- `findPath(fromName, toName, { maxDepth })` -- real, unweighted,
+  direction-agnostic BFS shortest-path search (relationships are
+  directed data, `from -> to`, but REACHABILITY for this purpose isn't
+  -- you can walk a real relationship from either end to ask "can I get
+  from here to there"). Reconstructs the path by walking a `cameFrom`
+  map back to the start once the target is found; returns
+  `found: false` honestly within `maxDepth` rather than ever fabricating
+  a partial path.
+
+**Wired into:** `GET /api/knowledge/by-type`, `GET /api/knowledge/expand`,
+`GET /api/knowledge/path`, and a new, dedicated "Knowledge Graph
+Explorer" panel -- distinct from (not replacing) the existing simple
+"Knowledge Graph" widget inside the Intelligence panel, which still
+shows `retrieve()`'s output for quick reference.
+
+**Tests:** 3 new in `tests/knowledge.test.js` -- exact type matching;
+N-hop expansion verified precisely at each of 3 hops against a real
+4-node chain (asserting exactly which entities are/aren't reachable at
+each boundary); shortest-path search proven across multiple real hops,
+an honest `found: false` for a genuinely unreachable entity, direction-
+agnostic reachability, and the trivial same-entity case. Plus 1 new
+dashboard test exercising all three routes together.
+
+745 tests (741 -> 745), `npm test` green.

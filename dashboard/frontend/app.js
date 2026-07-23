@@ -3899,6 +3899,84 @@ async function loadSystemHealth(){
 }
 
 
+function setupKnowledgeGraphExplorer(){
+
+    document.getElementById("graph-by-type-form").addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const type = document.getElementById("graph-by-type-value").value;
+
+        try {
+
+            const entities = await fetchJSON(`/api/knowledge/by-type?type=${encodeURIComponent(type)}`);
+            renderList(
+                "graph-by-type-result",
+                entities,
+                "No entities of this type.",
+                entity => `${entity.name} (${entity.type})`
+            );
+
+        } catch(error){
+
+            renderList("graph-by-type-result", [], `Error: ${error.message}`, () => "");
+
+        }
+
+    });
+
+    const expandForm = document.getElementById("graph-expand-form");
+    const expandResult = document.getElementById("graph-expand-result");
+
+    expandForm.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const name = document.getElementById("graph-expand-name").value;
+        const hops = document.getElementById("graph-expand-hops").value || "1";
+
+        try {
+
+            const result = await fetchJSON(`/api/knowledge/expand?name=${encodeURIComponent(name)}&hops=${encodeURIComponent(hops)}`);
+            expandResult.textContent = JSON.stringify(result, null, 2);
+
+        } catch(error){
+
+            expandResult.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+    const pathForm = document.getElementById("graph-path-form");
+    const pathResult = document.getElementById("graph-path-result");
+
+    pathForm.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const from = document.getElementById("graph-path-from").value;
+        const to = document.getElementById("graph-path-to").value;
+
+        try {
+
+            const result = await fetchJSON(`/api/knowledge/path?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+
+            pathResult.textContent = result.found
+                ? `Path found (${result.path.length - 1} hop(s)): ${result.path.join(" -> ")}`
+                : "No path found within the search depth.";
+
+        } catch(error){
+
+            pathResult.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
 async function loadOperationalReadiness(){
 
     try {
@@ -4267,6 +4345,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupBrainRoutingForms();
     setupPersonalIntelligenceForms();
     setupAcquisitionForms();
+    setupKnowledgeGraphExplorer();
     setupSemanticSearchForm();
     setupReindexEmbeddingsForm();
     setupCompanyLookupForm();

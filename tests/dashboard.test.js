@@ -387,6 +387,29 @@ test("GET /api/knowledge/query returns real matching entities and their real rel
 });
 
 
+test("Knowledge Graph Explorer: real by-type/expand/path routes through the live server (Project H)", async () => {
+
+    const knowledge = require("../core/knowledge");
+    knowledge.addEntity({ name: "XQZDASH14 Person", type: "person" });
+    knowledge.addEntity({ name: "XQZDASH14 Company", type: "company" });
+    knowledge.addRelationship({ from: "XQZDASH14 Person", to: "XQZDASH14 Company", type: "worksAt" });
+
+    const byTypeRes = await fetch(`${baseUrl}/api/knowledge/by-type?type=person`);
+    const byType = await byTypeRes.json();
+    assert.ok(byType.some(e => e.name === "XQZDASH14 Person"));
+
+    const expandRes = await fetch(`${baseUrl}/api/knowledge/expand?name=${encodeURIComponent("XQZDASH14 Person")}&hops=1`);
+    const expanded = await expandRes.json();
+    assert.ok(expanded.entities.some(e => e.name === "XQZDASH14 Company"));
+
+    const pathRes = await fetch(`${baseUrl}/api/knowledge/path?from=${encodeURIComponent("XQZDASH14 Person")}&to=${encodeURIComponent("XQZDASH14 Company")}`);
+    const pathResult = await pathRes.json();
+    assert.strictEqual(pathResult.found, true);
+    assert.deepStrictEqual(pathResult.path, ["XQZDASH14 Person", "XQZDASH14 Company"]);
+
+});
+
+
 test("GET /api/system/health-score returns the real, unified 0-100 health score (Project F)", async () => {
 
     const res = await fetch(`${baseUrl}/api/system/health-score`);

@@ -639,6 +639,37 @@
     </div>
   </section>
 
+  <section class="panel panel-wide">
+    <h2>Knowledge Graph Explorer (Project H)</h2>
+    <p class="hint">Real graph queries -- type filtering, N-hop expansion, and shortest-path search between two named entities. Distinct from the simple "Knowledge Graph" widget under Intelligence: this is the dedicated explorer.</p>
+    <div class="widget-group">
+      <h3>Filter by type</h3>
+      <form id="graph-by-type-form" class="inline-form">
+        <input type="text" id="graph-by-type-value" placeholder="Type (e.g. person, company, campaign)" required>
+        <button type="submit">Filter</button>
+      </form>
+      <div id="graph-by-type-result" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Expand N hops from an entity</h3>
+      <form id="graph-expand-form" class="inline-form">
+        <input type="text" id="graph-expand-name" placeholder="Entity name" required>
+        <input type="number" id="graph-expand-hops" placeholder="Hops" value="1" min="1" max="10">
+        <button type="submit">Expand</button>
+      </form>
+      <pre id="graph-expand-result" class="widget code-block"></pre>
+    </div>
+    <div class="widget-group">
+      <h3>Find a path between two entities</h3>
+      <form id="graph-path-form" class="inline-form">
+        <input type="text" id="graph-path-from" placeholder="From entity" required>
+        <input type="text" id="graph-path-to" placeholder="To entity" required>
+        <button type="submit">Find path</button>
+      </form>
+      <pre id="graph-path-result" class="widget code-block"></pre>
+    </div>
+  </section>
+
   <section class="panel">
     <h2>Executive</h2>
     <div class="widget-group">

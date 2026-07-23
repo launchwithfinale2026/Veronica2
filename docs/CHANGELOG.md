@@ -2380,3 +2380,46 @@ round trip (create a real proposal, confirm it's counted and
 down). Plus 1 new dashboard test.
 
 737 -> 741 tests, all passing.
+
+## Project H -- Knowledge Graph Explorer
+
+**Audit first:** `core/knowledge/index.js` had `addEntity`/
+`addRelationship`/`find`(name substring)/`connections`(exactly 1 hop)/
+`retrieve`(find + connections) -- no type filtering, no N-hop
+expansion, no path-finding between two entities. The dashboard had no
+dedicated graph explorer, only a small "Knowledge Graph" widget inside
+the "Intelligence" panel showing `retrieve()`'s output.
+
+**Added, three real graph algorithms, no new dependency:**
+
+- `findByType(type)`: exact (case-insensitive) match against the `type`
+  field every entity already carries -- `find()`'s own substring search
+  is on `name`, never `type`, so this was a genuinely missing query.
+- `expand(name, hops)`: real breadth-first traversal generalizing
+  `connections()`'s fixed 1-hop reach to N -- never revisits an entity
+  already reached at a closer distance, returns the same
+  `{ entities, relationships }` shape `retrieve()` does for a
+  consistent "graph slice" contract.
+- `findPath(fromName, toName, { maxDepth })`: real, unweighted BFS
+  shortest-path search, direction-agnostic (a relationship connects two
+  entities regardless of which side is `from`/`to` for reachability).
+  Returns the real sequence of entity names and the real relationships
+  connecting them, or `found: false` within `maxDepth` -- never a
+  fabricated or partial path.
+
+**Wired into:** `GET /api/knowledge/by-type`, `GET /api/knowledge/expand`,
+`GET /api/knowledge/path`, and a new, dedicated "Knowledge Graph
+Explorer" dashboard panel (type filter, N-hop expansion, path-finding
+forms) -- separate from the existing simple widget under Intelligence,
+which stays as-is.
+
+**Tests:** `tests/knowledge.test.js` gained 3 -- exact type matching
+(including case-insensitivity); N-hop expansion proven at 1/2/3 hops
+against a real 4-node chain, with each hop boundary asserted precisely;
+shortest-path search across multiple real hops, an honest
+`found: false` for a genuinely unreachable entity, direction-agnostic
+reachability (finding a path "backwards" along a real relationship),
+and the same-entity trivial case. Plus 1 new dashboard test exercising
+all three routes together against a real, freshly-created entity pair.
+
+741 -> 745 tests, all passing.

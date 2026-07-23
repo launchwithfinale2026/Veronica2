@@ -254,6 +254,23 @@ const ROUTES = {
     // core/knowledge/index.js already implements.
     "GET /api/knowledge/query": (searchParams) => knowledge.retrieve(searchParams.get("q") || ""),
 
+    // Project H (Knowledge Graph Explorer): real type filtering and
+    // real N-hop expansion -- see core/knowledge/index.js's own
+    // findByType()/expand().
+    "GET /api/knowledge/by-type": (searchParams) => knowledge.findByType(searchParams.get("type") || ""),
+
+    "GET /api/knowledge/expand": (searchParams) => knowledge.expand(
+        searchParams.get("name") || "",
+        Number(searchParams.get("hops")) || 1
+    ),
+
+    // Real shortest-path search between two named entities -- see
+    // core/knowledge/index.js's own findPath().
+    "GET /api/knowledge/path": (searchParams) => knowledge.findPath(
+        searchParams.get("from") || "",
+        searchParams.get("to") || ""
+    ),
+
     "GET /api/tools": () => tools.list(),
 
     "GET /api/activity": () => readRecentActivity(),
