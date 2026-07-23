@@ -229,7 +229,7 @@ class CompanyManager {
     // real need for those appears.
     recordFinance(companyId, entryInput = {}){
 
-        const { label, amount, type } = entryInput;
+        const { label, amount, type, category } = entryInput;
 
         if(!label || !Number.isFinite(amount) || !["revenue", "expense"].includes(type)){
             throw new Error("A finance entry needs a label, a numeric amount, and type \"revenue\" or \"expense\"");
@@ -239,7 +239,13 @@ class CompanyManager {
 
         const finances = [
             ...(entry.metadata.finances || []),
-            { label, amount, type, timestamp: new Date().toISOString() }
+            // `category` is optional (defaults to null, matching every
+            // other optional field on this entity) -- added for Phase 42
+            // (Finance Division)'s budget tracking
+            // (core/finance/budgets.js compares actual spend per category
+            // against a budget's limit) without changing this method's
+            // existing behavior for any caller that doesn't pass one.
+            { label, amount, type, category: category || null, timestamp: new Date().toISOString() }
         ];
 
         const updated = memory.update(companyId, { metadata: { finances } });

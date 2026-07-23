@@ -134,6 +134,22 @@ test("recordFinance() validates input and returns a running revenue/expense/net 
 
 });
 
+test("recordFinance() persists an optional category (Phase 42 Finance Division budget tracking), defaulting to null", () => {
+
+    const { companyManager } = makeStack();
+
+    const company = companyManager.createCompany({ name: "Finance Category Co XQZC17" });
+
+    companyManager.recordFinance(company.id, { label: "AWS bill", amount: 200, type: "expense", category: "infrastructure" });
+    companyManager.recordFinance(company.id, { label: "Misc expense", amount: 50, type: "expense" });
+
+    const finances = companyManager.getCompany(company.id).finances;
+
+    assert.strictEqual(finances[0].category, "infrastructure");
+    assert.strictEqual(finances[1].category, null);
+
+});
+
 test("addRelationship() creates a knowledge graph edge from the company to a contact", () => {
 
     const { companyManager } = makeStack();
