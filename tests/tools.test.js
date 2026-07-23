@@ -327,6 +327,27 @@ test("integrations.status tool reports every registered connector", async () => 
 
 });
 
+test("marketing.campaign.plan tool runs end to end through the real Tool Registry and creates a real campaign (Phase 41 -- no longer a skeleton)", async () => {
+
+    const CompanyManager = require("../core/executive/companyManager");
+    const campaigns = require("../core/marketing/campaigns");
+
+    const company = new CompanyManager().createCompany({ name: "Tool Test Marketing Co XQZTOOL1" });
+
+    const campaign = await tools.run(
+        "marketing.campaign.plan",
+        { companyId: company.id, objective: "Tool-driven campaign XQZTOOL1", platforms: ["discord"] },
+        { role: "agent" }
+    );
+
+    assert.strictEqual(campaign.objective, "Tool-driven campaign XQZTOOL1");
+    assert.strictEqual(campaign.companyId, company.id);
+
+    const persisted = campaigns.getCampaign(campaign.id);
+    assert.strictEqual(persisted.objective, "Tool-driven campaign XQZTOOL1");
+
+});
+
 test("DepartmentManager.useTool() runs tools with department_manager permissions", async () => {
 
     const DepartmentManager = require("../core/departments/base");

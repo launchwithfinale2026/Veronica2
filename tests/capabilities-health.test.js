@@ -203,6 +203,28 @@ test("healthFor() reflects registry.status directly (not \"active\"/\"degraded\"
 });
 
 
+test("the real \"marketing\" package genuinely reports \"active\", not \"Installed – Awaiting Integration\", now that its tool has a real implementation (Phase 41 Marketing Division)", () => {
+
+    // All six real Phase 35 packages reported "installed_awaiting_integration"
+    // when this module was first built (every tool was still a
+    // core/capabilities/builder.js-generated skeleton). Marketing's
+    // "marketing.campaign.plan" tool was given a real implementation
+    // (packages/marketing/tools/marketing.campaign.plan.js -- calls
+    // core/marketing/campaigns.js for real) as part of Marketing Division
+    // production-readiness -- this is the concrete, honest signal that
+    // actually changed.
+    const report = health.report().find(r => r.name === "marketing");
+
+    assert.ok(report);
+    assert.strictEqual(report.operationalStatus, "active");
+    assert.strictEqual(report.operationalStatusLabel, "Active");
+    assert.deepStrictEqual(report.skeletonTools, []);
+    assert.strictEqual(report.agentsLoaded, report.agentsDeclared);
+    assert.strictEqual(report.toolsLoaded, report.toolsDeclared);
+
+});
+
+
 test("report() excludes core capabilities entirely", () => {
 
     const report = health.report();

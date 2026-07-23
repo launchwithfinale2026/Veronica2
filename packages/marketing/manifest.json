@@ -4,6 +4,15 @@
     "version": "0.1.0",
     "agents": [
         {
+            "name": "MarketingDirector",
+            "department": "marketing-dept",
+            "role": "Marketing Director",
+            "capabilities": [
+                "marketing strategy",
+                "prioritization"
+            ]
+        },
+        {
             "name": "CampaignManager",
             "department": "marketing-dept",
             "role": "Campaign Manager",
@@ -20,6 +29,24 @@
             ]
         },
         {
+            "name": "BrandManager",
+            "department": "marketing-dept",
+            "role": "Brand Manager",
+            "capabilities": [
+                "brand voice",
+                "brand guidelines"
+            ]
+        },
+        {
+            "name": "PublishingManager",
+            "department": "marketing-dept",
+            "role": "Publishing Manager",
+            "capabilities": [
+                "publishing",
+                "approval routing"
+            ]
+        },
+        {
             "name": "MarketingAnalyticsAgent",
             "department": "marketing-dept",
             "role": "Analytics Agent",
@@ -32,8 +59,21 @@
     "tools": [
         {
             "id": "marketing.campaign.plan",
-            "description": "Draft a campaign plan for a given objective (skeleton -- not yet implemented; needs a real ad platform API).",
-            "permission": "read"
+            "description": "Create a real campaign for a company (objective/audience/platforms/timeline/assets) via core/marketing/campaigns.js. Real, working -- no external API needed to plan a campaign; publishing it later does go through the real, approval-gated Publishing Queue (core/executive/actionProposal.js's publish_content action).",
+            "permission": "write_memory",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "companyId": { "type": "string" },
+                    "name": { "type": "string" },
+                    "objective": { "type": "string" },
+                    "audience": { "type": "string" },
+                    "platforms": { "type": "array", "items": { "type": "string" } },
+                    "timeline": { "type": "object" },
+                    "assets": { "type": "array", "items": { "type": "string" } }
+                },
+                "required": ["companyId", "objective"]
+            }
         }
     ],
     "dependencies": [],

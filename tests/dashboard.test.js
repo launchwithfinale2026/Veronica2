@@ -151,12 +151,15 @@ test("GET /api/status reports online with real agent/department counts", async (
 
     assert.strictEqual(res.status, 200);
     assert.strictEqual(body.status, "ONLINE");
-    // 9 built-in agents/departments + 16 agents/6 departments from the
-    // six real, active production capability packages (Phase 35,
-    // approved and installed for real -- see docs/CHANGELOG.md's
-    // "Phase 41" entry). Not a fixed constant anymore: this machine's
-    // real roster now legitimately depends on what's installed.
-    assert.strictEqual(body.agents, 25);
+    // 9 built-in agents + 19 package agents (16 from the six real,
+    // active Phase 35 production packages, +3 from Marketing's Phase 41
+    // hierarchy completion -- MarketingDirector/BrandManager/
+    // PublishingManager) = 28. 9 built-in + 6 package departments = 15
+    // (department count is unaffected by adding agents to an existing
+    // department). Not a fixed constant: this machine's real roster
+    // legitimately depends on what's installed -- see docs/CHANGELOG.md's
+    // "Phase 41" entries.
+    assert.strictEqual(body.agents, 28);
     assert.strictEqual(body.departments, 15);
     assert.ok(typeof body.uptimeSeconds === "number");
 
@@ -182,9 +185,10 @@ test("GET /api/agents/network returns every agent with its real knowledge-graph 
     const body = await res.json();
 
     assert.strictEqual(res.status, 200);
-    // 9 built-in + 16 from the real, active production capability
-    // packages (Phase 35/41).
-    assert.strictEqual(body.length, 25);
+    // 9 built-in + 19 from the real, active production capability
+    // packages (16 from Phase 35's six packages + 3 from Marketing's
+    // Phase 41 hierarchy completion).
+    assert.strictEqual(body.length, 28);
     assert.ok(body.every(agent => "name" in agent && "department" in agent && Array.isArray(agent.connections)));
 
 });
@@ -256,7 +260,7 @@ test("GET /api/agents returns the real agent roster (9 built-in + package agents
     const res = await fetch(`${baseUrl}/api/agents`);
     const body = await res.json();
 
-    assert.strictEqual(body.length, 25);
+    assert.strictEqual(body.length, 28);
     assert.ok(body.some(a => a.name === "METIS"));
 
 });

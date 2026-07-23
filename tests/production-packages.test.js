@@ -4,13 +4,14 @@ const path = require("path");
 
 // Phase 35 (Production Capability Packages): real, generated packages
 // for six business domains (see docs/CHANGELOG.md for the full list).
-// Each is `approvalRequired: true` and deliberately left as a real,
-// unapproved pending proposal in the actual capability registry/memory
-// (not test-isolated state) -- installing/activating them is a genuine
-// human decision, not something this suite (or this session) makes for
-// the operator. This file only verifies each package's real manifest is
-// valid and stays that way -- it does NOT install or approve any of
-// them, and touches no shared test-isolated state that would need
+// Each is `approvalRequired: true` -- installing/activating them was a
+// genuine human decision, not something this suite (or this session)
+// made for the operator, and all six were in fact approved and are now
+// genuinely active (Phase 41). This file only verifies each package's
+// real manifest is valid and stays that way (still true post-approval --
+// loadManifest()/validate() read the real on-disk manifest.json
+// regardless of install state) -- it does not itself install or approve
+// anything, and touches no shared test-isolated state that would need
 // backup/restore.
 
 const manifestModule = require("../core/capabilities/manifest");
