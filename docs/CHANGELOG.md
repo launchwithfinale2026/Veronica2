@@ -1181,3 +1181,71 @@ follows an existing pattern from elsewhere in the codebase rather than
 inventing a new one; the only genuinely new store is campaigns
 themselves, and even that is an ordinary memory entry, not a new file
 or schema.
+
+## Phase 42 (Sales Division) -- parts 1-3
+
+The operator reframed the objective from "build infrastructure" to
+"build real departmental intelligence" and asked for the Marketing
+Division to be used as the architectural reference for each remaining
+Phase 35 package, starting with Sales. Same discipline: audit first,
+reuse wherever possible, no fabricated capability.
+
+**Part 1 -- real Lead + Opportunity/Pipeline engine.** New
+`core/sales/leads.js`: leads as memory entries (same pattern
+`core/marketing/campaigns.js` established), with `scoreLead()` computing
+a fully deterministic, explainable 0-100 score -- every point traces to
+a real, visible reason (contact completeness, real logged engagement
+and its recency, confirmed BANT signals) -- never an LLM's guess, the
+same rule-based-where-explainable principle `core/executive/planner.js`
+already established for department assignment. New
+`core/sales/opportunities.js`: Pipeline Stages, Contact Management, and
+Follow-up Scheduling all on the same real opportunity entity (they
+aren't separate concerns, they're one entity moving through a
+pipeline), plus `forecast()` -- a real, deterministic weighted-pipeline
+value (stage-probability table, correctly excluding closed deals).
+
+**Part 2 -- real Proposal Generator + Analytics + real tool.** New
+`core/sales/proposalGenerator.js`, following
+`core/marketing/contentGenerator.js`'s exact pattern (routed through
+`core/intelligence.think()`, incorporating the company's real Brand
+Profile). New `core/sales/analytics.js`: win/loss analytics (win rate,
+average won value, a genuine loss-reason breakdown -- every closed_lost
+opportunity requires a real reason) plus execution telemetry reused
+from `core/learning` for free. `packages/sales`'s one skeleton tool
+(`sales.pipeline.review`) given a real implementation, its permission
+fixed from an invented `"read"` string to the real `"read_memory"`
+vocabulary, and every agent prompt replaced with a real one.
+
+**A real, found-live circular-require bug, and its proactive fix
+elsewhere.** Verifying the new tool through the actual Tool Registry
+(not just requiring the analytics module directly) surfaced a genuine
+bug: `core/sales/analytics.js`'s top-level `require("../learning")`
+transitively reaches `core/brain/providers/claude.js`, which requires
+`core/tools/index.js` at ITS OWN top level (to offer the tool registry
+to Claude's tool-use loop) -- when `core/tools/index.js`'s own
+`loadTools()` is what triggered the whole chain in the first place
+(exactly what happens the first time any package tool handler pulls in
+this dependency graph), that nested require lands on an incompletely-
+initialized module, silently corrupting whichever tool was mid-load.
+Fixed by moving the `../learning` require inside `executionHealth()`,
+the same lazy-require convention this codebase already uses for this
+exact class of problem (see `core/executive/actionProposal.js`'s
+`installer.js` require for the canonical precedent). Applied the
+identical fix proactively to `core/marketing/analytics.js`, which had
+the same latent landmine -- masked only because no marketing tool
+handler happened to import it during tool loading yet.
+
+**Part 3 -- Sales Health + dashboard surfacing.** `dailyBriefing.js`
+gained `salesHealth()` (same per-company rollup pattern as
+`campaignHealth()`: open lead/opportunity counts, the real weighted
+forecast, overdue follow-up count). Full dashboard wiring -- the
+complete lead and opportunity lifecycles, a new "Sales Division"
+frontend panel -- verified end to end against a live running server.
+
+Result: `core/capabilities/health.js` now reports sales as genuinely
+`"active"` -- the second of six Phase 35 packages to cross that line,
+after marketing.
+
+542 -> 552 tests across all three parts, all passing throughout, one
+commit per part. No architectural redesign -- every new piece follows
+an existing pattern from Marketing or elsewhere in the codebase.

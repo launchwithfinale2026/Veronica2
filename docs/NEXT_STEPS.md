@@ -1,7 +1,7 @@
 # VERONICA — Next Steps
 
-Snapshot as of Phase 41 part 5 (Marketing Division production-readiness,
-dashboard surfacing complete). 526/526 tests passing. See
+Snapshot as of Phase 42 part 3 (Sales Division production-readiness,
+dashboard surfacing complete). 552/552 tests passing. See
 `docs/CHANGELOG.md` for what each phase actually built, and
 `docs/NEXT_HUMAN_ACTIONS.md`/`docs/EXTERNAL_DEPENDENCIES.md` for what
 still needs a human.
@@ -10,49 +10,47 @@ still needs a human.
 
 - **The six pending production-package proposals (Phase 35) were
   approved and are now genuinely, permanently active**: 28 live agents
-  (9 built-in + 19 package -- 16 from the six Phase 35 packages, +3
-  from Marketing's completed hierarchy), 15 live departments (9 built-in
-  + 6 package).
-- **The operator's 9-point integration checklist is closed** (Capability
-  Registry/Executive Core/Organization Overview/Agent+Tool Registry/
-  Dashboard were all already correctly wired by Phase 25/32/33 -- they
-  only looked broken because of four real bugs, all fixed; "Installed –
-  Awaiting Integration" status and full Executive Planning participation
-  were the two genuinely missing pieces, both now built).
+  (9 built-in + 19 package), 15 live departments (9 built-in + 6
+  package).
+- **The operator's 9-point integration checklist is closed.**
 - **The Marketing Division is production-ready** (Phase 41 parts 1-5):
-  a real Company Brain + Brand Profile (`companyManager.js`), a real
-  Campaign Engine with Planner/Calendar (`core/marketing/campaigns.js`),
-  a real Content Generator using the actual Claude connection
-  (`core/marketing/contentGenerator.js`), a real, approval-gated
-  Publishing Queue (`actionProposal.js`'s `publish_content`, honest
-  about only Discord actually working today), a real Analytics Engine
-  (`core/marketing/analytics.js`), Department/Campaign Health in the
-  morning briefing, a complete real agent hierarchy (Executive Core ->
-  MarketingDirector -> CampaignManager -> ContentStrategist ->
-  BrandManager -> PublishingManager -> MarketingAnalyticsAgent, every
-  prompt real, no more skeletons), and full dashboard surfacing
-  (backend routes + a new frontend panel). The marketing package is now
-  the first of the six Phase 35 packages to report `"active"` in
-  `core/capabilities/health.js`, not "Installed – Awaiting Integration".
-- The remaining five Phase 35 packages (business-operations, sales,
-  research-department, finance, trading-research) are still genuinely
-  "Installed – Awaiting Integration" -- their tools are still generated
-  skeletons. Marketing was the operator's explicit next objective; the
-  same production-readiness pass (real tool implementations, real agent
-  prompts) is the natural template for each of the other five, not yet
-  started.
+  Company Brain + Brand Profile, a real Campaign Engine with
+  Planner/Calendar, a real Content Generator, an approval-gated
+  Publishing Queue (honest about only Discord actually working), a real
+  Analytics Engine, Department/Campaign Health in the morning briefing,
+  a complete real agent hierarchy, and full dashboard surfacing.
+- **The Sales Division is production-ready** (Phase 42 parts 1-3): a
+  real Lead database with deterministic, explainable scoring
+  (`core/sales/leads.js`), a real Opportunity/Pipeline engine with
+  Contact Management, Follow-up Scheduling, and a deterministic
+  weighted-pipeline Forecast (`core/sales/opportunities.js`), a real
+  Proposal Generator (`core/sales/proposalGenerator.js`), real Win/Loss
+  Analytics (`core/sales/analytics.js`), Sales Health in the morning
+  briefing, and full dashboard surfacing. Building it surfaced a real,
+  order-dependent circular-require bug (`core/sales/analytics.js`'s
+  top-level `require("../learning")` reaching back into
+  `core/tools/index.js` via `core/brain/providers/claude.js`) --
+  fixed, and proactively fixed in `core/marketing/analytics.js` too,
+  which had the identical latent landmine.
+- **Two of six Phase 35 packages are now genuinely `"active"`** in
+  `core/capabilities/health.js`: marketing and sales. The remaining four
+  (business-operations, research-department, finance, trading-research)
+  are still "Installed – Awaiting Integration" -- their tools are still
+  generated skeletons, awaiting the same production-readiness pass.
 
-## Recommended Phase 42+
+## Recommended Phase 43+
 
-1. **Apply the Marketing Division's production-readiness template to
-   the other five Phase 35 packages** (business-operations, sales,
-   research-department, finance, trading-research) -- same pattern:
-   real tool implementations replacing generated skeletons, real agent
-   system prompts, a domain engine analogous to
-   `core/marketing/campaigns.js` where the domain calls for one (e.g. a
-   real deal/pipeline model for sales, a real ledger/report engine for
-   finance). Each is its own genuine scope, not a single mechanical
-   pass -- pick one at a time.
+1. **Apply the same production-readiness template to the remaining four
+   Phase 35 packages** (business-operations, research-department,
+   finance, trading-research) -- the operator's explicit next objective
+   is Finance (a real ledger/revenue/expense/budget/forecast/cash-flow/
+   runway engine), then Research, then Trading Research, then Business
+   Operations, per the standing Phase 42+ roadmap. Each is its own
+   genuine scope -- pick one at a time, audit first, reuse the Campaign
+   Engine/Lead+Opportunity pattern wherever the domain actually matches
+   it, and watch for the same class of circular-require bug
+   (`core/learning` required at a module's top level, reached from a
+   tool handler) in any new analytics module.
 2. **Close the recommendation feedback loop.** Phase 38's
    `adaptiveInsights.js` computes real acceptance rates and repeated-
    recommendation counts but doesn't feed them back into
@@ -64,8 +62,8 @@ still needs a human.
    change across this entire project has been verified at the
    endpoint/content level only -- no browser is available in this
    environment. The command palette, search, Executive Summary panel
-   (Phase 34), and now the Marketing Division panel (Phase 41) are
-   functionally real but never visually confirmed.
+   (Phase 34), and the Marketing (Phase 41) and Sales (Phase 42) Division
+   panels are functionally real but never visually confirmed.
 4. **The six architecture-debt/upgrade items** flagged in
    `core/system/selfImprovement.js` -- genuinely the operator's call,
    not something to decide autonomously.

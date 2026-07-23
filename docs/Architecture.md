@@ -2686,3 +2686,81 @@ green before each). No architectural redesign anywhere in this arc --
 every new piece follows an existing pattern from elsewhere in the
 codebase; the only genuinely new store is campaigns themselves, and
 even that is an ordinary memory entry.
+
+## Sales Division (`core/sales/`, Phase 42)
+
+**Decision:** the second Phase 35 package moved from skeleton to
+production-ready, using the Marketing Division (Phase 41) as the
+architectural reference throughout -- the operator's explicit
+instruction for this and every remaining package.
+
+- **Lead database + Lead Scoring** (`core/sales/leads.js`): leads as
+  ordinary memory entries (same `company:<id>`-tagged pattern
+  `core/marketing/campaigns.js` established). `scoreLead()` is fully
+  deterministic and explainable -- contact completeness, real logged
+  engagement (count and recency), and confirmed BANT signals each add a
+  fixed, documented number of points with a visible reason string. This
+  matches `core/executive/planner.js`'s own department-assignment
+  scoring precedent: a real decision that needs to be cheap,
+  synchronous, and auditable gets rule-based logic, not an LLM guessing
+  at intent from a lead record.
+- **Opportunity model, Pipeline Stages, Contact Management, Follow-up
+  Scheduling, and Forecasting** (`core/sales/opportunities.js`): all one
+  module, because they're all the same real entity (an opportunity)
+  moving through a pipeline, not separate stores. `setStage()` requires
+  a real reason to close a deal (`closed_won`/`closed_lost`) -- this is
+  what makes win/loss analytics meaningful rather than a status flag.
+  `forecast()` is a deterministic weighted-pipeline value (deal value
+  times a fixed, documented stage-probability table), correctly
+  excluding closed deals from the forward-looking number.
+- **Proposal Generator** (`core/sales/proposalGenerator.js`): routed
+  through `core/intelligence.think()`, following
+  `core/marketing/contentGenerator.js`'s exact established pattern,
+  incorporating the opportunity's real details and the company's real
+  Brand Profile.
+- **Analytics** (`core/sales/analytics.js`): win/loss analytics (win
+  rate, average won value, a real loss-reason breakdown) plus execution
+  telemetry reused from `core/learning` for free -- the same
+  two-kinds-of-analytics split `core/marketing/analytics.js` established
+  in Phase 41.
+- **A real, found-live circular-require bug**: verifying
+  `sales.pipeline.review` through the actual `core/tools` registry (not
+  just requiring `core/sales/analytics.js` directly) surfaced a genuine
+  bug. `core/tools/index.js` calls `loadTools()` at its own module load
+  time; `loadTools()` `require()`s every package tool handler, including
+  this one; this handler required `core/sales/analytics.js`, which
+  top-level-required `../learning`, whose own chain
+  (`core/intelligence` -> `core/brain` ->
+  `core/brain/providers/claude.js`) top-level-requires
+  `core/tools/index.js` right back -- landing on that SAME module,
+  still mid-execution, before its `module.exports = registry` line had
+  even run. Node silently hands back the partial/empty exports object
+  in that case, corrupting whichever tool happened to be mid-load at
+  that exact moment (logged as "does not export it -- skipped," even
+  though the file itself is fine). Fixed by moving the `../learning`
+  require inside `executionHealth()`, the exact lazy-require convention
+  this codebase already uses for this class of problem (see
+  `core/executive/actionProposal.js`'s `installer.js` require). Applied
+  proactively to `core/marketing/analytics.js` too, which had the
+  identical latent landmine, masked only because no marketing tool
+  handler happened to import it during tool loading yet. **Lesson for
+  any future package tool handler**: never let a tool handler's
+  dependency chain top-level-require `core/learning` (or anything else
+  that eventually reaches `core/brain/providers/claude.js`) -- lazy-
+  require it inside the function that needs it.
+- **Agent prompts, not a new hierarchy**: unlike Marketing, Sales's
+  existing three agents (SalesAgent/Sales Representative,
+  AccountManager, PipelineAnalyst) already mapped cleanly onto the
+  domain (lead generation -> account/pipeline management -> analysis)
+  without needing new roles added -- only real system prompts replacing
+  the Phase 27 skeleton placeholders.
+- **Sales Health** (`core/executive/dailyBriefing.js`): same
+  per-company rollup pattern `campaignHealth()` established -- open
+  lead/opportunity counts, the real weighted forecast, and overdue
+  follow-up count, omitting companies with no sales activity.
+
+542 -> 552 tests across three parts (one commit per part, `npm test`
+green before each). No architectural redesign -- every new piece
+follows an existing pattern from Marketing or elsewhere in the
+codebase; the only genuinely new stores are leads and opportunities
+themselves, both ordinary memory entries.
