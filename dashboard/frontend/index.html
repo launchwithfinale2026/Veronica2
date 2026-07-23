@@ -785,6 +785,16 @@
       </form>
       <p id="automation-run-result" class="hint"></p>
     </div>
+    <div class="widget-group">
+      <h3>Workflows (Phase 54)</h3>
+      <p class="hint">Real, defined-in-code multi-step workflows -- branching, conditions, per-step retries, and rollback. Defined by name in code (like built-in jobs), run on demand here.</p>
+      <div id="workflow-list" class="widget"></div>
+      <form id="workflow-run-form" class="inline-form">
+        <input type="text" id="workflow-run-name" placeholder="workflow name" required>
+        <button type="submit">Run now</button>
+      </form>
+      <pre id="workflow-run-result" class="widget code-block"></pre>
+    </div>
   </section>
 
   <section class="panel">

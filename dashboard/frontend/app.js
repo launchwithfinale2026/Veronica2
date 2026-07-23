@@ -1572,6 +1572,60 @@ function setupAutomationRunForm(){
 }
 
 
+async function loadWorkflowList(){
+
+    try {
+        const workflows = await fetchJSON("/api/automation/workflows");
+        renderList(
+            "workflow-list",
+            workflows,
+            "No workflows defined yet.",
+            workflow => `${workflow.name} (${workflow.stepCount} step${workflow.stepCount === 1 ? "" : "s"})`
+        );
+    } catch(error){
+        renderList("workflow-list", [], `Error: ${error.message}`, () => "");
+    }
+
+}
+
+
+function setupWorkflowRunForm(){
+
+    const form = document.getElementById("workflow-run-form");
+    const result = document.getElementById("workflow-run-result");
+
+    loadWorkflowList();
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const name = document.getElementById("workflow-run-name").value;
+
+        result.textContent = "Running...";
+
+        try {
+
+            const run = await authedFetch(`/api/automation/workflows/${encodeURIComponent(name)}/run`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: "{}"
+            });
+
+            result.textContent = JSON.stringify(run, null, 2);
+            loadDashboard();
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
 function setupCollabMessageForm(){
 
     const form = document.getElementById("collab-message-form");
@@ -3855,6 +3909,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupCollabConsensusForm();
     setupCollabOpportunitiesForm();
     setupConstitutionForms();
+    setupWorkflowRunForm();
     setupSemanticSearchForm();
     setupReindexEmbeddingsForm();
     setupCompanyLookupForm();

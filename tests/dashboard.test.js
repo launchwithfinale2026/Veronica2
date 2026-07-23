@@ -368,6 +368,37 @@ test("GET /api/knowledge/query returns real matching entities and their real rel
 
 });
 
+
+test("GET /api/automation/workflows and .../history reflect a real, defined-in-code workflow run through the real server (Phase 54)", async () => {
+
+    process.env.API_TOKEN = "test-api-secret";
+
+    // Registers into the same in-memory workflow registry the running
+    // server's own require("core/automation/workflow") singleton uses
+    // (Node module caching -- same instance either way).
+    const automationWorkflow = require("../core/automation/workflow");
+    automationWorkflow.defineWorkflow("dashboard-test-workflow-xqzdash11", [
+        { id: "only", run: async () => "dashboard workflow ran XQZDASH11" }
+    ]);
+
+    const listRes = await fetch(`${baseUrl}/api/automation/workflows`);
+    const list = await listRes.json();
+    assert.ok(list.some(w => w.name === "dashboard-test-workflow-xqzdash11"));
+
+    const runRes = await fetch(`${baseUrl}/api/automation/workflows/dashboard-test-workflow-xqzdash11/run`, {
+        method: "POST",
+        headers: { Authorization: "Bearer test-api-secret", "Content-Type": "application/json" },
+        body: "{}"
+    });
+    const run = await runRes.json();
+    assert.strictEqual(run.status, "completed");
+
+    const historyRes = await fetch(`${baseUrl}/api/automation/workflows/history?name=dashboard-test-workflow-xqzdash11`);
+    const history = await historyRes.json();
+    assert.strictEqual(history[0].id, run.id);
+
+});
+
 test("GET/POST /api/constitution reads and updates the real Executive Constitution (Phase 51)", async () => {
 
     process.env.API_TOKEN = "test-api-secret";
@@ -1390,6 +1421,7 @@ const ALL_POST_ROUTES = [
     "/api/executive/proposals/test-id/execute",
     "/api/learning/recommend",
     "/api/automation/jobs/test-job/run",
+    "/api/automation/workflows/test-workflow/run",
     "/api/collaboration/message",
     "/api/collaboration/delegate",
     "/api/collaboration/review",

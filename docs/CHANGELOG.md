@@ -1854,3 +1854,77 @@ fires for whichever real connector's actual current status differs
 from it.
 
 679 -> 686 tests, all passing.
+
+## Phase 54 -- Automation Engine 2.0
+
+**Audit first:** `core/automation/engine.js` already provides a real,
+persisted job queue, real retries with exponential-ish backoff, real
+crash recovery (a "running" entry found at boot is a crash leftover,
+reset to "pending"), and a real recurring scheduler -- all of that
+stays exactly as it is. What the phase actually asked for was
+composable multi-step workflows: "WHEN -> IF -> CHECK -> APPROVAL ->
+RUN -> LEARN -> REPORT," with branching, retries, conditions,
+scheduling, dependency graphs, rollback, and reusable templates.
+
+**Added:** `core/automation/workflow.js` -- a `defineWorkflow(name,
+steps)` / `runWorkflow(name, context)` pair, NOT a second job queue.
+Every phrase in the phase's own step diagram maps onto an existing
+piece:
+
+- **WHEN**: a schedule, via the new `scheduleWorkflow(engine, name,
+  intervalMs, context)`, which literally calls
+  `AutomationEngine.registerJob()`/`.schedule()` -- the caller's real
+  engine instance, not a second scheduler.
+- **IF/CHECK**: a step's own optional `condition(context)` -- if it
+  returns false, the step is recorded `"skipped"` and the run continues
+  down its `onSuccess` edge, never failing the workflow.
+- **APPROVAL**: no new mechanism -- a step's `run(context)` can itself
+  create and poll a `core/executive/actionProposal.js` proposal, the
+  existing approval pipeline used AS a step.
+- **RUN**: the step's real handler, with real per-step
+  `maxAttempts`/`retryDelayMs` retries (distinct from the job-level
+  retry `AutomationEngine` already does on its NEXT scheduled tick --
+  this retries immediately, within the same run).
+- **LEARN**: every step outcome recorded via `core/learning/log.js`'s
+  `record()`, the exact same instrumentation every existing job already
+  gets (a new `kind: "workflow_step"` value, ignored by every existing
+  aggregation that filters on a different `kind`, so nothing else had
+  to change).
+- **REPORT**: a real, persisted, queryable memory entry per run
+  (`workflowHistory(name)`), same "ordinary memory entry, not a
+  parallel store" convention as everything else.
+
+**Real branching, not fake:** `onSuccess`/`onFailure` are step ids, not
+array position -- a step routes to a DIFFERENT next step depending on
+its own real outcome, which is what makes this an actual dependency
+graph rather than a linear list with a skip flag.
+
+**Real rollback:** a step can declare `rollback(context)`. If a later
+step fails with no `onFailure` edge to catch it, every already-completed
+step's rollback runs, most-recently-completed first -- the same "undo
+in reverse order" a real transaction rollback follows.
+
+**Reusable templates, without a new template store:**
+`defineWorkflow()` registers a named step sequence once;
+`runWorkflow(name, context)` can be called any number of times with
+different `context` -- that's the whole "template" concept, no
+separate persisted definition format needed since workflows are
+defined in code the same way built-in automation jobs already are.
+
+**Wired into:** dashboard `GET /api/automation/workflows` (list),
+`GET /api/automation/workflows/history?name=` (report history), gated
+`POST /api/automation/workflows/:name/run` (added to
+`tests/dashboard.test.js`'s `ALL_POST_ROUTES`), a `workflow.completed`
+bus event (added to the SSE whitelist, Phase 52-53's mechanism), and a
+new dashboard widget.
+
+**Tests:** `tests/automation-workflow.test.js` (8 tests) -- input
+validation, a real linear run with a persisted report, real branching
+via a genuine `onFailure` edge, a real skipped-condition step, real
+multi-step rollback in reverse order, real per-step retries succeeding
+on the 3rd attempt, the real bus event, and `scheduleWorkflow()`
+actually registering onto a real `AutomationEngine` instance. Plus 1
+new dashboard test running a real defined-in-code workflow end to end
+through the live server.
+
+686 -> 695 tests, all passing.

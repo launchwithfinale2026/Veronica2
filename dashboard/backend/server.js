@@ -24,6 +24,7 @@ const DeviceManager = require("../../core/device/deviceManager");
 const executive = require("../../core/executive");
 const learning = require("../../core/learning");
 const automation = require("../../core/automation");
+const automationWorkflow = require("../../core/automation/workflow");
 const bus = require("../../core/bus");
 const CollaborationEngine = require("../../core/collaboration/engine");
 const collaborationRules = require("../../core/collaboration/collaborationRules");
@@ -334,6 +335,15 @@ const ROUTES = {
 
     "GET /api/automation/history": () => automation.history(),
 
+    // Phase 54 (Automation Engine 2.0): real, defined-in-code workflows
+    // (see core/automation/workflow.js) -- listable and runnable, not
+    // dashboard-created (a workflow's steps are real handler functions,
+    // the same way core/automation/jobs.js's built-in jobs are code, not
+    // data).
+    "GET /api/automation/workflows": () => automationWorkflow.listWorkflows(),
+
+    "GET /api/automation/workflows/history": (searchParams) => automationWorkflow.workflowHistory(searchParams.get("name") || undefined),
+
     "GET /api/collaboration/history": () => collaboration.history(),
 
     // Phase 50 (Department Collaboration): real, rule-detected cross-
@@ -619,7 +629,9 @@ const STREAMED_EVENTS = [
     // connectorHealth.js and docs/CHANGELOG.md's Phase 52 entry.
     "goal.statusChanged", "goal.completed", "approval.granted", "approval.rejected",
     "capability.installed", "campaign.published", "research.finished",
-    "git.commit", "connector.online", "connector.offline"
+    "git.commit", "connector.online", "connector.offline",
+    // Phase 54 (Automation Engine 2.0).
+    "workflow.completed"
 ];
 const SSE_HEARTBEAT_MS = 25000;
 
@@ -1320,6 +1332,26 @@ function createServer(){
                 }
 
                 return sendJSON(res, 200, automation.enqueue(decodeURIComponent(automationRunMatch[1])));
+
+            }
+
+            // Phase 54 (Automation Engine 2.0): runs a real, defined-in-
+            // code workflow synchronously, same "authenticated dashboard
+            // action directly executes real work" convention
+            // POST /api/departments/:id/run already established.
+            const workflowRunMatch = parsed.pathname.match(/^\/api\/automation\/workflows\/([^/]+)\/run$/);
+
+            if(workflowRunMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const context = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, await automationWorkflow.runWorkflow(decodeURIComponent(workflowRunMatch[1]), context));
 
             }
 

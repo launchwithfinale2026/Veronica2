@@ -3542,3 +3542,84 @@ directory failing closed; the connector observer against a real seeded
 connector's actual current status differs from the seed.
 
 686 tests (679 -> 686), `npm test` green.
+
+## Automation Engine 2.0 (Phase 54)
+
+**Audit first.** `core/automation/engine.js`'s own header comment
+already lists what it real is: "a generic, persisted job queue +
+recurring scheduler," with real crash recovery (a `"running"` queue
+entry found at boot is unconditionally a crash leftover, reset to
+`"pending"`), real backoff-scaled retries, and a real interval
+scheduler whose `nextRunAt` survives a process restart. None of that
+needed touching. What Phase 54 actually named as missing was a
+COMPOSITION layer over single independent jobs: "WHEN -> IF -> CHECK ->
+APPROVAL -> RUN -> LEARN -> REPORT," with branching, dependency graphs,
+and rollback -- concepts a single `name -> handler` job has no way to
+express.
+
+**`core/automation/workflow.js` maps every step of that diagram onto a
+piece that already exists**, rather than inventing new infrastructure
+for each phrase:
+
+| Phrase | Real mechanism |
+|---|---|
+| WHEN | `scheduleWorkflow(engine, name, intervalMs, context)` -- calls the CALLER's own `AutomationEngine.registerJob()`/`.schedule()` directly; there is no second scheduler anywhere in this file |
+| IF / CHECK | a step's own `condition(context)` -- `false` marks the step `"skipped"` and continues down `onSuccess`, never failing the run |
+| APPROVAL | no new mechanism at all -- a step's `run(context)` can create and poll a real `core/executive/actionProposal.js` proposal; the existing Phase 15 pipeline used AS a step body |
+| RUN | the step's real async handler, wrapped in real per-step `maxAttempts`/`retryDelayMs` retries |
+| LEARN | `core/learning/log.js`'s `record()`, called with `kind: "workflow_step"` -- the exact same instrumentation function every job already calls; a new `kind` value that every existing aggregation (`adaptiveInsights.js`, `learning/engine.js`) simply ignores since they each filter on a DIFFERENT specific `kind` string, so nothing else needed to change |
+| REPORT | one real, persisted memory entry per run (`workflowHistory(name)`) -- an ordinary entry, not a parallel store, same convention as every other entity in this codebase |
+
+**Real branching, verified, not assumed.** `onSuccess`/`onFailure` are
+step IDS, not "the next array position" -- `runWorkflow()`'s traversal
+is a `while(currentId)` loop over `workflow.byId.get(currentId)`, so a
+step's real outcome determines which DIFFERENT step runs next. This is
+what makes it an actual dependency graph: `tests/automation-workflow.test.js`
+proves a step that throws routes to its `onFailure` target and skips an
+"unreachable" third step entirely, not just that the JSON shape has an
+`onFailure` field.
+
+**Real rollback, in the correct order.** A step can declare
+`rollback(context)`. If a LATER step in the same run fails with no
+`onFailure` edge to catch it (i.e. the whole workflow is genuinely
+failing), every already-completed step's `rollback` runs --
+most-recently-completed FIRST, the same direction any real transaction
+undo has to run in (undoing step 1 before step 2 finished would leave
+step 2's effects stranded on top of nothing). Verified with a 3-step
+test where step 3 fails and steps 2 then 1 roll back, asserted in that
+exact order.
+
+**Reusable templates without a new template format.** `defineWorkflow(name,
+steps)` registers a named step sequence exactly once, in code -- the
+same way `core/automation/jobs.js`'s built-in jobs are registered in
+code, not as dashboard-authored data (a workflow step is a real
+function; letting the dashboard define arbitrary step handlers would
+mean executing arbitrary strings as code, a real security boundary this
+project doesn't cross). `runWorkflow(name, context)` can then be
+invoked any number of times with different `context` -- that repeated
+invocation over one fixed definition IS the "reusable template"
+concept; no separate persisted template store was needed.
+
+**Wired into:** `GET /api/automation/workflows` (list),
+`GET /api/automation/workflows/history?name=`, a gated
+`POST /api/automation/workflows/:name/run` (added to
+`tests/dashboard.test.js`'s `ALL_POST_ROUTES`, same "authenticated
+dashboard action directly executes real work" convention
+`POST /api/departments/:id/run` already established), a real
+`workflow.completed` bus event (added to Phase 52-53's `STREAMED_EVENTS`
+whitelist), and a new dashboard widget (list + run-by-name + report
+view).
+
+**Tests:** `tests/automation-workflow.test.js` (8 tests) covering
+definition validation, a real linear run with a persisted report, real
+branching via a genuine thrown error and `onFailure` edge, a real
+skipped-condition step, real 3-step rollback in the correct reverse
+order, real per-step retries (a step that fails twice then succeeds on
+attempt 3, asserted via a real attempt counter, not a mock), the real
+`workflow.completed` bus event, and `scheduleWorkflow()` actually
+registering onto a real, separately-constructed `AutomationEngine`
+instance. Plus 1 new dashboard test running a real, defined-in-code
+workflow end to end through the live server and reading its report back
+via the history route.
+
+695 tests (686 -> 695), `npm test` green.
