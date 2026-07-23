@@ -41,6 +41,8 @@ function requireCompanyExists(companyId){
         throw new Error(`Unknown company: "${companyId}"`);
     }
 
+    return entry;
+
 }
 
 
@@ -93,7 +95,7 @@ function createCampaign(input = {}){
         throw new Error("A campaign objective is required");
     }
 
-    requireCompanyExists(input.companyId);
+    const company = requireCompanyExists(input.companyId);
 
     const entry = memory.remember({
         content: input.name || input.objective,
@@ -117,6 +119,10 @@ function createCampaign(input = {}){
     });
 
     knowledge.addEntity({ name: entry.content, type: "campaign" });
+    // Phase 49 (Organizational Knowledge Graph): connects the already-
+    // created entity to its owning company -- previously unreachable
+    // from the graph.
+    knowledge.addRelationship({ from: entry.content, to: company.content, type: "belongsTo" });
 
     return toCampaign(entry);
 

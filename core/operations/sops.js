@@ -14,6 +14,7 @@
 // mutates rather than appends).
 
 const memory = require("../memory");
+const knowledge = require("../knowledge");
 
 const SOP_TAG = "operations-sop";
 
@@ -71,6 +72,16 @@ function createSOP(input = {}){
             version: 1
         }
     });
+
+    // Phase 49 (Organizational Knowledge Graph): connects to the real
+    // department entity core/knowledge/seed.js already creates for every
+    // agent's department -- only when a department is actually given
+    // (SOPs are optionally department-scoped).
+    knowledge.addEntity({ name: entry.content, type: "sop" });
+
+    if(input.department){
+        knowledge.addRelationship({ from: entry.content, to: input.department, type: "belongsTo" });
+    }
 
     return toSOP(entry);
 

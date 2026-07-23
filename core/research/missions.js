@@ -36,6 +36,7 @@
 // case -- fixed the same way.
 
 const memory = require("../memory");
+const knowledge = require("../knowledge");
 
 const MISSION_TAG = "research-mission";
 
@@ -113,6 +114,27 @@ function createMission(input = {}){
             executiveSummary: null
         }
     });
+
+    // Phase 49 (Organizational Knowledge Graph): only connected to a
+    // company when this mission actually IS company-scoped -- this
+    // engine deliberately does not validate companyId (see this file's
+    // own header comment on missions being optionally company-scoped),
+    // so a company entry may not exist; the relationship is skipped
+    // rather than fabricated in that case.
+    knowledge.addEntity({ name: entry.content, type: "research-mission" });
+
+    if(input.companyId){
+
+        const CompanyManager = require("../executive/companyManager");
+        const companyEntry = memory.view().find(
+            m => m.id === input.companyId && (m.tags || []).includes(CompanyManager.TAG)
+        );
+
+        if(companyEntry){
+            knowledge.addRelationship({ from: entry.content, to: companyEntry.content, type: "belongsTo" });
+        }
+
+    }
 
     return toMission(entry);
 

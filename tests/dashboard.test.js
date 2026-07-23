@@ -299,6 +299,19 @@ test("GET /api/knowledge returns the real graph", async () => {
 
 });
 
+// Phase 49 (Organizational Knowledge Graph): surfaces the graph's own
+// already-real retrieve() -- entities matching the query plus every
+// relationship touching them.
+test("GET /api/knowledge/query returns real matching entities and their real relationships", async () => {
+
+    const res = await fetch(`${baseUrl}/api/knowledge/query?q=VERONICA`);
+    const body = await res.json();
+
+    assert.ok(body.entities.some(e => e.name === "VERONICA"));
+    assert.ok(body.relationships.some(rel => rel.from === "VERONICA" || rel.to === "VERONICA"));
+
+});
+
 test("GET /api/tools returns the real registered tools", async () => {
 
     const res = await fetch(`${baseUrl}/api/tools`);

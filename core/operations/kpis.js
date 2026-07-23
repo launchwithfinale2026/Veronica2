@@ -10,6 +10,7 @@
 // higher-is-better would silently mis-grade half of all real KPIs.
 
 const memory = require("../memory");
+const knowledge = require("../knowledge");
 
 const KPI_TAG = "operations-kpi";
 
@@ -81,6 +82,15 @@ function createKPI(input = {}){
             direction
         }
     });
+
+    // Phase 49 (Organizational Knowledge Graph): same reasoning as
+    // core/operations/sops.js -- only connected when a department is
+    // actually given.
+    knowledge.addEntity({ name: entry.content, type: "kpi" });
+
+    if(input.department){
+        knowledge.addRelationship({ from: entry.content, to: input.department, type: "belongsTo" });
+    }
 
     return toKPI(entry);
 

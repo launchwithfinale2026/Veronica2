@@ -37,6 +37,8 @@ function requireCompanyExists(companyId){
         throw new Error(`Unknown company: "${companyId}"`);
     }
 
+    return entry;
+
 }
 
 
@@ -88,7 +90,7 @@ function createLead(input = {}){
         throw new Error("A lead name is required");
     }
 
-    requireCompanyExists(input.companyId);
+    const company = requireCompanyExists(input.companyId);
 
     const entry = memory.remember({
         content: input.name,
@@ -111,6 +113,10 @@ function createLead(input = {}){
     });
 
     knowledge.addEntity({ name: entry.content, type: "lead" });
+    // Phase 49 (Organizational Knowledge Graph): the entity already
+    // existed -- this edge (missing until now) is what makes it
+    // actually reachable from its owning company in the graph.
+    knowledge.addRelationship({ from: entry.content, to: company.content, type: "belongsTo" });
 
     return toLead(entry);
 

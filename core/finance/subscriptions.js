@@ -11,6 +11,7 @@
 // not an ongoing commitment).
 
 const memory = require("../memory");
+const knowledge = require("../knowledge");
 
 const SUBSCRIPTION_TAG = "finance-subscription";
 
@@ -30,6 +31,8 @@ function requireCompanyExists(companyId){
     if(!entry){
         throw new Error(`Unknown company: "${companyId}"`);
     }
+
+    return entry;
 
 }
 
@@ -84,7 +87,7 @@ function createSubscription(input = {}){
         throw new Error(`Invalid interval: "${input.interval}" (must be one of ${INTERVALS.join(", ")})`);
     }
 
-    requireCompanyExists(input.companyId);
+    const company = requireCompanyExists(input.companyId);
 
     const entry = memory.remember({
         content: `Subscription for ${input.clientName}`,
@@ -100,6 +103,13 @@ function createSubscription(input = {}){
             status: "active"
         }
     });
+
+    // Phase 49 (Organizational Knowledge Graph): same reasoning as
+    // core/finance/invoices.js -- the client is the real, uniquely-named
+    // entity; the subscription record's own name is not unique per
+    // client.
+    knowledge.addEntity({ name: input.clientName, type: "client" });
+    knowledge.addRelationship({ from: input.clientName, to: company.content, type: "billedBy" });
 
     return toSubscription(entry);
 

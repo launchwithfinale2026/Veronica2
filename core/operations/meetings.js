@@ -10,6 +10,7 @@
 // memory entries, same pattern as everything else.
 
 const memory = require("../memory");
+const knowledge = require("../knowledge");
 
 const MEETING_TAG = "operations-meeting";
 
@@ -72,6 +73,16 @@ function createMeeting(input = {}){
             date: input.date || new Date().toISOString()
         }
     });
+
+    // Phase 49 (Organizational Knowledge Graph): connects the meeting to
+    // each real attendee named -- an attendee's real name is idempotent-
+    // safe here the same way every other person/agent entity already is
+    // in this graph (see core/knowledge/seed.js's own agent entities).
+    knowledge.addEntity({ name: entry.content, type: "meeting" });
+
+    for(const attendee of (input.attendees || [])){
+        knowledge.addRelationship({ from: attendee, to: entry.content, type: "attended" });
+    }
 
     return toMeeting(entry);
 

@@ -20,6 +20,7 @@
 // a stop price), not a proprietary or fabricated one.
 
 const memory = require("../memory");
+const knowledge = require("../knowledge");
 
 const PORTFOLIO_TAG = "trading-portfolio";
 const WATCHLIST_TAG = "trading-watchlist";
@@ -36,6 +37,8 @@ function requireCompanyExists(companyId){
     if(!entry){
         throw new Error(`Unknown company: "${companyId}"`);
     }
+
+    return entry;
 
 }
 
@@ -78,9 +81,10 @@ function createPortfolio(input = {}){
     }
 
     const tags = [PORTFOLIO_TAG];
+    let company = null;
 
     if(input.companyId){
-        requireCompanyExists(input.companyId);
+        company = requireCompanyExists(input.companyId);
         tags.push(`company:${input.companyId}`);
     }
 
@@ -96,6 +100,16 @@ function createPortfolio(input = {}){
             positions: []
         }
     });
+
+    // Phase 49 (Organizational Knowledge Graph): only connected when
+    // company-scoped -- a portfolio with no company (this engine
+    // deliberately allows that, see this file's own header comment) has
+    // nothing real to connect it to.
+    knowledge.addEntity({ name: entry.content, type: "portfolio" });
+
+    if(company){
+        knowledge.addRelationship({ from: entry.content, to: company.content, type: "belongsTo" });
+    }
 
     return toPortfolio(entry);
 

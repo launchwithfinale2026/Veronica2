@@ -8,6 +8,7 @@
 // in this codebase.
 
 const memory = require("../memory");
+const knowledge = require("../knowledge");
 
 const INVOICE_TAG = "finance-invoice";
 
@@ -25,6 +26,8 @@ function requireCompanyExists(companyId){
     if(!entry){
         throw new Error(`Unknown company: "${companyId}"`);
     }
+
+    return entry;
 
 }
 
@@ -84,7 +87,7 @@ function createInvoice(input = {}){
         throw new Error("A numeric amount is required");
     }
 
-    requireCompanyExists(input.companyId);
+    const company = requireCompanyExists(input.companyId);
 
     const entry = memory.remember({
         content: `Invoice for ${input.clientName}`,
@@ -100,6 +103,15 @@ function createInvoice(input = {}){
             status: "draft"
         }
     });
+
+    // Phase 49 (Organizational Knowledge Graph): the CLIENT is the real,
+    // uniquely-named entity here -- an invoice's own memory-entry name
+    // ("Invoice for X") is not unique per client (repeat billing would
+    // collide under this graph's name-based idempotency), so financial
+    // records connect through the client they're for, not the invoice
+    // record itself.
+    knowledge.addEntity({ name: input.clientName, type: "client" });
+    knowledge.addRelationship({ from: input.clientName, to: company.content, type: "billedBy" });
 
     return toInvoice(entry);
 

@@ -232,6 +232,12 @@ const ROUTES = {
 
     "GET /api/knowledge": () => knowledge.read(),
 
+    // Phase 49 (Organizational Knowledge Graph): exposes the graph's own
+    // already-real retrieve() (matching entities + every relationship
+    // touching them) -- not a new query engine, just surfacing what
+    // core/knowledge/index.js already implements.
+    "GET /api/knowledge/query": (searchParams) => knowledge.retrieve(searchParams.get("q") || ""),
+
     "GET /api/tools": () => tools.list(),
 
     "GET /api/activity": () => readRecentActivity(),

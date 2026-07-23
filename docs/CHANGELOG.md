@@ -1592,3 +1592,62 @@ test in `tests/daily-briefing.test.js` for `strategicHealth()`, plus
 dashboard endpoint coverage in `tests/dashboard.test.js`.
 
 644 -> 656 tests, all passing.
+
+## Phase 49 -- Organizational Knowledge Graph expansion
+
+**Audit first:** companies/departments/agents already had real graph
+entities and relationships (`core/executive/companyManager.js`,
+`core/knowledge/seed.js`). Leads/opportunities/campaigns already
+created entities too, but nothing connected them to their owning
+company -- a real, previously-invisible gap. Portfolios, SOPs, KPIs,
+meetings, invoices/subscriptions, and research missions created no
+graph entities at all.
+
+**Added, one real relationship/entity per module, all additive:**
+
+- `core/sales/leads.js`/`core/sales/opportunities.js`/
+  `core/marketing/campaigns.js`: each entity's `requireCompanyExists()`
+  now returns the company's memory entry (previously void); each
+  `create*()` adds a real `belongsTo` relationship from the entity to
+  its real company name, right after the entity creation that already
+  existed.
+- `core/finance/invoices.js`/`core/finance/subscriptions.js`: connects
+  the real CLIENT (`billedBy` -> company), not the invoice/subscription
+  record itself -- an invoice's own memory-entry content ("Invoice for
+  X") is not unique per client (repeat billing would collide under this
+  graph's name-based idempotency, see `core/knowledge/index.js`'s own
+  `addEntity()` docs), so the client is the safe, real, uniquely-named
+  entity here.
+- `core/trading/portfolio.js`: a `portfolio` entity, `belongsTo` its
+  company only when the portfolio is actually company-scoped (this
+  engine deliberately allows unscoped portfolios, Phase 45).
+- `core/research/missions.js`: a `research-mission` entity, `belongsTo`
+  its company only when both a companyId was given AND a real company
+  entry exists for it (missions deliberately don't validate companyId,
+  Phase 44) -- never a fabricated relationship to a company that isn't
+  real.
+- `core/operations/sops.js`/`core/operations/kpis.js`: `sop`/`kpi`
+  entities, `belongsTo` the real department id string when one is
+  given -- the same department id string `core/knowledge/seed.js`
+  already seeds as a `department`-typed entity for every real agent.
+- `core/operations/meetings.js`: a `meeting` entity, `attended` by each
+  real named attendee.
+
+**Query surface:** `knowledge.retrieve(query)` already existed
+(`core/knowledge/index.js`) but was never exposed -- added
+`GET /api/knowledge/query?q=...` to the dashboard, returning matching
+entities plus every relationship touching them. Not a new query engine,
+just surfacing what already existed.
+
+**Deliberately NOT touched:** the graph's name-based entity identity
+(idempotent by lowercase name) is unchanged -- true multi-company
+isolation in the graph (two companies each naming an opportunity
+identically would still collide into one node) remains the same open
+question `docs/Architecture.md`'s Phase 10 section already flagged, not
+something this phase's scope was to redesign.
+
+**Tests:** 10 new (`tests/knowledge-graph-expansion.test.js`'s 9, real
+calls through every module listed above, no mocks, plus 1 new dashboard
+test for the query endpoint).
+
+656 -> 666 tests, all passing.
