@@ -70,13 +70,19 @@ const EXTERNAL_ACTION_RISK = {
     // permissions (see a package's own manifest.json) -- treated as
     // "high" risk, same bucket as a real roadmap-changing action, not
     // "low" like an informational post.
-    install_capability: "high"
+    install_capability: "high",
+    // Phase 41 (Marketing Division): the Publishing Queue. Same "only
+    // actions a connector can ACTUALLY perform" rule this file's own
+    // header comment establishes -- see performExternalAction()'s case
+    // below for exactly which platforms that covers today.
+    publish_content: "medium"
 };
 
 const EXTERNAL_APPROVAL_REQUIRED = {
     create_github_issue: true,
     post_discord_message: true,
-    install_capability: true
+    install_capability: true,
+    publish_content: true
 };
 
 
@@ -383,6 +389,39 @@ class ActionProposalEngine {
                 const capability = installer.completeInstall(packageDir);
 
                 return `Installed and activated capability "${capability.name}" v${capability.version}`;
+
+            }
+
+            case "publish_content": {
+
+                // Lazy require -- matches every other case's convention
+                // in this switch (avoids a load-time cost/cycle for a
+                // module this file only needs at execution time).
+                const marketingCampaigns = require("../marketing/campaigns");
+                const { campaignId, itemId, platform, content } = proposal.payload || {};
+
+                // Only Discord has a real, working publishing connector
+                // in this codebase today (core/integrations/discord.js).
+                // Any other platform a campaign declares (twitter/email/
+                // instagram/...) has none -- this honestly throws rather
+                // than pretending to have posted anywhere, exactly this
+                // file's own "only actions a connector can ACTUALLY
+                // perform" rule (see this file's header comment).
+                if(platform === "discord"){
+
+                    const discord = require("../integrations/discord");
+                    await discord.sendMessage(content);
+
+                } else {
+
+                    throw new Error(`No publishing connector is configured for platform "${platform}" -- this action cannot be completed until one exists.`);
+
+                }
+
+                marketingCampaigns.updateContentItem(campaignId, itemId, { status: "published" });
+                marketingCampaigns.setPublishingStatus(campaignId, "published");
+
+                return `Published content item "${itemId}" for campaign "${campaignId}" to ${platform}`;
 
             }
 
