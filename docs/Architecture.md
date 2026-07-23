@@ -3808,3 +3808,92 @@ not just accepted and ignored. Plus 1 new dashboard test exercising the
 same round trip through the live server.
 
 706 tests (700 -> 706), `npm test` green.
+
+## Knowledge Acquisition Engine (Phase 57)
+
+**Audit first, and it found a real reusable pattern immediately.**
+`core/integrations/fileIntelligence.js`'s `indexDirectory()` and
+`core/integrations/obsidian.js`'s `indexVault()` already turn real
+files/notes into real knowledge-graph entities and real 280-char memory
+summaries (`obsidian.js` also already extracts real `[[wikilink]]`
+relationships from note content -- genuine structural extraction, just
+narrowly scoped to Obsidian's own link syntax). Neither does anything
+close to "extract concepts, entities, relationships, tasks, projects,
+decisions, summaries, questions, unknowns" -- that requires actual
+comprehension of arbitrary prose, which `core/research/engine.js`'s
+`extractKnowledge()` (Phase 29) already proved is a one-real-LLM-call,
+structured-JSON-via-`parseJsonResponse()` problem, not a new mechanism
+to invent. Phase 57 is that exact pattern, retargeted at already-
+indexed local content instead of fetched web documentation.
+
+**`core/knowledge/acquisition.js`'s `KnowledgeAcquisitionEngine`:**
+
+- **`extract(sourceLabel, content)`**: one real LLM call, returning
+  `{ concepts, entities, relationships, tasks, decisions, questions,
+  unknowns, summary }`. The prompt is explicit that every array may
+  come back genuinely empty -- "never fabricate an entry just to fill
+  it" is written directly into the extraction instructions the model
+  receives, the same anti-fabrication discipline this project applies
+  to its own code now applied to what it asks a model to produce.
+- **`acquire(sourceLabel, content)`**: extracts, then connects the
+  result into the REAL knowledge graph -- every extracted entity/
+  relationship becomes a real `knowledge.addEntity()`/
+  `addRelationship()` call, the exact same idempotent primitives Phase
+  49's six-division graph expansion already used everywhere, applied
+  here to model-extracted entities instead of caller-supplied ones.
+  Tasks/decisions/questions/unknowns/concepts land as fields on ONE
+  real, queryable memory entry (tagged `knowledge-acquisition`) -- not
+  five separate fabricated store shapes, one per category.
+
+**Wired into existing indexing, deliberately not automatically.**
+`fileIntelligence.js` gained `acquireFromFile(relativePath, root)`;
+`obsidian.js` gained `acquireFromNote(relativePath)`. Both read the
+real, already-indexed file/note and run real acquisition on it. Neither
+`indexDirectory()` nor `indexVault()` calls these automatically --
+doing so would mean one real, billed LLM call per file discovered,
+completely unbounded by file count. Acquisition is an explicit,
+per-file action, matching this project's standing "spend real API cost
+deliberately, not automatically by default" posture (see
+`core/executive/actionProposal.js`'s own header comment on the same
+principle for external actions).
+
+**Circular-require discipline preserved.**
+`core/tools/handlers/integrations.js`'s own header comment already
+documents that `obsidian.js`/`fileIntelligence.js`/`http.js` have zero
+dependency chain back through `core/intelligence` -> `core/brain` ->
+`core/tools`, which is why that handler file requires them at its own
+top level safely. The new `acquireFromFile`/`acquireFromNote` functions
+keep that true: they lazily require `core/knowledge/acquisition.js`
+INSIDE their own function bodies, not at `fileIntelligence.js`'s/
+`obsidian.js`'s top level -- and `acquisition.js` itself only lazily
+requires `../intelligence` inside its constructor, same convention
+`core/research/engine.js`'s own header comment establishes for the
+identical reason (Phase 44 found this exact bug class live, four
+times, across four other divisions).
+
+**Wired into:** two new tool ids (`files.acquire`, `obsidian.acquire`),
+gated dashboard routes (`POST /api/knowledge/acquire-file`,
+`POST /api/knowledge/acquire-note`, added to `tests/dashboard.test.js`'s
+`ALL_POST_ROUTES`), a read-only `GET /api/knowledge/acquisition-history`,
+and a new dashboard panel (acquire-by-path forms for both files and
+notes, plus a history list).
+
+**Tests:** `tests/knowledge-acquisition.test.js` (5 tests) -- real
+input validation (`extract()` rejecting empty content); a real mocked
+extraction call asserting the exact structured shape survives
+end-to-end; `acquire()` proving extracted entities/relationships are
+genuinely walkable afterward via `knowledge.find()`/`knowledge.connections()`,
+and that every category field (including `decisions`/`unknowns`) lands
+correctly on the persisted, re-readable memory entry; a genuinely-empty
+extraction persisting real empty arrays rather than synthesizing
+placeholder content; and two real integration tests -- a real temp
+directory and a real temp Obsidian vault (a real `.obsidian/` marker
+directory, a real `.md` file with a real wikilink) -- proving
+`fileIntelligence.acquireFromFile()`/`obsidian.acquireFromNote()`
+actually read real file/note content end-to-end (only
+`IntelligenceEngine.prototype.think` mocked directly, since
+`acquireFromFile`/`acquireFromNote` construct their own engine
+internally rather than accepting an injectable one -- restored in
+`finally` either way). Plus 1 new dashboard test for the history route.
+
+712 tests (706 -> 712), `npm test` green.

@@ -113,6 +113,11 @@ const deviceManager = new DeviceManager();
 
 const researchEngine = new ResearchEngine();
 
+const KnowledgeAcquisitionEngine = require("../../core/knowledge/acquisition");
+const knowledgeAcquisition = new KnowledgeAcquisitionEngine();
+const fileIntelligence = require("../../core/integrations/fileIntelligence");
+const obsidian = require("../../core/integrations/obsidian");
+
 const selfImprovement = new SelfImprovementEngine();
 
 // Phase 32 -- reuses the SAME real, already-loaded departments/agents
@@ -508,6 +513,9 @@ const ROUTES = {
     "GET /api/personal-intelligence/key-clients": (searchParams) => personalIntelligence.inferKeyClients(searchParams.get("companyId")),
 
     "GET /api/personal-intelligence/dismissed": () => personalIntelligence.listDismissed(),
+
+    // Phase 57 (Knowledge Acquisition Engine).
+    "GET /api/knowledge/acquisition-history": () => knowledgeAcquisition.history(),
 
     "GET /api/logs/errors": () => log.readErrors()
 
@@ -1122,6 +1130,44 @@ function createServer(){
                 }
 
                 return sendJSON(res, 200, personalIntelligence.dismissInference(subject, reason));
+
+            }
+
+            // Phase 57 (Knowledge Acquisition Engine): a real, billed LLM
+            // call per file/note -- gated like every other one.
+            if(parsed.pathname === "/api/knowledge/acquire-file" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { path: filePath } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!filePath){
+                    return sendJSON(res, 400, { error: "path is required" });
+                }
+
+                return sendJSON(res, 200, await fileIntelligence.acquireFromFile(filePath));
+
+            }
+
+            if(parsed.pathname === "/api/knowledge/acquire-note" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { path: notePath } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!notePath){
+                    return sendJSON(res, 400, { error: "path is required" });
+                }
+
+                return sendJSON(res, 200, await obsidian.acquireFromNote(notePath));
 
             }
 

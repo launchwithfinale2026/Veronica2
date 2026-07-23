@@ -2042,6 +2042,90 @@ function setupPersonalIntelligenceForms(){
 }
 
 
+async function loadAcquisitionHistory(){
+
+    try {
+        const history = await fetchJSON("/api/knowledge/acquisition-history");
+        renderList(
+            "acquisition-history",
+            history,
+            "No knowledge acquired yet.",
+            entry => `${entry.metadata.sourceLabel}: ${entry.metadata.summary || "(no summary)"}`
+        );
+    } catch(error){
+        renderList("acquisition-history", [], `Error: ${error.message}`, () => "");
+    }
+
+}
+
+
+function setupAcquisitionForms(){
+
+    loadAcquisitionHistory();
+
+    const fileForm = document.getElementById("acquire-file-form");
+    const fileResult = document.getElementById("acquire-file-result");
+
+    fileForm.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const path = document.getElementById("acquire-file-path").value;
+
+        fileResult.textContent = "Acquiring (calls Claude)...";
+
+        try {
+
+            const result = await authedFetch("/api/knowledge/acquire-file", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ path })
+            });
+
+            fileResult.textContent = JSON.stringify(result, null, 2);
+            loadAcquisitionHistory();
+
+        } catch(error){
+
+            fileResult.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+    const noteForm = document.getElementById("acquire-note-form");
+    const noteResult = document.getElementById("acquire-note-result");
+
+    noteForm.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const path = document.getElementById("acquire-note-path").value;
+
+        noteResult.textContent = "Acquiring (calls Claude)...";
+
+        try {
+
+            const result = await authedFetch("/api/knowledge/acquire-note", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ path })
+            });
+
+            noteResult.textContent = JSON.stringify(result, null, 2);
+            loadAcquisitionHistory();
+
+        } catch(error){
+
+            noteResult.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
 function setupCollabOpportunitiesForm(){
 
     const form = document.getElementById("collab-opportunities-form");
@@ -4099,6 +4183,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupWorkflowRunForm();
     setupBrainRoutingForms();
     setupPersonalIntelligenceForms();
+    setupAcquisitionForms();
     setupSemanticSearchForm();
     setupReindexEmbeddingsForm();
     setupCompanyLookupForm();

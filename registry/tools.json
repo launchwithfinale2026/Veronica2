@@ -833,6 +833,30 @@
       "inputSchema": { "type": "object", "properties": {} }
     },
     {
+      "id": "files.acquire",
+      "description": "Phase 57: real, LLM-based structured extraction (concepts/entities/relationships/tasks/decisions/questions/unknowns) from one already-indexed real file, connected into the knowledge graph.",
+      "permission": "write_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string" }
+        },
+        "required": ["path"]
+      }
+    },
+    {
+      "id": "obsidian.acquire",
+      "description": "Same real, LLM-based structured extraction as files.acquire, applied to one real Obsidian note.",
+      "permission": "write_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string" }
+        },
+        "required": ["path"]
+      }
+    },
+    {
       "id": "system.understand",
       "description": "Returns VERONICA's full self-knowledge: projects, missions, companies, departments, devices, knowledge graph, memories, capabilities/packages, automations, connectors, planning, and executive recommendations -- one real, live snapshot of the entire system.",
       "permission": "read_memory",

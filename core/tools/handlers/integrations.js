@@ -37,6 +37,16 @@ module.exports = {
 
     "obsidian.index": () => obsidian.indexVault(),
 
+    "obsidian.acquire": ({ path } = {}) => {
+
+        if(!path){
+            throw new Error("A note path is required");
+        }
+
+        return obsidian.acquireFromNote(path);
+
+    },
+
     "web.fetch": async ({ url, method, body, headers } = {}) => {
 
         if(!url){
@@ -60,6 +70,16 @@ module.exports = {
     },
 
     "files.index": () => fileIntelligence.indexDirectory(),
+
+    "files.acquire": ({ path } = {}) => {
+
+        if(!path){
+            throw new Error("A file path is required");
+        }
+
+        return fileIntelligence.acquireFromFile(path);
+
+    },
 
     "files.search": ({ query } = {}) => {
 

@@ -606,6 +606,31 @@
   </section>
 
   <section class="panel">
+    <h2>Knowledge Acquisition (Phase 57)</h2>
+    <p class="hint">Real, LLM-based structured extraction (concepts/entities/relationships/tasks/decisions/questions/unknowns) from an already-indexed real file or Obsidian note -- connected into the knowledge graph. One real LLM call per file/note, run explicitly, not automatically for every indexed file.</p>
+    <div class="widget-group">
+      <h3>Acquire from a file</h3>
+      <form id="acquire-file-form" class="inline-form">
+        <input type="text" id="acquire-file-path" placeholder="Relative path under data/workspace/" required>
+        <button type="submit">Acquire</button>
+      </form>
+      <pre id="acquire-file-result" class="widget code-block"></pre>
+    </div>
+    <div class="widget-group">
+      <h3>Acquire from an Obsidian note</h3>
+      <form id="acquire-note-form" class="inline-form">
+        <input type="text" id="acquire-note-path" placeholder="Relative note path" required>
+        <button type="submit">Acquire</button>
+      </form>
+      <pre id="acquire-note-result" class="widget code-block"></pre>
+    </div>
+    <div class="widget-group">
+      <h3>Acquisition history</h3>
+      <div id="acquisition-history" class="widget"></div>
+    </div>
+  </section>
+
+  <section class="panel">
     <h2>Executive</h2>
     <div class="widget-group">
       <h3>Roadmap</h3>

@@ -195,4 +195,26 @@ function searchFiles(query, root = DEFAULT_ROOT){
 }
 
 
-module.exports = { listFiles, readFile, indexDirectory, searchFiles, DEFAULT_ROOT };
+// Phase 57 (Knowledge Acquisition Engine): real, LLM-based structured
+// extraction (concepts/entities/relationships/tasks/decisions/
+// questions/unknowns) over one already-indexed real file -- distinct
+// from indexDirectory()'s plain 280-char summary above, and NOT run
+// automatically for every indexed file (that would mean one real LLM
+// call per file with no bound); called explicitly, per file, when
+// deeper understanding is actually wanted. Lazy require -- see
+// core/knowledge/acquisition.js's own header comment on why a top-level
+// require here would risk the same circular-load class of bug
+// documented throughout this codebase.
+async function acquireFromFile(relativePath, root = DEFAULT_ROOT){
+
+    const KnowledgeAcquisitionEngine = require("../knowledge/acquisition");
+    const engine = new KnowledgeAcquisitionEngine();
+
+    const content = readFile(relativePath, root);
+
+    return engine.acquire(relativePath, content);
+
+}
+
+
+module.exports = { listFiles, readFile, indexDirectory, searchFiles, acquireFromFile, DEFAULT_ROOT };

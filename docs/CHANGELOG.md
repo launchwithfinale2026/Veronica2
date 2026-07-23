@@ -2048,3 +2048,64 @@ listDismissed -> re-infer round trip proving the correction is honestly
 honored afterward. Plus 1 new dashboard test.
 
 700 -> 706 tests, all passing.
+
+## Phase 57 -- Knowledge Acquisition Engine
+
+**Audit first:** `core/integrations/fileIntelligence.js` and
+`core/integrations/obsidian.js` already index real files/notes into
+memory (a 280-char summary each) and the knowledge graph (one entity
+per file/note; `obsidian.js` already extracts real `[[wikilink]]`
+relationships). Neither does STRUCTURED UNDERSTANDING of the content --
+concepts, entities, relationships, tasks, decisions, questions,
+unknowns -- exactly what this phase named as missing. Real text
+comprehension is inherently LLM-shaped, and `core/research/engine.js`'s
+`extractKnowledge()` (Phase 29) already established the exact right
+pattern for this shape of work: a structured-JSON extraction call via
+`parseJsonResponse()`. This phase is that same pattern, applied to
+already-indexed local content instead of fetched web documentation --
+not a new extraction mechanism.
+
+**Added:** `core/knowledge/acquisition.js`'s `KnowledgeAcquisitionEngine`.
+`extract(sourceLabel, content)` returns structured JSON (concepts/
+entities/relationships/tasks/decisions/questions/unknowns/summary) --
+every array may come back genuinely empty, and the prompt explicitly
+instructs the model never to fabricate an entry just to fill one.
+`acquire(sourceLabel, content)` extracts AND connects the result into
+the real knowledge graph: every extracted entity/relationship becomes a
+real `knowledge.addEntity()`/`addRelationship()` call (the same
+idempotent primitives Phase 49 already uses everywhere), and
+tasks/decisions/questions/unknowns/concepts land on one real, queryable
+memory entry -- not a fabricated new store shape per category.
+
+**Wired into existing indexing, not automatically:** `fileIntelligence.js`
+gained `acquireFromFile(relativePath, root)`, `obsidian.js` gained
+`acquireFromNote(relativePath)` -- both read the real, already-indexed
+file/note and run real acquisition on it. Deliberately NOT run
+automatically during `indexDirectory()`/`indexVault()` (that would mean
+one real, billed LLM call per file with no bound) -- called explicitly,
+per file, when deeper understanding is actually wanted.
+
+**Wired into:** two new tool ids (`files.acquire`, `obsidian.acquire`,
+registered in `registry/tools.json` and `core/tools/handlers/integrations.js`
+-- that handler file's own header comment already establishes these
+modules have no circular-require risk, and the new functions' own
+lazy require of `core/knowledge/acquisition.js` keeps that true), plus
+gated dashboard routes (`POST /api/knowledge/acquire-file`,
+`POST /api/knowledge/acquire-note`, added to `tests/dashboard.test.js`'s
+`ALL_POST_ROUTES`), `GET /api/knowledge/acquisition-history`, and a new
+dashboard panel.
+
+**Tests:** `tests/knowledge-acquisition.test.js` (5 tests) -- real input
+validation; a real mocked extraction call; a real `acquire()` proving
+extracted entities/relationships actually land in the real, queryable
+knowledge graph (`knowledge.find()`/`knowledge.connections()`) and a
+real memory entry with every category field intact; a genuinely-empty
+extraction correctly persisting empty arrays rather than fabricating
+placeholder entries; and two real, temp-directory/temp-vault
+integration tests proving `fileIntelligence.acquireFromFile()`/
+`obsidian.acquireFromNote()` actually read real file/note content and
+run real acquisition on it (only `IntelligenceEngine.prototype.think`
+mocked, restored in `finally`). Plus 1 new dashboard test for the
+history route.
+
+706 -> 712 tests, all passing.

@@ -196,4 +196,20 @@ function indexVault(){
 }
 
 
-module.exports = { vaultPath, listNotes, readNote, writeNote, indexVault };
+// Phase 57 (Knowledge Acquisition Engine): same real, LLM-based
+// structured extraction as core/integrations/fileIntelligence.js's
+// acquireFromFile() above, applied to one real Obsidian note -- called
+// explicitly per note, not automatically for the whole vault.
+async function acquireFromNote(relativePath){
+
+    const KnowledgeAcquisitionEngine = require("../knowledge/acquisition");
+    const engine = new KnowledgeAcquisitionEngine();
+
+    const content = readNote(relativePath);
+
+    return engine.acquire(relativePath, content);
+
+}
+
+
+module.exports = { vaultPath, listNotes, readNote, writeNote, indexVault, acquireFromNote };

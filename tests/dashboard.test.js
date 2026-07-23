@@ -387,6 +387,19 @@ test("GET /api/knowledge/query returns real matching entities and their real rel
 });
 
 
+// Phase 57 (Knowledge Acquisition Engine): pure history read, no LLM
+// call -- safe to exercise over the real running server. The gated
+// POST .../acquire-file/.../acquire-note routes are already covered
+// end-to-end, LLM mocked, in tests/knowledge-acquisition.test.js.
+test("GET /api/knowledge/acquisition-history returns the real, persisted acquisition history", async () => {
+
+    const res = await fetch(`${baseUrl}/api/knowledge/acquisition-history`);
+    assert.strictEqual(res.status, 200);
+    assert.ok(Array.isArray(await res.json()));
+
+});
+
+
 test("GET /api/automation/workflows and .../history reflect a real, defined-in-code workflow run through the real server (Phase 54)", async () => {
 
     process.env.API_TOKEN = "test-api-secret";
@@ -1535,6 +1548,8 @@ const ALL_POST_ROUTES = [
     "/api/brain/routing-preferences/set",
     "/api/brain/routing-preferences/clear",
     "/api/personal-intelligence/dismiss",
+    "/api/knowledge/acquire-file",
+    "/api/knowledge/acquire-note",
     "/api/marketing/campaigns",
     "/api/marketing/campaigns/test-id/schedule-content",
     "/api/marketing/campaigns/test-id/generate-draft",
