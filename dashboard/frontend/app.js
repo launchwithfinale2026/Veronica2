@@ -837,7 +837,8 @@ async function loadDashboard(){
             loadOrganizationOverview(),
             loadExecutiveSummary(),
             loadSystemHealth(),
-            loadMaintenanceReport()
+            loadMaintenanceReport(),
+            loadOperationalReadiness()
         ]);
 
     } catch(error){
@@ -3894,6 +3895,35 @@ async function loadSystemHealth(){
     }
 
     container.textContent = lines.join("\n");
+
+}
+
+
+async function loadOperationalReadiness(){
+
+    try {
+
+        const readiness = await fetchJSON("/api/system/operational-readiness");
+        const container = document.getElementById("operational-readiness");
+
+        const mark = ok => ok ? "OK" : "NEEDS ATTENTION";
+
+        const lines = [
+            `Running: OK`,
+            `Healthy: ${mark(readiness.healthy)} (${readiness.healthScore.status}, ${readiness.healthScore.score}/100)`,
+            `Connected: ${readiness.connected.map(c => c.label).join(", ") || "none"}`,
+            `Missing credentials: ${mark(readiness.checks.missingCredentials.ok)}${readiness.checks.missingCredentials.count ? ` (${readiness.checks.missingCredentials.items.map(c => c.label).join(", ")})` : ""}`,
+            `Approvals waiting: ${mark(readiness.checks.approvalsWaiting.ok)}${readiness.checks.approvalsWaiting.count ? ` (${readiness.checks.approvalsWaiting.count})` : ""}`,
+            `Offline services: ${mark(readiness.checks.offlineServices.ok)}${readiness.checks.offlineServices.count ? ` (${readiness.checks.offlineServices.items.map(s => s.name).join(", ")})` : ""}`,
+            "",
+            readiness.fullyOperational ? "VERONICA is fully operational." : "VERONICA is running, but review the items above."
+        ];
+
+        container.textContent = lines.join("\n");
+
+    } catch(error){
+        document.getElementById("operational-readiness").textContent = `Error: ${error.message}`;
+    }
 
 }
 

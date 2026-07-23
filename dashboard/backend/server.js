@@ -69,6 +69,7 @@ const OrganizationOverview = require("../../core/executive/organizationOverview"
 const systemHealth = require("../../core/system/health");
 const healthScore = require("../../core/system/healthScore");
 const maintenance = require("../../core/system/maintenance");
+const operationalReadiness = require("../../core/system/operationalReadiness");
 const universalSearch = require("../../core/system/search");
 const executiveSummary = require("../../core/executive/executiveSummary");
 const PersonalContextEngine = require("../../core/profile/personalContextEngine");
@@ -752,6 +753,15 @@ function createServer(){
             // anything itself. See core/system/maintenance.js.
             if(parsed.pathname === "/api/system/consistency-report" && req.method === "GET"){
                 return sendJSON(res, 200, maintenance.consistencyReport());
+            }
+
+            // Project N (First-Time User Experience): the real
+            // combined checklist -- running/healthy/connected, plus
+            // what still needs the operator (missing credentials,
+            // approvals waiting, offline services). See
+            // core/system/operationalReadiness.js.
+            if(parsed.pathname === "/api/system/operational-readiness" && req.method === "GET"){
+                return sendJSON(res, 200, await operationalReadiness.checklist());
             }
 
             if(parsed.pathname === "/api/system/maintenance/run-log-archival" && req.method === "POST"){

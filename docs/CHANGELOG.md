@@ -2344,3 +2344,39 @@ real, reused shape. Plus 1 new dashboard test for the read-only report
 route.
 
 731 -> 737 tests, all passing.
+
+## Project N -- First-Time User Experience: Operational Readiness
+
+**Audit first:** `core/integrations/credentialManager.js` (Phase 19)
+already reports real per-connector configured/missing status (variable
+names only, never values); `core/system/healthScore.js` (Project F)
+already produces a real unified score; `core/executive/actionProposal.js`
+already tracks real pending approvals. None of the three had ever been
+combined into the exact checklist the Success Criteria named: "a clear
+dashboard showing what requires human credentials versus what is
+already fully operational."
+
+**Added:** `core/system/operationalReadiness.js`'s `checklist()` --
+pure combination, no new detection logic. Reports `running`/`healthy`
+(from the health score), `connected` (real configured connectors),
+and four explicit checks: `missingCredentials`, `approvalsWaiting`,
+`offlineServices`, `unconfiguredConnectors` -- each with a real `ok`
+boolean, a real count, and the real items behind it. `fullyOperational`
+is a real, explainable verdict: healthy/fair score AND zero pending
+approvals AND zero offline services. Missing credentials deliberately
+do NOT count against it -- an unconfigured optional connector (no
+Discord token set, say) is an honest, expected state for a fresh
+install, not a failure to report as broken.
+
+**Wired into:** `GET /api/system/operational-readiness`, and a new
+"Operational Readiness" widget in the Executive Summary panel.
+
+**Tests:** `tests/system-operational-readiness.test.js` (3 tests) --
+the real combined shape end to end; a real, currently-missing
+credential in this environment (`openai`, honestly absent, correctly
+excluded from the operational verdict); and a real pending-approval
+round trip (create a real proposal, confirm it's counted and
+`fullyOperational` goes false, approve it, confirm the count drops back
+down). Plus 1 new dashboard test.
+
+737 -> 741 tests, all passing.

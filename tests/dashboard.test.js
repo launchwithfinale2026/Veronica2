@@ -417,6 +417,20 @@ test("GET /api/system/consistency-report returns the real, report-only maintenan
 });
 
 
+test("GET /api/system/operational-readiness returns the real combined checklist (Project N)", async () => {
+
+    const res = await fetch(`${baseUrl}/api/system/operational-readiness`);
+    assert.strictEqual(res.status, 200);
+
+    const body = await res.json();
+    assert.strictEqual(body.running, true);
+    assert.ok(typeof body.healthy === "boolean");
+    assert.ok(typeof body.fullyOperational === "boolean");
+    assert.ok(typeof body.checks.missingCredentials.ok === "boolean");
+
+});
+
+
 // Phase 57 (Knowledge Acquisition Engine): pure history read, no LLM
 // call -- safe to exercise over the real running server. The gated
 // POST .../acquire-file/.../acquire-note routes are already covered

@@ -4195,3 +4195,22 @@ cleanly immediately after archival, with no manual recovery step; and
 for the read-only report route.
 
 737 tests (731 -> 737), `npm test` green.
+
+## Project N -- Operational Readiness (First-Time User Experience)
+
+Pure combination of three already-real signals into the exact
+checklist the Success Criteria named -- `core/system/operationalReadiness.js`'s
+`checklist()` calls `healthScore.score()`, `credentialManager.overview()`,
+and `ActionProposalEngine.list("pending")`, and reshapes them into
+`running`/`healthy`/`connected` plus four explicit checks
+(`missingCredentials`/`approvalsWaiting`/`offlineServices`/
+`unconfiguredConnectors`), each with a real `ok`/`count`/`items`. No new
+detection logic anywhere in this file. `fullyOperational` deliberately
+excludes missing credentials from the verdict -- an unconfigured
+optional connector is an honest, expected state on a fresh install, not
+a reported failure. Wired into `GET /api/system/operational-readiness`
+and a new Executive Summary widget. 3 new tests (real shape, a real
+currently-missing credential, a real pending-approval round trip via
+`ActionProposalEngine`), plus 1 dashboard test.
+
+741 tests (737 -> 741), `npm test` green.
