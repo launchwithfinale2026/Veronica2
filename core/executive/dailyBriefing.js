@@ -24,6 +24,10 @@ const PriorityRanking = require("./priorityRanking");
 const GoalMonitor = require("./goalMonitor");
 const BlockerDetector = require("./blockerDetection");
 const ExecutiveRecommendationEngine = require("./executiveRecommendations");
+const ActionProposalEngine = require("./actionProposal");
+const CompanyManager = require("./companyManager");
+const MissionEngine = require("./missionEngine");
+const capabilitiesMarketplace = require("../capabilities/marketplace");
 
 const BRIEFING_TAG = "executive-briefing";
 
@@ -44,7 +48,7 @@ class DailyBriefingEngine {
 
     static TAG = BRIEFING_TAG;
 
-    constructor({ planner, projectManager, priorityRanking, goalMonitor, blockerDetector, recommendationEngine } = {}){
+    constructor({ planner, projectManager, priorityRanking, goalMonitor, blockerDetector, recommendationEngine, actionProposalEngine, companyManager, missionEngine, learning } = {}){
 
         this.planner = planner || new ExecutivePlanner();
         this.projectManager = projectManager || new ProjectManager({ planner: this.planner });
@@ -58,6 +62,26 @@ class DailyBriefingEngine {
             goalMonitor: this.goalMonitor,
             blockerDetector: this.blockerDetector
         });
+
+        // Phase 37 (Executive Assistant): the additional sections this
+        // phase's morning-briefing ask names beyond what Phase 11/19
+        // already covered (roadmap/priorities/goals/blockers/
+        // recommendations/external events) -- Approvals, Company health,
+        // Mission status, Package updates, Learning summary. System
+        // health is deliberately NOT duplicated here -- it requires real
+        // async I/O (core/system/health.js's fs.statfs), and this class's
+        // generate()/run() are synchronous and already exercised that way
+        // throughout Phase 11-32's tests; the dashboard's Executive
+        // Summary panel (Phase 34) already surfaces it on the same view
+        // an operator reads this briefing from.
+        this.actionProposalEngine = actionProposalEngine || new ActionProposalEngine({ planner: this.planner, projectManager: this.projectManager });
+        this.companyManager = companyManager || new CompanyManager({ planner: this.planner });
+        this.missionEngine = missionEngine || new MissionEngine({ planner: this.planner, projectManager: this.projectManager });
+
+        // Lazy default (not required at module top level) -- same
+        // defensive convention core/executive/weeklyReport.js's own
+        // constructor already follows for this exact dependency.
+        this.learning = learning || require("../learning");
 
     }
 
@@ -97,6 +121,49 @@ class DailyBriefingEngine {
     }
 
 
+    // Phase 37: every pending action proposal -- reuses the existing
+    // Phase 15 approval pipeline's own list(), not a second queue.
+    pendingApprovals(){
+        return this.actionProposalEngine.list("pending");
+    }
+
+
+    // Phase 37: a real per-company snapshot (employee/document/finance
+    // counts already tracked by CompanyManager) -- not a new health
+    // metric, just surfaced here too.
+    companyHealth(){
+
+        return this.companyManager.listCompanies().map(company => ({
+            id: company.id,
+            name: company.name,
+            employees: (company.employees || []).length,
+            documents: (company.documents || []).length
+        }));
+
+    }
+
+
+    // Phase 37: every real, persisted mission (Phase 31) -- a briefing
+    // reader sees mission progress alongside plain project priorities.
+    missionStatus(){
+        return this.missionEngine.history(20);
+    }
+
+
+    // Phase 37: reuses Phase 26's marketplace categorization -- a
+    // package with a newer manifest on disk than what's installed.
+    packageUpdates(){
+        return capabilitiesMarketplace.categorize().updatesAvailable;
+    }
+
+
+    // Phase 37: the existing learning engine's own system-wide stats --
+    // not a new performance-tracking mechanism.
+    learningSummary(){
+        return this.learning.overview();
+    }
+
+
     // Assembles the briefing's contents WITHOUT persisting -- exposed
     // separately so a caller (or a test) can inspect what would be
     // generated without adding to the daily history.
@@ -121,7 +188,13 @@ class DailyBriefingEngine {
             // computed identically -- persisted separately below via
             // recommendationEngine.run(), not duplicated here.
             recommendations: this.recommendationEngine.generate(),
-            externalEvents: this.externalEvents()
+            externalEvents: this.externalEvents(),
+            // Phase 37 additions -- see each method's own comment.
+            pendingApprovals: this.pendingApprovals(),
+            companyHealth: this.companyHealth(),
+            missionStatus: this.missionStatus(),
+            packageUpdates: this.packageUpdates(),
+            learningSummary: this.learningSummary()
         };
 
     }

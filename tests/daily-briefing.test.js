@@ -105,6 +105,49 @@ test("generate() surfaces recent external connector events (Phase 19 executive a
 });
 
 
+test("generate() surfaces pending approvals, company health, mission status, package updates, and learning summary (Phase 37 Executive Assistant)", async () => {
+
+    // Unscoped (real, unfiltered) planner deliberately -- MissionEngine's
+    // defineMission() creates a NEW project with an id no allow-list
+    // fixed ahead of time could include (see mission-engine.test.js's own
+    // comment on this exact issue), so this test doesn't scope the
+    // planner the way the others in this file do. The whole file's own
+    // database.json/graph.json backup/restore already isolates the real
+    // project this creates from any other test run.
+    const realPlanner = new ExecutivePlanner();
+    const briefing = makeBriefingEngine(realPlanner);
+
+    // A real pending proposal via the SAME actionProposalEngine instance
+    // the briefing itself uses.
+    const proposal = briefing.actionProposalEngine.proposeExternalAction({
+        action: "post_discord_message",
+        reason: "Briefing test proposal XQZBRIEF6",
+        payload: { content: "test" }
+    });
+
+    // A real company via the SAME companyManager instance.
+    briefing.companyManager.createCompany({ name: "Briefing Test Co XQZBRIEF6" });
+
+    // A real mission via the SAME missionEngine instance (real
+    // decomposition needs a real/mocked brain -- mock it the same way
+    // mission-engine.test.js does).
+    briefing.missionEngine.decomposer.intelligence.brain.provider.providers = {
+        claude: { generate: async () => ({ response: JSON.stringify({ milestones: [] }), provider: "claude", toolCalls: [] }) }
+    };
+    briefing.missionEngine.decomposer.intelligence.brain.provider.active = "claude";
+    const mission = await briefing.missionEngine.defineMission("Briefing mission XQZBRIEF6", { department: "ares" });
+
+    const result = briefing.generate();
+
+    assert.ok(result.pendingApprovals.some(p => p.id === proposal.id));
+    assert.ok(result.companyHealth.some(c => c.name === "Briefing Test Co XQZBRIEF6"));
+    assert.ok(result.missionStatus.some(m => m.id === mission.id));
+    assert.ok(Array.isArray(result.packageUpdates));
+    assert.strictEqual(typeof result.learningSummary.total, "number");
+
+});
+
+
 test("generate() and run()'s recommendations are computed identically", () => {
 
     const realPlanner = new ExecutivePlanner();

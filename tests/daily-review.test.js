@@ -162,6 +162,24 @@ test("externalEventsToday() surfaces today's ingested external connector events 
 });
 
 
+test("knowledgeEvolutionToday() counts real entities/relationships added today (Phase 37 'knowledge evolution')", () => {
+
+    const knowledge = require("../core/knowledge");
+    const review = new DailyReviewEngine({ planner: new ExecutivePlanner() });
+
+    const before = review.knowledgeEvolutionToday();
+
+    knowledge.addEntity({ name: "XQZREV7 Entity", type: "concept" });
+    knowledge.addRelationship({ from: "XQZREV7 Entity", to: "VERONICA", type: "relatesTo" });
+
+    const after = review.knowledgeEvolutionToday();
+
+    assert.strictEqual(after.newEntities, before.newEntities + 1);
+    assert.strictEqual(after.newRelationships, before.newRelationships + 1);
+
+});
+
+
 test("tomorrowPriorities() reuses the live priority ranking", () => {
 
     const realPlanner = new ExecutivePlanner();

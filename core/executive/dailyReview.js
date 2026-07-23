@@ -119,6 +119,26 @@ class DailyReviewEngine {
     }
 
 
+    // Phase 37 ("knowledge evolution"): real entities/relationships added
+    // to the knowledge graph today, the same isToday()-filtered-by-
+    // created-timestamp approach newMemoriesToday() already uses --
+    // reported as a real delta (today's additions), not a fabricated
+    // "growth trend" this codebase has no time-series to back up (see
+    // core/executive/organizationOverview.js's knowledgeGrowth(), which
+    // reports current TOTALS for the same honest reason).
+    knowledgeEvolutionToday(){
+
+        const knowledge = require("../knowledge");
+        const graph = knowledge.read();
+
+        return {
+            newEntities: graph.entities.filter(entity => isToday(entity.created)).length,
+            newRelationships: graph.relationships.filter(rel => isToday(rel.created)).length
+        };
+
+    }
+
+
     // Phase 19: everything ingested from an external connector today --
     // reuses core/integrations/eventIngestion.js's recentEvents() rather
     // than re-reading memory directly.
@@ -158,7 +178,8 @@ class DailyReviewEngine {
             learned: this.learnedToday(),
             newMemoriesCount: this.newMemoriesToday(),
             tomorrowPriorities: this.tomorrowPriorities(),
-            externalEvents: this.externalEventsToday()
+            externalEvents: this.externalEventsToday(),
+            knowledgeEvolution: this.knowledgeEvolutionToday()
         };
 
     }
