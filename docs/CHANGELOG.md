@@ -2109,3 +2109,63 @@ mocked, restored in `finally`). Plus 1 new dashboard test for the
 history route.
 
 706 -> 712 tests, all passing.
+
+## Phase 59 -- Autonomous Capability Builder
+
+**Audit first:** `core/capabilities/autonomousBuilder.js` (Phase 39)
+already chains the FULL lifecycle this phase describes -- analyze
+(`planner.analyzeRequest()`) -> design (`derivePackageSpec()`) ->
+generate package/agents/tools/tests/documentation
+(`builder.buildPackage()`) -> validate (built into `buildPackage()`
+itself) -> request approval (`installer.install()`, structurally forced
+`approvalRequired: true` for anything autonomously generated) ->
+install/activate (`installer.completeInstall()`, already supports
+upgrade/rollback since Phase 33). What was genuinely missing --
+already named in `docs/NEXT_STEPS.md`'s own standing recommendation --
+was tool generation QUALITY: `core/capabilities/builder.js`'s
+`toolHandlerTemplate()` always generated a handler that unconditionally
+throws, regardless of what the tool was for.
+
+**Added, without fabricating business logic for domains that don't
+exist:** a small, explicit `KNOWN_TOOL_SHAPES` registry in
+`core/capabilities/builder.js`. A tool declared with a recognized
+`shape` gets a REAL, generic implementation instead of a throwing
+skeleton; a tool with no recognized shape still gets the honest
+throwing skeleton, completely unchanged from before. The one shape that
+ships, `department_health_review`, reports the package's own
+department's real execution telemetry
+(`core/learning.departmentPerformance()`) -- genuinely accurate and
+useful the moment the package installs, without pretending to know any
+domain-specific business logic that hasn't been written yet (which
+would be exactly the fabrication this module's own header comment has
+always warned against).
+
+**`core/capabilities/autonomousBuilder.js`'s `derivePackageSpec()`**
+now declares its default `${name}.review` tool with
+`shape: "department_health_review"` -- so every autonomously-built
+package is genuinely functional from the moment a human approves and
+installs it, not permanently throwing until someone implements it by
+hand. **A real, latent bug fixed in the same pass:** the generated
+tool's `permission` field was the string `"read"`, which
+`identity/roles.json` has never defined -- only `"read_memory"` is
+real. Found while making this tool actually callable for the first
+time; harmless while it only ever threw, but would have been a real
+permission-check failure the moment the tool worked.
+
+**Wired into:** nothing new externally -- `POST /api/capabilities/build`
+(the existing dashboard route to `autonomousBuilder.buildCapability()`)
+transparently benefits, since the improvement lives entirely inside
+what it already generates.
+
+**Tests:** `tests/capabilities-builder.test.js` gained 2 -- a recognized
+shape produces a real, non-throwing, callable handler returning real
+learning telemetry (or an honest "no executions yet" message), and an
+unrecognized shape still produces the honest throwing skeleton
+(regression-proofing that this is additive, not a behavior change for
+every other case). `tests/capabilities-autonomous-builder.test.js`
+gained 2 -- `derivePackageSpec()`'s tool declares the real shape and the
+corrected permission, and a full, real end-to-end `buildCapability()`
+call whose generated review tool is actually invoked and returns real
+output, not a thrown skeleton error.
+
+712 -> 716 tests, all passing.

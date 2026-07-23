@@ -66,6 +66,19 @@ test("derivePackageSpec() falls back to a real, generic agent when no catalog do
 });
 
 
+test("derivePackageSpec() declares its default review tool with a real, recognized shape and a valid permission (Phase 59)", () => {
+
+    const analysis = require("../core/capabilities/planner").analyzeRequest("Build a recruiting department");
+    const spec = autonomousBuilder.derivePackageSpec("Build a recruiting department", analysis);
+
+    assert.strictEqual(spec.tools[0].shape, "department_health_review");
+    // "read" was a real, previously-invalid permission string (fixed
+    // this phase) -- identity/roles.json only defines "read_memory".
+    assert.strictEqual(spec.tools[0].permission, "read_memory");
+
+});
+
+
 test("buildCapability() requires a real objective", () => {
     assert.throws(() => autonomousBuilder.buildCapability(), /objective is required/);
 });
@@ -119,6 +132,29 @@ test("buildCapability() end to end against the real packages/ directory, cleaned
         assert.strictEqual(result.install.pending, true);
         assert.match(result.report, /pending approval proposal/);
         assert.strictEqual(registry.isInstalled(result.generated.name), false);
+
+    } finally {
+        fs.rmSync(result.generated.packageDir, { recursive: true, force: true });
+    }
+
+});
+
+
+test("buildCapability()'s generated review tool is genuinely callable end to end, not a throwing skeleton (Phase 59)", () => {
+
+    const objective = "Handle xqzautobuild4 outreach tasks";
+
+    const result = autonomousBuilder.buildCapability(objective);
+
+    try {
+
+        const toolId = `${result.generated.name}.review`;
+        const toolPath = path.join(result.generated.packageDir, "tools", `${toolId}.js`);
+        const toolModule = require(toolPath);
+
+        const output = toolModule[toolId]();
+
+        assert.ok(output.department === `${result.generated.name}-dept` || output.message);
 
     } finally {
         fs.rmSync(result.generated.packageDir, { recursive: true, force: true });

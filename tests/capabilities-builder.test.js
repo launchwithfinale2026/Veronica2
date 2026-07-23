@@ -72,6 +72,48 @@ test("buildPackage() generates a real, self-validating skeleton with agents/tool
 });
 
 
+test("buildPackage() generates a REAL, callable implementation (not a throwing skeleton) for a recognized tool shape (Phase 59)", () => {
+
+    const outputRoot = tmpPackagesRoot();
+
+    const result = builder.buildPackage({
+        name: "xqzbld4-dept",
+        description: "Generated department with a known-shape tool",
+        department: { id: "xqzbld4-dept", name: "XQZBLD4 Department", domain: "Test" },
+        tools: [{ id: "xqzbld4-dept.review", description: "test", permission: "read_memory", shape: "department_health_review" }],
+        outputRoot
+    });
+
+    const source = fs.readFileSync(path.join(result.packageDir, "tools", "xqzbld4-dept.review.js"), "utf8");
+    assert.ok(!source.includes("generated skeleton"), "a recognized shape must not fall back to the throwing skeleton");
+
+    const toolModule = require(path.join(result.packageDir, "tools", "xqzbld4-dept.review.js"));
+
+    // Real, callable, synchronous -- returns real learning telemetry
+    // (or an honest "no executions yet" message), never throwing.
+    const output = toolModule["xqzbld4-dept.review"]();
+    assert.ok(output.department === "xqzbld4-dept" || output.message);
+
+});
+
+
+test("buildPackage() still generates the honest throwing skeleton for an unrecognized tool shape", () => {
+
+    const outputRoot = tmpPackagesRoot();
+
+    const result = builder.buildPackage({
+        name: "xqzbld5-dept",
+        description: "Generated department with an unrecognized shape",
+        tools: [{ id: "xqzbld5.custom", description: "test", permission: "read_memory", shape: "not-a-real-shape-xqzbld5" }],
+        outputRoot
+    });
+
+    const toolModule = require(path.join(result.packageDir, "tools", "xqzbld5.custom.js"));
+    return assert.rejects(() => toolModule["xqzbld5.custom"](), /generated skeleton/);
+
+});
+
+
 test("buildPackage() refuses a duplicate directory, and requires a description", () => {
 
     const outputRoot = tmpPackagesRoot();

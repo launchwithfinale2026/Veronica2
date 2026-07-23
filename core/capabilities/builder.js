@@ -38,6 +38,60 @@ const NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
 // possibly side-effecting handler just to see if it throws.
 const SKELETON_MARKER = "is a generated skeleton -- implement its real behavior";
 
+// Phase 59 (Autonomous Capability Builder): a small, explicit registry
+// of REAL, generic tool implementations for well-known shapes -- not a
+// way to fabricate business logic for a domain this package has no
+// real domain module for yet (that would be exactly the fabrication
+// this file's own header comment warns against). Each shape is real
+// and generically true for ANY newly-generated department: e.g.
+// "department_health_review" reports the package's own department's
+// real execution telemetry (core/learning.departmentPerformance()),
+// which is genuinely meaningful from the moment the package installs,
+// even before any domain-specific behavior is added. A tool with no
+// recognized `shape` still gets the honest throwing skeleton below --
+// unmatched shapes are never silently given fabricated behavior.
+const KNOWN_TOOL_SHAPES = {
+
+    department_health_review: (toolId, { packageDir, departmentId }) => {
+
+        const learningRequirePath = toRequirePath(
+            path.join(packageDir, "tools"),
+            path.join(__dirname, "..", "learning", "index.js")
+        );
+
+        return `// Generated tool handler (see core/capabilities/builder.js) --
+// a REAL implementation of the well-known "department health review"
+// shape: reports this package's own department's real execution
+// telemetry (core/learning's departmentPerformance()), not fabricated
+// domain-specific business logic for "${departmentId}" (which doesn't
+// exist yet). Extend this file with real, domain-specific behavior
+// once that exists -- this is a genuinely useful starting point, not a
+// finished capability.
+
+const learning = require(${JSON.stringify(learningRequirePath)});
+
+module.exports = {
+
+    ${JSON.stringify(toolId)}: () => {
+
+        const health = learning.departmentPerformance().find(
+            department => department.department === ${JSON.stringify(departmentId)}
+        );
+
+        return health || {
+            department: ${JSON.stringify(departmentId)},
+            message: "No executions recorded yet for this department."
+        };
+
+    }
+
+};
+`;
+
+    }
+
+};
+
 
 function requireValidName(name){
 
@@ -70,7 +124,15 @@ relying on this agent for anything real.
 }
 
 
-function toolHandlerTemplate(toolId){
+// `shape`/`packageDir`/`departmentId` are optional -- a tool with a
+// recognized `shape` gets a REAL generic implementation
+// (KNOWN_TOOL_SHAPES above); anything else gets the honest throwing
+// skeleton, unchanged from before this phase.
+function toolHandlerTemplate(toolId, { shape, packageDir, departmentId } = {}){
+
+    if(shape && KNOWN_TOOL_SHAPES[shape]){
+        return KNOWN_TOOL_SHAPES[shape](toolId, { packageDir, departmentId });
+    }
 
     return `// Generated SKELETON tool handler (see core/capabilities/builder.js) --
 // this throws on purpose. Replace the body below with ${toolId}'s real
@@ -266,7 +328,7 @@ function buildPackage({ name, description, agents = [], tools = [], department =
 
         for(const tool of tools){
             const filePath = path.join(packageDir, "tools", `${tool.id}.js`);
-            fs.writeFileSync(filePath, toolHandlerTemplate(tool.id));
+            fs.writeFileSync(filePath, toolHandlerTemplate(tool.id, { shape: tool.shape, packageDir, departmentId: department && department.id }));
             filesCreated.push(filePath);
         }
 

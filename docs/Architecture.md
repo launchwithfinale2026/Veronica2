@@ -3897,3 +3897,94 @@ internally rather than accepting an injectable one -- restored in
 `finally` either way). Plus 1 new dashboard test for the history route.
 
 712 tests (706 -> 712), `npm test` green.
+
+## Autonomous Capability Builder -- real tool shapes (Phase 59)
+
+**Audit first: the lifecycle already existed almost entirely.**
+`core/capabilities/autonomousBuilder.js`'s own header comment (Phase
+39) already describes exactly the pipeline this phase names: Intent
+(`buildCapability(objective)`) -> Analysis (`planner.analyzeRequest()`,
+Phase 28) -> Design (`derivePackageSpec()`) -> Generation
+(`builder.buildPackage()`, Phase 27 -- manifest, agents, tools, tests,
+README, self-validated) -> Approval (`installer.install()`, Phase
+19/20, structurally forced to `approvalRequired: true` for anything
+autonomously generated -- never optional) -> Installation/Activation
+(`installer.completeInstall()`). Upgrade/rollback/versioning already
+exist too (`installer.js`'s `upgrade()`, Phase 33 -- replaces a version,
+rolls back automatically on a failed health check). What this phase
+actually asked for that didn't exist was tool generation QUALITY --
+already the single most specific, already-named item at the top of
+`docs/NEXT_STEPS.md`'s recommended-next-work list for several
+snapshots running: "extend the autonomous capability builder's tool
+generation to generate real implementations for well-known tool
+shapes."
+
+**The constraint, stated plainly: no fabricated business logic.**
+`core/capabilities/builder.js`'s own header comment has always been
+explicit that a generated package is a SKELETON, and that claiming
+otherwise ("VERONICA writes a fully working HR department") would be
+exactly the fabrication Phase 19/20 were built to avoid. A newly
+autonomously-derived department has no real domain module to wire a
+tool to -- there is no real `core/hr/` with real hiring logic this tool
+could call, because that logic doesn't exist and wasn't written by a
+human yet. Generating FAKE hiring logic to make the tool look more
+finished would be a worse failure mode than an honest throwing
+skeleton. The real question this phase had to answer honestly: is
+there anything genuinely true and useful that CAN be said about ANY
+newly-generated department, regardless of its unknown domain, without
+fabricating anything? Yes -- its own real execution telemetry.
+`core/learning.departmentPerformance()` already tracks, for every
+department that has ever actually run a task, real success/failure
+counts and durations (Phase 7 onward) -- this is genuinely true and
+meaningful the instant the package installs, even before a single line
+of domain-specific logic exists.
+
+**`KNOWN_TOOL_SHAPES` in `core/capabilities/builder.js`**: a small,
+explicit map from a shape name to a real code-generating function.
+`toolHandlerTemplate(toolId, { shape, packageDir, departmentId })`
+checks this map first; a recognized shape returns REAL, generated
+source that requires `core/learning` (via `toRequirePath()`, the same
+dynamic relative-path helper `departmentManagerTemplate()` already
+uses, so it resolves correctly regardless of where the package
+actually lives on disk) and returns that department's real performance
+entry, or an honest `"No executions recorded yet for this department."`
+message when none exists yet -- never a fabricated number. An
+unrecognized (or absent) `shape` falls through to the EXACT same
+throwing skeleton as before this phase -- completely unchanged
+behavior for every case this map doesn't cover, by design: only
+genuinely safe, generic, well-understood shapes get real code: nothing
+does today except this first case.
+
+**`core/capabilities/autonomousBuilder.js`'s `derivePackageSpec()`**
+now declares its `${name}.review` tool with
+`shape: "department_health_review"`, so every future autonomously-built
+package gets this real implementation automatically. **A real bug
+caught in the same pass, not before:** the generated tool's
+`permission` field had always been the literal string `"read"` --
+`identity/roles.json` has never defined that permission, only
+`"read_memory"`. This was harmless while the tool only ever threw (no
+permission check ever actually ran against a real call), but making the
+tool genuinely callable for the first time is exactly what surfaced it
+-- fixed in the same edit.
+
+**Nothing new to wire externally.** The existing
+`POST /api/capabilities/build` dashboard route (already calling
+`autonomousBuilder.buildCapability()` since Phase 39) transparently
+benefits -- the improvement lives entirely inside what that call
+already generates, not a new capability surface.
+
+**Tests:** `tests/capabilities-builder.test.js` gained 2 real tests --
+a recognized shape's generated file is asserted to NOT contain the
+skeleton marker text and its exported handler is actually invoked,
+returning either a real department-telemetry object or the honest
+"no executions yet" message; an unrecognized shape is asserted to still
+produce the exact throwing skeleton (proving this change is additive,
+not a silent behavior shift for every other tool). `tests/capabilities-autonomous-builder.test.js`
+gained 2 -- `derivePackageSpec()`'s declared shape and corrected
+permission, and a full, real, end-to-end `buildCapability()` call
+(analyze -> generate -> the exact file the pipeline wrote to disk)
+whose generated review tool is required and actually invoked, proving
+the fix reaches all the way through the real pipeline, not just the
+unit-level template function.
+
+716 tests (712 -> 716), `npm test` green.

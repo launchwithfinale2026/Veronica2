@@ -82,10 +82,21 @@ function derivePackageSpec(objective, analysis){
         capabilities: []
     }));
 
+    // Phase 59: this tool is generated with a recognized SHAPE
+    // ("department_health_review") -- core/capabilities/builder.js
+    // generates a REAL implementation for it (this department's real
+    // execution telemetry), not a throwing skeleton. It does not know
+    // this domain's real business logic yet -- that's genuinely
+    // subsequent work -- but it's genuinely useful the moment this
+    // package installs, rather than always throwing until a human
+    // implements it. `permission` was previously the invalid string
+    // "read" (found while making this tool real for the first time);
+    // "read_memory" is the real permission identity/roles.json defines.
     const tools = [{
         id: `${name}.review`,
-        description: `Review work for "${objective}" (skeleton -- not yet implemented).`,
-        permission: "read"
+        description: `Reports real execution health for the "${departmentId}" department (Phase 59 -- generated with a real, generic implementation, not a throwing skeleton). Extend with "${objective}"-specific behavior as real domain logic is added.`,
+        permission: "read_memory",
+        shape: "department_health_review"
     }];
 
     return {
