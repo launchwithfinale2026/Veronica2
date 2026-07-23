@@ -848,6 +848,8 @@ async function loadDashboard(){
             loadSystemHealth(),
             loadMaintenanceReport(),
             loadOperationalReadiness(),
+            loadBootStatus(),
+            loadRuntimeState(),
             loadNotificationCenter()
         ]);
 
@@ -4135,6 +4137,48 @@ async function loadMaintenanceReport(){
 
     } catch(error){
         document.getElementById("maintenance-report").textContent = `Error: ${error.message}`;
+    }
+
+}
+
+
+async function loadBootStatus(){
+
+    try {
+
+        const boot = await fetchJSON("/api/system/boot-status");
+        const container = document.getElementById("boot-status");
+
+        const lines = boot.stages.map(stage => {
+            const done = boot.completed.find(entry => entry.stage === stage);
+            const marker = done ? "[done]" : (stage === boot.currentStage ? "[in progress]" : "[pending]");
+            return `${marker} ${stage}${done ? ` (${done.completedAt})` : ""}`;
+        });
+
+        lines.push("", `${boot.progressPercent}% -- ${boot.online ? "ONLINE" : "booting"}`);
+
+        container.textContent = lines.join("\n");
+
+    } catch(error){
+        document.getElementById("boot-status").textContent = `Error: ${error.message}`;
+    }
+
+}
+
+
+async function loadRuntimeState(){
+
+    try {
+
+        const components = await fetchJSON("/api/system/runtime-state");
+        const container = document.getElementById("runtime-state");
+
+        container.textContent = components.length
+            ? components.map(c => `${c.name}: ${c.state}${c.reason ? ` (${c.reason})` : ""}`).join("\n")
+            : "No runtime components registered yet.";
+
+    } catch(error){
+        document.getElementById("runtime-state").textContent = `Error: ${error.message}`;
     }
 
 }

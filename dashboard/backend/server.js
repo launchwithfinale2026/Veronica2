@@ -78,6 +78,16 @@ const PersonalContextEngine = require("../../core/profile/personalContextEngine"
 const log = require("../../core/logging");
 const { installCrashGuards } = require("../../core/logging/crashGuard");
 
+// Project 1 (Complete Boot Process): a real, one-time record of when
+// each real boot stage below actually completes -- see
+// core/system/bootSequence.js's own header comment for why stages are
+// marked as this file's own top-level code genuinely finishes each
+// real piece of loading, not on an invented timer.
+const bootSequence = require("../../core/system/bootSequence");
+const runtimeState = require("../../core/system/runtimeState");
+
+bootSequence.markStage("initializing");
+runtimeState.register("dashboard-process", "starting");
 
 const FRONTEND_ROOT = path.join(__dirname, "../frontend");
 
@@ -88,13 +98,40 @@ const identity = JSON.parse(
     )
 );
 
+bootSequence.markStage("loading_configuration");
+
 const START_TIME = Date.now();
+
+// Memory/knowledge are file-backed and available the instant their
+// modules are required (see core/memory/index.js, core/knowledge/index.js,
+// both already required above by the modules this file imports earlier)
+// -- "loading_memory" is marked here, honestly, as the point by which
+// every real memory/knowledge read this process will ever do is already
+// possible. "loading_companies" immediately follows: a company is an
+// ordinary memory entry (core/executive/companyManager.js), not a
+// separate store with its own load step -- there is nothing more to do
+// for "loading companies" beyond memory already being available.
+bootSequence.markStage("loading_memory");
+bootSequence.markStage("loading_companies");
 
 const agents = loadAgents();
 
 seedFromAgents(agents);
 
 const departments = loadDepartments(agents);
+
+bootSequence.markStage("loading_departments");
+
+// loadDepartments()/loadAgents() above already fold in every active
+// package's own agents/departments/tools (core/capabilities/activation.js) --
+// there is no separate "load packages" step beyond this, so this stage
+// is marked immediately after, honestly reflecting that packages are
+// already live by this point, not a distinct later phase.
+bootSequence.markStage("loading_packages");
+
+for(const department of departments){
+    runtimeState.register(`department:${department.id}`, "online");
+}
 
 const collaboration = new CollaborationEngine(departments);
 
@@ -105,6 +142,8 @@ const collaboration = new CollaborationEngine(departments);
 // pursue()/report()/run-next routes below instead of constructing a
 // second one against the same departments.
 const orchestrator = automation.registerExecutionJob(departments);
+
+bootSequence.markStage("loading_automations");
 
 const personalContext = new PersonalContextEngine();
 const ExecutiveConstitution = require("../../core/executive/constitution");
@@ -409,6 +448,16 @@ const ROUTES = {
     // / what needs improvement, read live from the real capability and
     // integration registries -- see core/system/report.js.
     "GET /api/system/report": () => systemReport.generate(),
+
+    // Project 1 (Complete Boot Process): the real, one-time boot-stage
+    // record from core/system/bootSequence.js -- what actually completed
+    // and when, not a simulated progress bar.
+    "GET /api/system/boot-status": () => bootSequence.status(),
+
+    // Project 4 (Runtime Reliability): every real runtime component's
+    // current state (online/offline/starting/stopping/error/restarting)
+    // from core/system/runtimeState.js.
+    "GET /api/system/runtime-state": () => runtimeState.all(),
 
     // Phase 30 (Self Improvement Engine): what's duplicated/outdated/
     // performing poorly, a performance/security report, and an
@@ -2828,6 +2877,14 @@ if(require.main === module){
     // that one connector; it never stops the dashboard from booting.
     credentialManager.validateStartup();
 
+    // "loading_connectors" is marked here, honestly: validateStartup()
+    // above is the real point every connector's credential/config state
+    // becomes known for this run. Connectors with a real async login step
+    // (e.g. discordBot.start(), below) still connect on their own after
+    // this, tracked via their own status()/runtimeState, not by delaying
+    // this boot stage for them.
+    bootSequence.markStage("loading_connectors");
+
     // Phase 33: surfaces any capability already in "error"/"disabled"
     // status at boot -- same log-only, never-throws posture as
     // credentialManager's own validateStartup() above.
@@ -2841,10 +2898,28 @@ if(require.main === module){
     // set) write endpoints, including ones that call Claude.
     const HOST = process.env.DASHBOARD_HOST || "127.0.0.1";
 
+    bootSequence.markStage("loading_dashboard");
+
     const server = createServer();
 
     server.listen(PORT, HOST, () => {
         console.log(`[DASHBOARD] Online at http://${HOST}:${PORT}`);
+
+        // Real diagnostics -- the same unified health score
+        // core/system/healthScore.js already computes for the dashboard's
+        // own "System Health" panel -- computed once here so
+        // "running_diagnostics" reflects a real, recorded check rather
+        // than skipping straight to "online".
+        healthScore.score()
+            .catch(error => {
+                log.error("boot", `Startup diagnostics failed: ${error.message}`);
+                return null;
+            })
+            .finally(() => {
+                bootSequence.markStage("running_diagnostics");
+                bootSequence.markStage("online");
+                runtimeState.setState("dashboard-process", "online");
+            });
     });
 
     // The dashboard server is VERONICA's one genuinely long-running host
