@@ -62,15 +62,28 @@ function classify(type){
 // company knowledge and operating history" reporting view this
 // milestone asks for, without a second store: derived from the same
 // entries core/memory/store.js already holds.
+//
+// Project E (Memory System) addition: `bySource` -- every entry
+// already carries a real `source` field (the module that created it,
+// e.g. "sales-opportunities"/"knowledge-acquisition"/"self-improvement"),
+// set at write time by whichever real module called remember(). This
+// is the first place anything actually counts by it -- real,
+// already-present data, not a new field invented for this report.
 function overview(entries){
 
     const counts = { episodic: 0, semantic: 0, procedural: 0, organizational: 0 };
+    const bySource = {};
 
     for(const entry of entries){
+
         counts[classify(entry.type)] += 1;
+
+        const source = entry.source || "unknown";
+        bySource[source] = (bySource[source] || 0) + 1;
+
     }
 
-    return { total: entries.length, byClass: counts };
+    return { total: entries.length, byClass: counts, bySource };
 
 }
 

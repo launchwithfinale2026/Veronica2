@@ -4421,3 +4421,17 @@ real external proposal -> poll and find it -> mark it read -> confirm
 it's gone from pending but still in history.
 
 760 tests (753 -> 760), `npm test` green.
+
+## Memory Sources breakdown (Project E)
+
+A quick, real one: `core/memory/classification.js`'s `overview()`
+already counted every entry by `byClass`; `bySource` adds the identical
+aggregation over the `source` field every entry already carries (set at
+write time by whichever real module called `remember()`). No new data,
+no new route (`GET /api/memory/overview` already existed), just a real
+count over something that was already there. The existing Memory
+Overview widget was extended with a real, sorted "By source" line
+rather than a new panel. 1 new test (real per-source counts including
+the honest `"unknown"` fallback), plus the empty-list test extended.
+
+761 tests (760 -> 761), `npm test` green.

@@ -2565,3 +2565,26 @@ real path: create an external proposal through the live server, poll,
 mark read, confirm it drops off pending but stays in history.
 
 753 -> 760 tests, all passing.
+
+## Project E -- Memory Sources breakdown
+
+**Audit first:** every memory entry already carries a real `source`
+field (the module that created it, set at write time -- e.g.
+`"sales-opportunities"`/`"knowledge-acquisition"`/`"self-improvement"`),
+but nothing ever counted by it. `core/memory/classification.js`'s
+`overview()` already counted by class (`byClass`); adding `bySource`
+alongside it is the exact same shape of aggregation over data that was
+already real and already present on every entry, not a new field
+invented for this report.
+
+**Wired into:** `GET /api/memory/overview` already existed and needed
+no route changes -- the new `bySource` field just flows through
+automatically. The existing Memory Overview dashboard widget was
+extended (not replaced) with a real, sorted-by-count "By source" line.
+
+**Tests:** `tests/memory-classification.test.js` gained 1 (real
+per-source counts, including the honest `"unknown"` fallback for an
+entry with no source), plus the existing empty-list test extended to
+assert `bySource: {}`.
+
+760 -> 761 tests, all passing.

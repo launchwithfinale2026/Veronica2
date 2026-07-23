@@ -48,6 +48,24 @@ test("overview() counts entries by class and totals correctly", () => {
 });
 
 
+test("overview() counts entries by real source, falling back to \"unknown\" for an entry with none (Project E)", () => {
+
+    const entries = [
+        { type: "personal", source: "sales-opportunities" },
+        { type: "general", source: "sales-opportunities" },
+        { type: "workflow", source: "knowledge-acquisition" },
+        { type: "goals" }
+    ];
+
+    const result = classification.overview(entries);
+
+    assert.strictEqual(result.bySource["sales-opportunities"], 2);
+    assert.strictEqual(result.bySource["knowledge-acquisition"], 1);
+    assert.strictEqual(result.bySource.unknown, 1);
+
+});
+
+
 test("overview() returns zeroed counts for an empty entry list", () => {
 
     const result = classification.overview([]);
@@ -56,5 +74,6 @@ test("overview() returns zeroed counts for an empty entry list", () => {
     assert.deepStrictEqual(result.byClass, {
         episodic: 0, semantic: 0, procedural: 0, organizational: 0
     });
+    assert.deepStrictEqual(result.bySource, {});
 
 });

@@ -224,6 +224,15 @@ async function loadMemoryOverview(){
         textContent: `${overview.total} entries — ${overview.byClass.episodic} episodic, ${overview.byClass.semantic} semantic, ${overview.byClass.procedural} procedural, ${overview.byClass.organizational} organizational`
     }));
 
+    // Project E (Memory System): real "Memory Sources" breakdown --
+    // every entry's own already-real `source` field, not a new one.
+    const sourceEntries = Object.entries(overview.bySource || {}).sort((a, b) => b[1] - a[1]);
+
+    container.appendChild(el("p", {
+        className: "hint",
+        textContent: `By source: ${sourceEntries.map(([source, count]) => `${source} (${count})`).join(", ")}`
+    }));
+
 }
 
 
