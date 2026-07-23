@@ -1369,3 +1369,63 @@ that line.
 commit per part. No architectural redesign -- the only genuinely new
 store is missions themselves; the citation/extraction/storage pipeline
 was reused wholesale from Phase 29.
+
+## Phase 45 (Trading Research Division) -- parts 1-3
+
+The fifth Phase 35 package. Explicitly research/analysis only
+throughout -- no real trade execution anywhere in this codebase; real
+trade execution remains approval-gated and unimplemented until a real
+broker credential exists, per the operator's explicit instruction.
+
+**Part 1 -- real Portfolio + Strategy Storage + Paper Trading Engine/
+Journal.** New `core/trading/portfolio.js`: Portfolio model, Watchlists,
+Position Sizing. `applyTrade()` computes a real, correct weighted-
+average cost basis across multiple buys, rejects a buy costing more
+than available cash and a sell exceeding the held position.
+`portfolioValue()` computes real market value/unrealized P&L from
+caller-supplied current prices -- no market data feed exists, so this
+is real arithmetic on real positions against whatever prices are
+actually given, honestly reporting `null` (not a fabricated number) for
+an unsupplied symbol. `calculatePositionSize()` applies the real,
+standard "percent risk" formula. New `core/trading/strategies.js`:
+Strategy storage. New `core/trading/paperTrading.js`: `executePaperTrade()`
+applies a trade to the real portfolio FIRST and only records a journal
+entry for a trade that genuinely happened.
+
+**Part 2 -- real Backtesting + Risk/Performance Analytics + real
+tool.** New `core/trading/backtest.js`: a real, deterministic backtest
+of a moving-average crossover strategy (the one strategy shape this
+engine can actually evaluate -- not a generic strategy-rule
+interpreter) against a real, caller-supplied historical price series --
+no market data connector exists. Test expectations were hand-verified
+against the actual crossover math. New `core/trading/analytics.js`:
+`journalPerformance()` computes real realized P&L via FIFO lot
+matching -- deliberately a DIFFERENT cost-basis method than
+`portfolio.js`'s average-cost position tracking, both real and
+legitimate, answering two different real questions (ongoing unrealized
+P&L vs. realized P&L attribution per sell). Written with
+`core/learning` required lazily from the start, having now seen the
+circular-require bug class three times already (Sales, Marketing,
+Research). `packages/trading-research`'s skeleton tool given a real
+implementation, permission fixed to `"read_memory"`, every agent prompt
+replaced with a real one. Found a stale test along the way:
+`tests/dashboard.test.js` hardcoded trading-research as the "still
+awaiting integration" example -- updated to business-operations, the
+one package remaining.
+
+**Part 3 -- Trading Status + dashboard surfacing.** `dailyBriefing.js`
+gained `tradingStatus()` (system-wide, like `researchStatus()`: total
+portfolios, total realized P&L, open positions). Full dashboard wiring
+-- portfolios, paper trades, journal, review, position sizing,
+watchlists, strategies, backtest -- and a new frontend panel explicitly
+labeled research/analysis only. Checked for (and found none of) the
+HTML id-collision class of bug found in Phase 44's Research panel.
+
+Result: `core/capabilities/health.js` now reports trading-research as
+genuinely `"active"` -- the fifth of six Phase 35 packages to cross
+that line. Only business-operations remains.
+
+587 -> 616 tests across three parts, all passing throughout, one
+commit per part. No architectural redesign -- the only genuinely new
+stores are portfolios, strategies, watchlists, and the paper trade
+journal.

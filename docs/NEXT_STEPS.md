@@ -1,7 +1,7 @@
 # VERONICA — Next Steps
 
-Snapshot as of Phase 44 part 3 (Research Division production-readiness,
-dashboard surfacing complete). 587/587 tests passing. See
+Snapshot as of Phase 45 part 3 (Trading Research Division production-
+readiness, dashboard surfacing complete). 616/616 tests passing. See
 `docs/CHANGELOG.md` for what each phase actually built, and
 `docs/NEXT_HUMAN_ACTIONS.md`/`docs/EXTERNAL_DEPENDENCIES.md` for what
 still needs a human.
@@ -20,56 +20,51 @@ still needs a human.
   back into `core/tools/index.js` via `core/brain/providers/claude.js`)
   -- fixed there and proactively in Marketing's analytics module too.
 - **The Finance Division is production-ready** (Phase 43 parts 1-3):
-  built entirely on top of the existing ledger
-  (`companyManager.js`'s `recordFinance()`/`financialSummary()`, not
-  duplicated). No banking connection anywhere, per the operator's
-  explicit instruction.
+  built entirely on top of the existing ledger, not duplicated. No
+  banking connection anywhere, per the operator's explicit instruction.
 - **The Research Division is production-ready** (Phase 44 parts 1-3): a
-  real Research Mission Engine (`core/research/missions.js`) reusing
-  `core/research/engine.js`'s Phase 29 pipeline wholesale -- Source
-  Ranking (deterministic, by real extraction confidence) and Executive
-  Summaries (a real LLM synthesis) on top. "Competitor
-  research"/"Industry reports"/"Technology reports"/"Market trend
-  reports" are all the same mechanism with a different mission `type`
-  label, not four separate report generators. The SAME circular-require
-  bug class surfaced a third time here (`core/research/missions.js` and
+  real Research Mission Engine reusing `core/research/engine.js`'s
+  Phase 29 pipeline wholesale. The same circular-require bug class
+  surfaced a third time here (`core/research/missions.js` AND
   `core/research/engine.js` itself both top-level-required
   `core/intelligence`) -- fixed in both.
-- **Four of six Phase 35 packages are now genuinely `"active"`** in
-  `core/capabilities/health.js`: marketing, sales, finance, and
-  research-department. The remaining two (business-operations,
-  trading-research) are still "Installed – Awaiting Integration" --
-  their tools are still generated skeletons, awaiting the same
-  production-readiness pass.
+- **The Trading Research Division is production-ready** (Phase 45 parts
+  1-3): real Portfolio/Watchlists/Position Sizing, Strategy Storage, a
+  Paper Trading Engine + Journal, a real deterministic Backtesting
+  engine (moving-average crossover, hand-verified), real Risk/
+  Performance Analytics (FIFO realized P&L). Research/analysis only
+  throughout -- no real trade execution anywhere in this codebase.
+  `core/trading/analytics.js` was written with `core/learning` lazily
+  required from the start, having now seen the circular-require bug
+  class three times already.
+- **Five of six Phase 35 packages are now genuinely `"active"`** in
+  `core/capabilities/health.js`: marketing, sales, finance,
+  research-department, and trading-research. Only business-operations
+  remains "Installed – Awaiting Integration".
 - **Minor, unrelated finding, not yet fixed**: `dashboard/frontend/index.html`
   has a pre-existing (predates this session) duplicate
-  `id="system-health"` on two different `<div>`s -- harmless today (both
-  happen to be populated identically), but `document.getElementById()`
-  only ever returns the first match, so if the two were ever meant to
-  show different content, one silently wouldn't update. Worth a
+  `id="system-health"` on two different `<div>`s -- harmless today, but
+  `document.getElementById()` only ever returns the first match. Worth a
   dedicated fix, out of scope for whichever phase happens to notice it
   next.
 
-## Recommended Phase 45+
+## Recommended Phase 46+
 
-1. **Apply the same production-readiness template to the remaining two
-   Phase 35 packages** (trading-research, business-operations, per the
-   standing roadmap order) -- Trading Research next: portfolio model,
-   watchlists, strategy storage, paper trading engine, backtesting, risk
-   metrics, position sizing, journal, performance analytics -- no real
-   trade execution, approval-gated and unimplemented until broker
-   credentials exist. Then Business Operations (SOP library, workflow
+1. **Apply the same production-readiness template to the last Phase 35
+   package: business-operations** -- SOP library, workflow
    documentation, process analysis, KPI tracking, department
    scorecards, blocker management, meeting summaries, weekly operating
-   reviews). Each is its own genuine scope -- audit first, and watch for
-   the same class of circular-require bug (`core/learning` or
-   `core/intelligence` required at a module's top level, reached from a
-   tool handler) in any new analytics/reasoning module -- it has now
-   surfaced three times (Sales, proactively in Marketing, Research) and
-   will keep recurring in any new domain module that both (a) gets
-   `require()`'d from a package tool handler and (b) itself top-level-
-   requires anything in the `core/learning`/`core/intelligence`/
-   `core/brain` chain.
+   reviews. This is the sixth and final package; once it's done, all
+   six Phase 35 packages will be genuinely `"active"`, not just
+   installed. Audit first (this codebase already has real blocker
+   detection (`core/executive/blockerDetection.js`) and a real weekly
+   operating report (`core/executive/weeklyReport.js`) -- reuse them
+   rather than building parallel ones), and watch for the same class of
+   circular-require bug (`core/learning`/`core/intelligence` required
+   at a module's top level, reached from a tool handler) in any new
+   analytics/reasoning module -- it has now surfaced three times
+   (Sales, proactively Marketing, Research) and will keep recurring in
+   any new domain module reachable from a package tool handler.
 2. **Close the recommendation feedback loop.** Phase 38's
    `adaptiveInsights.js` computes real acceptance rates and repeated-
    recommendation counts but doesn't feed them back into
@@ -82,10 +77,10 @@ still needs a human.
    endpoint/content level only -- no browser is available in this
    environment. The command palette, search, Executive Summary panel
    (Phase 34), and the Marketing (Phase 41), Sales (Phase 42),
-   Finance (Phase 43), and Research (Phase 44) Division panels are
-   functionally real but never visually confirmed. This would also be
-   the moment to fix the pre-existing "system-health" duplicate id
-   noted above.
+   Finance (Phase 43), Research (Phase 44), and Trading Research
+   (Phase 45) Division panels are functionally real but never visually
+   confirmed. This would also be the moment to fix the pre-existing
+   "system-health" duplicate id noted above.
 4. **The six architecture-debt/upgrade items** flagged in
    `core/system/selfImprovement.js` -- genuinely the operator's call,
    not something to decide autonomously.

@@ -2882,3 +2882,56 @@ a second research engine.
 green before each). No architectural redesign -- the only genuinely new
 store is missions themselves; the citation/extraction/storage pipeline
 was reused wholesale from Phase 29.
+
+## Trading Research Division (`core/trading/`, Phase 45)
+
+**Decision:** the fifth Phase 35 package moved from skeleton to
+production-ready. Explicitly research/analysis only -- there is no real
+broker connection anywhere in this codebase, and real trade execution
+remains approval-gated and unimplemented until one exists. Every module
+here is genuinely useful without a broker: paper trading, backtesting,
+and risk analysis are real disciplines a trader practices before
+placing real capital.
+
+- **Two DIFFERENT, both real cost-basis methods, by design**:
+  `core/trading/portfolio.js`'s `applyTrade()` tracks an open position
+  with a single blended average-cost-basis (the common retail-broker
+  convention), while `core/trading/analytics.js`'s `journalPerformance()`
+  computes REALIZED P&L via FIFO lot matching (the standard tax-lot
+  accounting method) across the same journal. These answer two
+  different real questions -- ongoing unrealized P&L on what's still
+  held, vs. realized P&L attribution on each specific sell -- and
+  deliberately don't share one calculation. A future reader should not
+  "fix" this into one method; it would make one of the two questions
+  wrong.
+- **No market data feed, by design**: `portfolioValue()` and the
+  backtest engine both take real prices as an explicit argument rather
+  than fetching them -- there is no market-data connector in this
+  codebase (see `docs/EXTERNAL_DEPENDENCIES.md`). Both do real
+  arithmetic on real data the caller already has; neither fabricates or
+  estimates a price.
+- **Backtesting is deliberately scoped to one real strategy shape**:
+  `core/trading/backtest.js`'s `backtestMovingAverageCrossover()`
+  evaluates a real, well-known, well-defined rule (golden-cross buy /
+  death-cross sell) against a real historical price series. A generic
+  strategy-rule interpreter that could evaluate arbitrary stored
+  strategies would have been substantially more scope than this phase
+  called for -- `core/trading/strategies.js`'s free-form `rules` field
+  is ready for that future work, but nothing currently reads a
+  non-moving-average-crossover strategy's rules to run a backtest.
+- **The circular-require bug, addressed proactively this time**:
+  `core/trading/analytics.js` was written with `core/learning` required
+  lazily inside `executionHealth()` from the very first draft, rather
+  than discovered live a fourth time -- by this phase, the pattern (any
+  module reachable from a package tool handler that itself top-level-
+  requires anything in the `core/learning`/`core/intelligence`/
+  `core/brain` chain) was well-established enough to design around up
+  front.
+- **Trading Status** (`core/executive/dailyBriefing.js`): system-wide,
+  like `researchStatus()` -- total portfolios, total realized P&L, open
+  positions, deliberately excluding unrealized P&L (no price source).
+
+587 -> 616 tests across three parts (one commit per part, `npm test`
+green before each). No architectural redesign -- the only genuinely new
+stores are portfolios, strategies, watchlists, and the paper trade
+journal.
