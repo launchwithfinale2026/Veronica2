@@ -434,6 +434,24 @@ test("trading.portfolio.review tool runs end to end through the real Tool Regist
 
 });
 
+test("bizops.workflow.review tool runs end to end through the real Tool Registry (Phase 46 -- no longer a skeleton, the sixth and final Phase 35 package)", async () => {
+
+    const sops = require("../core/operations/sops");
+
+    const sop = sops.createSOP({ name: "Tool Test SOP XQZTOOL5", department: "bizops", steps: ["Step 1"] });
+
+    const review = await tools.run(
+        "bizops.workflow.review",
+        { sopId: sop.id },
+        { role: "agent" }
+    );
+
+    assert.strictEqual(review.sop.id, sop.id);
+    assert.strictEqual(review.executionHealth, null);
+    assert.deepStrictEqual(review.relatedKPIs, []);
+
+});
+
 test("DepartmentManager.useTool() runs tools with department_manager permissions", async () => {
 
     const DepartmentManager = require("../core/departments/base");

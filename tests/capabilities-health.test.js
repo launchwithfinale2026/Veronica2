@@ -306,6 +306,41 @@ test("the real \"trading-research\" package genuinely reports \"active\", not \"
 });
 
 
+test("the real \"business-operations\" package genuinely reports \"active\", not \"Installed – Awaiting Integration\" (Phase 46 Business Operations Division -- the sixth and final Phase 35 package)", () => {
+
+    // Same signal as every prior division -- bizops.workflow.review was
+    // given a real implementation (calls core/operations/scorecard.js
+    // for real). All six Phase 35 production packages are now
+    // genuinely active, not just installed.
+    const report = health.report().find(r => r.name === "business-operations");
+
+    assert.ok(report);
+    assert.strictEqual(report.operationalStatus, "active");
+    assert.strictEqual(report.operationalStatusLabel, "Active");
+    assert.deepStrictEqual(report.skeletonTools, []);
+    assert.strictEqual(report.agentsLoaded, report.agentsDeclared);
+    assert.strictEqual(report.toolsLoaded, report.toolsDeclared);
+
+});
+
+
+test("every one of the six Phase 35 production packages is now genuinely \"active\" -- none remain \"Installed – Awaiting Integration\" (Phase 46 completes the arc)", () => {
+
+    const PRODUCTION_PACKAGES = [
+        "marketing", "sales", "finance", "research-department", "trading-research", "business-operations"
+    ];
+
+    const report = health.report();
+
+    for(const name of PRODUCTION_PACKAGES){
+        const entry = report.find(r => r.name === name);
+        assert.ok(entry, `expected a health report for "${name}"`);
+        assert.strictEqual(entry.operationalStatus, "active", `expected "${name}" to be active`);
+    }
+
+});
+
+
 test("report() excludes core capabilities entirely", () => {
 
     const report = health.report();

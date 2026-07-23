@@ -25,8 +25,15 @@
     "tools": [
         {
             "id": "bizops.workflow.review",
-            "description": "Review a described workflow for bottlenecks (skeleton -- not yet implemented).",
-            "permission": "read"
+            "description": "Real process/workflow review via core/operations/scorecard.js's analyzeProcess(): the documented SOP, its department's real execution health, and related KPIs.",
+            "permission": "read_memory",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "sopId": { "type": "string" }
+                },
+                "required": ["sopId"]
+            }
         }
     ],
     "dependencies": [],
