@@ -327,6 +327,37 @@ test("generate() surfaces real, system-wide Trading Status (Phase 45 Executive D
 });
 
 
+test("generate() surfaces real, system-wide Operations Status (Phase 46 Executive Daily Operations)", () => {
+
+    const sops = require("../core/operations/sops");
+    const kpis = require("../core/operations/kpis");
+    const meetings = require("../core/operations/meetings");
+
+    const realPlanner = new ExecutivePlanner();
+    const briefing = makeBriefingEngine(realPlanner);
+
+    const before = briefing.generate().operationsStatus;
+
+    sops.createSOP({ name: "Briefing Ops SOP XQZBRIEF12", steps: ["Step 1"] });
+
+    const kpi = kpis.createKPI({ name: "Briefing Ops KPI XQZBRIEF12", target: 100 });
+    kpis.recordActual(kpi.id, 50); // below target -- off track
+
+    meetings.createMeeting({
+        title: "Briefing Ops Meeting XQZBRIEF12",
+        actionItems: [{ text: "Open item XQZBRIEF12" }]
+    });
+
+    const after = briefing.generate().operationsStatus;
+
+    assert.strictEqual(after.totalSOPs, before.totalSOPs + 1);
+    assert.strictEqual(after.totalKPIs, before.totalKPIs + 1);
+    assert.strictEqual(after.offTrackKPIs, before.offTrackKPIs + 1);
+    assert.strictEqual(after.openActionItems, before.openActionItems + 1);
+
+});
+
+
 test("generate() and run()'s recommendations are computed identically", () => {
 
     const realPlanner = new ExecutivePlanner();

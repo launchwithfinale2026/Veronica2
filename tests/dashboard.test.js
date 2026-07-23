@@ -817,6 +817,87 @@ test("Trading Research Division: create a portfolio, execute paper trades, revie
 
 });
 
+test("Business Operations Division: create an SOP, track a KPI, log a meeting, and read a real department scorecard through every real endpoint (Phase 46 -- the sixth and final Phase 35 package)", async () => {
+
+    process.env.API_TOKEN = "test-api-secret";
+
+    const authedHeaders = {
+        Authorization: "Bearer test-api-secret",
+        "Content-Type": "application/json"
+    };
+
+    const sopRes = await fetch(`${baseUrl}/api/operations/sops`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ name: "Dashboard SOP XQZDASH6", department: "bizops", steps: ["Step 1"] })
+    });
+    assert.strictEqual(sopRes.status, 200);
+    const sop = await sopRes.json();
+    assert.strictEqual(sop.version, 1);
+
+    const stepsRes = await fetch(`${baseUrl}/api/operations/sops/${sop.id}/steps`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ steps: ["Step 1", "Step 2"] })
+    });
+    assert.strictEqual((await stepsRes.json()).version, 2);
+
+    const analysisRes = await fetch(`${baseUrl}/api/operations/sops/${sop.id}/analysis`);
+    assert.strictEqual((await analysisRes.json()).sop.id, sop.id);
+
+    const sopDetailRes = await fetch(`${baseUrl}/api/operations/sops/${sop.id}`);
+    assert.strictEqual((await sopDetailRes.json()).version, 2);
+
+    const sopListRes = await fetch(`${baseUrl}/api/operations/sops?department=bizops`);
+    assert.ok((await sopListRes.json()).some(s => s.id === sop.id));
+
+    const kpiRes = await fetch(`${baseUrl}/api/operations/kpis`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ name: "Dashboard KPI XQZDASH6", department: "bizops", target: 100 })
+    });
+    const kpi = await kpiRes.json();
+
+    const actualRes = await fetch(`${baseUrl}/api/operations/kpis/${kpi.id}/actual`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ actual: 120 })
+    });
+    assert.strictEqual((await actualRes.json()).actual, 120);
+
+    const kpiDetailRes = await fetch(`${baseUrl}/api/operations/kpis/${kpi.id}`);
+    assert.strictEqual((await kpiDetailRes.json()).onTrack, true);
+
+    const kpiListRes = await fetch(`${baseUrl}/api/operations/kpis?department=bizops`);
+    assert.ok((await kpiListRes.json()).some(k => k.id === kpi.id));
+
+    const meetingRes = await fetch(`${baseUrl}/api/operations/meetings`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ title: "Dashboard Meeting XQZDASH6", actionItems: [{ text: "Follow up XQZDASH6" }] })
+    });
+    const meeting = await meetingRes.json();
+
+    const completeRes = await fetch(`${baseUrl}/api/operations/meetings/${meeting.id}/action-items/action-0/complete`, {
+        method: "POST",
+        headers: authedHeaders
+    });
+    assert.strictEqual((await completeRes.json()).actionItems[0].done, true);
+
+    const meetingDetailRes = await fetch(`${baseUrl}/api/operations/meetings/${meeting.id}`);
+    assert.strictEqual((await meetingDetailRes.json()).actionItems[0].done, true);
+
+    const meetingListRes = await fetch(`${baseUrl}/api/operations/meetings`);
+    assert.ok((await meetingListRes.json()).some(m => m.id === meeting.id));
+
+    const scorecardRes = await fetch(`${baseUrl}/api/operations/scorecard/bizops`);
+    const scorecard = await scorecardRes.json();
+    assert.strictEqual(scorecard.departmentId, "bizops");
+    assert.ok(scorecard.health);
+    assert.ok(scorecard.kpis.some(k => k.id === kpi.id));
+
+});
+
 test("GET /api/memory without a filter returns the real stored memories", async () => {
 
     const res = await fetch(`${baseUrl}/api/memory`);
@@ -1206,6 +1287,12 @@ const ALL_POST_ROUTES = [
     "/api/trading/watchlists/test-id/remove-symbol",
     "/api/trading/strategies",
     "/api/trading/backtest",
+    "/api/operations/sops",
+    "/api/operations/sops/test-id/steps",
+    "/api/operations/kpis",
+    "/api/operations/kpis/test-id/actual",
+    "/api/operations/meetings",
+    "/api/operations/meetings/test-id/action-items/test-item-id/complete",
     "/api/departments/athena/run",
     "/api/tools/memory.recall/run"
 ];

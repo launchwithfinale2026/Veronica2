@@ -56,6 +56,10 @@ const tradingStrategies = require("../../core/trading/strategies");
 const tradingPaperTrading = require("../../core/trading/paperTrading");
 const tradingBacktest = require("../../core/trading/backtest");
 const tradingAnalytics = require("../../core/trading/analytics");
+const operationsSops = require("../../core/operations/sops");
+const operationsKpis = require("../../core/operations/kpis");
+const operationsMeetings = require("../../core/operations/meetings");
+const operationsScorecard = require("../../core/operations/scorecard");
 const ResearchEngine = require("../../core/research/engine");
 const SelfImprovementEngine = require("../../core/system/selfImprovement");
 const OrganizationOverview = require("../../core/executive/organizationOverview");
@@ -419,6 +423,15 @@ const ROUTES = {
         entryPrice: Number(searchParams.get("entryPrice")),
         stopPrice: Number(searchParams.get("stopPrice"))
     }),
+
+    // Phase 46 (Business Operations Division). department is optional --
+    // SOPs/KPIs aren't required to be department-scoped.
+    "GET /api/operations/sops": (searchParams) => operationsSops.listSOPs(searchParams.get("department")),
+
+    "GET /api/operations/kpis": (searchParams) => operationsKpis.listKPIs(searchParams.get("department"))
+        .map(kpi => operationsKpis.kpiStatus(kpi.id)),
+
+    "GET /api/operations/meetings": () => operationsMeetings.listMeetings(),
 
     "GET /api/research/history": (searchParams) => researchEngine.history(searchParams.get("topic") || undefined),
 
@@ -2181,6 +2194,144 @@ function createServer(){
                 const input = JSON.parse((await readBody(req)) || "{}");
 
                 return sendJSON(res, 200, tradingBacktest.backtestMovingAverageCrossover(input));
+
+            }
+
+            // Phase 46 (Business Operations Division): SOP/KPI/meeting
+            // lifecycle routes, plus scorecard/process-analysis reads.
+            if(parsed.pathname === "/api/operations/sops" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const input = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, operationsSops.createSOP(input));
+
+            }
+
+            const sopStepsMatch = parsed.pathname.match(/^\/api\/operations\/sops\/([^/]+)\/steps$/);
+
+            if(sopStepsMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { steps } = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, operationsSops.updateSteps(decodeURIComponent(sopStepsMatch[1]), steps));
+
+            }
+
+            // Real Process Analysis -- must come before the plain SOP
+            // detail route below since they share the
+            // /api/operations/sops/:id... prefix.
+            const sopAnalysisMatch = parsed.pathname.match(/^\/api\/operations\/sops\/([^/]+)\/analysis$/);
+
+            if(sopAnalysisMatch && req.method === "GET"){
+
+                return sendJSON(res, 200, operationsScorecard.analyzeProcess(decodeURIComponent(sopAnalysisMatch[1])));
+
+            }
+
+            const sopDetailMatch = parsed.pathname.match(/^\/api\/operations\/sops\/([^/]+)$/);
+
+            if(sopDetailMatch && req.method === "GET"){
+
+                return sendJSON(res, 200, operationsSops.getSOP(decodeURIComponent(sopDetailMatch[1])));
+
+            }
+
+            if(parsed.pathname === "/api/operations/kpis" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const input = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, operationsKpis.createKPI(input));
+
+            }
+
+            const kpiActualMatch = parsed.pathname.match(/^\/api\/operations\/kpis\/([^/]+)\/actual$/);
+
+            if(kpiActualMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { actual } = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, operationsKpis.recordActual(decodeURIComponent(kpiActualMatch[1]), actual));
+
+            }
+
+            const kpiDetailMatch = parsed.pathname.match(/^\/api\/operations\/kpis\/([^/]+)$/);
+
+            if(kpiDetailMatch && req.method === "GET"){
+
+                return sendJSON(res, 200, operationsKpis.kpiStatus(decodeURIComponent(kpiDetailMatch[1])));
+
+            }
+
+            if(parsed.pathname === "/api/operations/meetings" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const input = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, operationsMeetings.createMeeting(input));
+
+            }
+
+            const actionItemCompleteMatch = parsed.pathname.match(/^\/api\/operations\/meetings\/([^/]+)\/action-items\/([^/]+)\/complete$/);
+
+            if(actionItemCompleteMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                return sendJSON(res, 200, operationsMeetings.completeActionItem(
+                    decodeURIComponent(actionItemCompleteMatch[1]),
+                    decodeURIComponent(actionItemCompleteMatch[2])
+                ));
+
+            }
+
+            const meetingDetailMatch = parsed.pathname.match(/^\/api\/operations\/meetings\/([^/]+)$/);
+
+            if(meetingDetailMatch && req.method === "GET"){
+
+                return sendJSON(res, 200, operationsMeetings.getMeeting(decodeURIComponent(meetingDetailMatch[1])));
+
+            }
+
+            // Real Department Scorecard -- reuses OrganizationOverview/
+            // BlockerDetector wholesale (see core/operations/scorecard.js).
+            const scorecardMatch = parsed.pathname.match(/^\/api\/operations\/scorecard\/([^/]+)$/);
+
+            if(scorecardMatch && req.method === "GET"){
+
+                return sendJSON(res, 200, operationsScorecard.departmentScorecard(decodeURIComponent(scorecardMatch[1])));
 
             }
 

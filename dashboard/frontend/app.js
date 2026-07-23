@@ -2673,6 +2673,227 @@ function setupBacktestForm(){
 }
 
 
+function setupSopCreateForm(){
+
+    const form = document.getElementById("sop-create-form");
+    const result = document.getElementById("sop-create-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const name = document.getElementById("sop-name").value;
+        const department = document.getElementById("sop-department").value;
+        const stepsRaw = document.getElementById("sop-steps").value;
+        const steps = stepsRaw.split(",").map(s => s.trim()).filter(Boolean);
+
+        result.textContent = "Creating...";
+
+        try {
+
+            const sop = await authedFetch("/api/operations/sops", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, department: department || undefined, steps })
+            });
+
+            result.textContent = `Created "${sop.name}" (v${sop.version}, id: ${sop.id})`;
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupSopLookupForm(){
+
+    const form = document.getElementById("sop-lookup-form");
+    const result = document.getElementById("sop-analysis-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const sopId = document.getElementById("sop-lookup-id").value;
+
+        result.textContent = "Loading...";
+
+        try {
+
+            const analysis = await fetchJSON(`/api/operations/sops/${encodeURIComponent(sopId)}/analysis`);
+
+            result.textContent = JSON.stringify(analysis, null, 2);
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupKpiCreateForm(){
+
+    const form = document.getElementById("kpi-create-form");
+    const result = document.getElementById("kpi-create-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const name = document.getElementById("kpi-name").value;
+        const department = document.getElementById("kpi-department").value;
+        const target = Number(document.getElementById("kpi-target").value);
+        const direction = document.getElementById("kpi-direction").value;
+
+        result.textContent = "Creating...";
+
+        try {
+
+            const kpi = await authedFetch("/api/operations/kpis", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, department: department || undefined, target, direction })
+            });
+
+            result.textContent = `Created "${kpi.name}" (target: ${kpi.target}, id: ${kpi.id})`;
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupKpiActualForm(){
+
+    const form = document.getElementById("kpi-actual-form");
+    const result = document.getElementById("kpi-actual-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const kpiId = document.getElementById("kpi-actual-id").value;
+        const actual = Number(document.getElementById("kpi-actual-value").value);
+
+        result.textContent = "Recording...";
+
+        try {
+
+            const kpi = await authedFetch(`/api/operations/kpis/${encodeURIComponent(kpiId)}/actual`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ actual })
+            });
+
+            result.textContent = `Recorded ${kpi.actual} against target ${kpi.target}`;
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupMeetingCreateForm(){
+
+    const form = document.getElementById("meeting-create-form");
+    const result = document.getElementById("meeting-create-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const title = document.getElementById("meeting-title").value;
+        const attendeesRaw = document.getElementById("meeting-attendees").value;
+        const decisionsRaw = document.getElementById("meeting-decisions").value;
+        const actionItemsRaw = document.getElementById("meeting-action-items").value;
+
+        const attendees = attendeesRaw ? attendeesRaw.split(",").map(s => s.trim()).filter(Boolean) : [];
+        const decisions = decisionsRaw ? decisionsRaw.split(",").map(s => s.trim()).filter(Boolean) : [];
+        const actionItems = actionItemsRaw
+            ? actionItemsRaw.split(",").map(s => s.trim()).filter(Boolean).map(text => ({ text }))
+            : [];
+
+        result.textContent = "Logging...";
+
+        try {
+
+            await authedFetch("/api/operations/meetings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ title, attendees, decisions, actionItems })
+            });
+
+            result.textContent = "Meeting logged.";
+
+            const meetings = await fetchJSON("/api/operations/meetings");
+
+            renderList(
+                "meeting-list",
+                meetings,
+                "No meetings logged yet.",
+                meeting => `${meeting.title} — ${meeting.actionItems.filter(i => !i.done).length} open action item(s)`
+            );
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupScorecardForm(){
+
+    const form = document.getElementById("scorecard-form");
+    const result = document.getElementById("scorecard-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const departmentId = document.getElementById("scorecard-department-id").value;
+
+        result.textContent = "Loading...";
+
+        try {
+
+            const scorecard = await fetchJSON(`/api/operations/scorecard/${encodeURIComponent(departmentId)}`);
+
+            result.textContent = JSON.stringify(scorecard, null, 2);
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
 function setupCompanyCreateForm(){
 
     const form = document.getElementById("company-create-form");
@@ -3376,6 +3597,12 @@ document.addEventListener("DOMContentLoaded", () => {
     setupWatchlistCreateForm();
     setupStrategyCreateForm();
     setupBacktestForm();
+    setupSopCreateForm();
+    setupSopLookupForm();
+    setupKpiCreateForm();
+    setupKpiActualForm();
+    setupMeetingCreateForm();
+    setupScorecardForm();
     setupCapabilityAnalysisForm();
     setupCapabilityInstallForm();
     setupCapabilitySearchForm();

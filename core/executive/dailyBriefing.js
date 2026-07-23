@@ -51,7 +51,7 @@ class DailyBriefingEngine {
 
     static TAG = BRIEFING_TAG;
 
-    constructor({ planner, projectManager, priorityRanking, goalMonitor, blockerDetector, recommendationEngine, actionProposalEngine, companyManager, missionEngine, learning, organizationOverview, marketingCampaigns, salesOpportunities, salesLeads, financeReports, financeBudgets, financeInvoices, researchMissions, tradingPortfolio, tradingAnalytics } = {}){
+    constructor({ planner, projectManager, priorityRanking, goalMonitor, blockerDetector, recommendationEngine, actionProposalEngine, companyManager, missionEngine, learning, organizationOverview, marketingCampaigns, salesOpportunities, salesLeads, financeReports, financeBudgets, financeInvoices, researchMissions, tradingPortfolio, tradingAnalytics, operationsSops, operationsKpis, operationsMeetings } = {}){
 
         this.planner = planner || new ExecutivePlanner();
         this.projectManager = projectManager || new ProjectManager({ planner: this.planner });
@@ -124,6 +124,11 @@ class DailyBriefingEngine {
         // Phase 45 (Trading Research Division).
         this.tradingPortfolio = tradingPortfolio || require("../trading/portfolio");
         this.tradingAnalytics = tradingAnalytics || require("../trading/analytics");
+
+        // Phase 46 (Business Operations Division).
+        this.operationsSops = operationsSops || require("../operations/sops");
+        this.operationsKpis = operationsKpis || require("../operations/kpis");
+        this.operationsMeetings = operationsMeetings || require("../operations/meetings");
 
     }
 
@@ -401,6 +406,38 @@ class DailyBriefingEngine {
     }
 
 
+    // Phase 46 (Business Operations Division): system-wide, like
+    // researchStatus()/tradingStatus() above -- SOPs and KPIs aren't
+    // company-scoped. Real off-track KPI count (kpiStatus()'s
+    // onTrack: false) and real open action-item count across every
+    // recorded meeting -- both genuine signals an operator would want
+    // surfaced each morning, not fabricated ones. Weekly Operating
+    // Reviews already exist as their own real, separately-scheduled
+    // artifact (core/executive/weeklyReport.js, Phase 11) -- not
+    // duplicated into this daily rollup.
+    operationsStatus(){
+
+        const allSOPs = this.operationsSops.listSOPs();
+        const allKPIs = this.operationsKpis.listKPIs();
+
+        const offTrackKPIs = allKPIs
+            .map(kpi => this.operationsKpis.kpiStatus(kpi.id))
+            .filter(status => status.onTrack === false)
+            .length;
+
+        const openActionItems = this.operationsMeetings.listMeetings()
+            .reduce((sum, meeting) => sum + meeting.actionItems.filter(item => !item.done).length, 0);
+
+        return {
+            totalSOPs: allSOPs.length,
+            totalKPIs: allKPIs.length,
+            offTrackKPIs,
+            openActionItems
+        };
+
+    }
+
+
     // Assembles the briefing's contents WITHOUT persisting -- exposed
     // separately so a caller (or a test) can inspect what would be
     // generated without adding to the daily history.
@@ -442,7 +479,9 @@ class DailyBriefingEngine {
             // Phase 44 addition.
             researchStatus: this.researchStatus(),
             // Phase 45 addition.
-            tradingStatus: this.tradingStatus()
+            tradingStatus: this.tradingStatus(),
+            // Phase 46 addition.
+            operationsStatus: this.operationsStatus()
         };
 
     }

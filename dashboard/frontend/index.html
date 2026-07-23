@@ -413,6 +413,66 @@
     </div>
   </section>
 
+  <section class="panel panel-wide">
+    <h2>Business Operations Division (Phase 46)</h2>
+    <p class="hint">The sixth and final Phase 35 production package. Document a real SOP/workflow, track a real KPI, log a meeting, and view a department scorecard (reuses the existing Organization Overview and Blocker Management systems -- not a duplicate).</p>
+    <div class="widget-group">
+      <h3>SOP / Workflow Library</h3>
+      <form id="sop-create-form" class="stacked-form">
+        <input type="text" id="sop-name" placeholder="SOP name" required>
+        <input type="text" id="sop-department" placeholder="Department id (optional)">
+        <input type="text" id="sop-steps" placeholder="Steps, comma-separated" required>
+        <button type="submit">Create SOP</button>
+      </form>
+      <p id="sop-create-result" class="hint"></p>
+      <form id="sop-lookup-form" class="inline-form">
+        <input type="text" id="sop-lookup-id" placeholder="SOP id" required>
+        <button type="submit">Load Process Analysis</button>
+      </form>
+      <pre id="sop-analysis-result" class="widget code-block"></pre>
+    </div>
+    <div class="widget-group">
+      <h3>KPI Tracking</h3>
+      <form id="kpi-create-form" class="stacked-form">
+        <input type="text" id="kpi-name" placeholder="KPI name" required>
+        <input type="text" id="kpi-department" placeholder="Department id (optional)">
+        <input type="number" id="kpi-target" placeholder="Target" required>
+        <select id="kpi-direction">
+          <option value="higher_is_better">Higher is better</option>
+          <option value="lower_is_better">Lower is better</option>
+        </select>
+        <button type="submit">Create KPI</button>
+      </form>
+      <p id="kpi-create-result" class="hint"></p>
+      <form id="kpi-actual-form" class="inline-form">
+        <input type="text" id="kpi-actual-id" placeholder="KPI id" required>
+        <input type="number" id="kpi-actual-value" placeholder="Actual value" required>
+        <button type="submit">Record Actual</button>
+      </form>
+      <p id="kpi-actual-result" class="hint"></p>
+    </div>
+    <div class="widget-group">
+      <h3>Meeting Summaries</h3>
+      <form id="meeting-create-form" class="stacked-form">
+        <input type="text" id="meeting-title" placeholder="Meeting title" required>
+        <input type="text" id="meeting-attendees" placeholder="Attendees, comma-separated">
+        <input type="text" id="meeting-decisions" placeholder="Decisions, comma-separated">
+        <input type="text" id="meeting-action-items" placeholder="Action items, comma-separated">
+        <button type="submit">Log Meeting</button>
+      </form>
+      <p id="meeting-create-result" class="hint"></p>
+      <div id="meeting-list" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Department Scorecard</h3>
+      <form id="scorecard-form" class="inline-form">
+        <input type="text" id="scorecard-department-id" placeholder="Department id (e.g. bizops)" required>
+        <button type="submit">Load Scorecard</button>
+      </form>
+      <pre id="scorecard-result" class="widget code-block"></pre>
+    </div>
+  </section>
+
   <section class="panel">
     <h2>Executive</h2>
     <div class="widget-group">
