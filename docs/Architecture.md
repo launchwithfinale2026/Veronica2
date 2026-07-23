@@ -3033,3 +3033,106 @@ explicitly flagged as real future work rather than doing it silently --
 
 644 tests (641 -> 644), `npm test` green. No architectural redesign --
 the only new code is the annotation/sort step itself.
+
+## Executive Intelligence -- cross-department synthesis (Phase 48)
+
+**Decision:** with all six Divisions production-ready (Phase 41-46) and
+the recommendation feedback loop closed (Phase 47), Phase 48 asked for
+a genuinely new layer: Company Health Scoring, Risk Forecasting,
+Cross-Department Recommendations, Quarterly/Annual Planning, and
+Executive Brief generation, "all recommendations must be explainable."
+The entire module (`core/executive/executiveIntelligence.js`) composes
+each Division's already-real analytics rather than tracking anything
+new -- there is no new persisted entity type here except the brief
+itself.
+
+- **`companyHealthScore(companyId)`**: a composite 0-100 score
+  averaging only the categories with real data. Finance's sub-score
+  buckets `core/finance/reports.js`'s real `runway()` status/months
+  (profitable=100, >=12mo=80, >=6mo=60, >=3mo=40, else 20). Sales'
+  sub-score is the real win rate from `core/sales/analytics.js`'s
+  `winLossAnalytics()`. Marketing's sub-score is the real approved-or-
+  published fraction of `core/marketing/campaigns.js`'s
+  `listCampaigns()`. A company with no data in a category gets `null`
+  there (excluded from the average, not penalized) -- reported
+  honestly via `unscoredCategories`, not silently defaulted to zero.
+- **`riskForecast(companyId)`**: combines three real signals, each risk
+  carrying the specific number it came from --
+  `core/executive/blockerDetection.js`'s deadlocked projects (filtered
+  to this company via a new `project.company` field, see below),
+  Finance's real "burning" runway under 6 months, and
+  `core/operations/kpis.js`'s real off-track KPIs (`onTrack: false`).
+- **`crossDepartmentRecommendations(companyId)`**: currently one real,
+  conservative rule spanning two divisions' actual data -- real open
+  sales pipeline value (`core/sales/opportunities.js`'s `forecast()`)
+  with zero published marketing campaigns supporting it. Deliberately
+  small: an explainable, exact observation two divisions' separate data
+  makes visible together, not a speculative correlation engine.
+- **`quarterlyPlan()`/`annualPlan()`**: real roadmap projects
+  (`ExecutivePlanner.roadmap()`) and real KPIs filtered by real
+  deadline/period falling within the requested calendar range -- a
+  filtered view over already-real data, not a new planning store.
+- **`generateExecutiveBrief(companyId)`**: an LLM-synthesized narrative
+  over the three outputs above, via `Intelligence.think()` -- the exact
+  same pattern `core/marketing/contentGenerator.js`/
+  `core/sales/proposalGenerator.js`/`core/research/missions.js`'s
+  `generateExecutiveSummary()` already establish (a synthetic agent
+  identity, `useTools: false`, `thought.cognition.response.response`).
+  Persisted as an ordinary memory entry tagged `executive-brief` (plus
+  `company:<id>`) -- `briefHistory()` reads it back, no new store shape.
+
+**Prerequisite fix, additive:** `findDeadlockedProjects()`'s output
+didn't carry a `company` field on its `project` object (only
+`department`), needed so `riskForecast()` can scope deadlocked projects
+to one company. The real roadmap project object already had
+`goal.company` (set by `ExecutivePlanner.plan()`) -- adding
+`company: project.company` to the existing `project: {...}` literal was
+a one-line additive change, no new tracking.
+
+**Not a new package/division.** Unlike Phase 41-46, Executive
+Intelligence has no `packages/` entry and no new agents -- it lives
+directly in `core/executive/`, alongside `executiveRecommendations.js`/
+`dailyBriefing.js`/`priorityRanking.js`, because its entire job is
+synthesizing what the six real Divisions already produce, not being a
+seventh one.
+
+**Circular-require discipline maintained:** the module's own top level
+requires only `../memory` (safe). Every Division-analytics dependency
+(Finance, Sales, Marketing, Operations, `BlockerDetector`, `Planner`,
+`IntelligenceEngine`) is required lazily inside the specific function
+that needs it -- the same hazard documented throughout Phase 42-46
+(anything reachable from a package tool handler must not top-level-
+require the `core/learning`/`core/intelligence`/`core/brain` chain).
+This module isn't reached from a package tool handler today, but was
+written lazy from the start rather than risk it becoming a fifth
+occurrence later.
+
+**Wired into:**
+- `core/executive/dailyBriefing.js`'s `generate()` gained
+  `strategicHealth()` -- a per-company rollup of the composite score
+  and real top risk. Distinct from the pre-existing Phase 37
+  `companyHealth()` (plain employee/document counts, unrelated).
+  Unlike `campaignHealth()`/`salesHealth()`/`financeHealth()`, a
+  company with no scoreable data is NOT omitted from the list -- "no
+  data yet" is itself real information worth an executive seeing in
+  their own morning briefing, not noise to filter out.
+- Dashboard: six new GET routes (`/api/executive/company-health`,
+  `risk-forecast`, `cross-department-recommendations`, `quarterly-plan`,
+  `annual-plan`, `briefs`) and one gated POST
+  (`/api/executive/brief`, added to `tests/dashboard.test.js`'s
+  `ALL_POST_ROUTES`), plus a new "Executive Intelligence (Phase 48)"
+  panel (Company Health & Risk Forecast, Cross-Department
+  Recommendations, Quarterly/Annual Plan, Executive Brief).
+
+**Tests:** `tests/executive-intelligence.test.js` (9 tests, entirely
+real persisted state -- real companies/opportunities/campaigns/KPIs/
+deadlocked projects, only the LLM call itself mocked for the brief
+test, same convention every other content-generation test in this
+codebase uses); `tests/blocker-detection.test.js` gained one new
+assertion plus one new test for the `company` field; `tests/daily-briefing.test.js`
+gained one new test for `strategicHealth()`; `tests/dashboard.test.js`
+gained endpoint coverage for the new routes (deliberately excluding the
+brief-generation POST's content, same carve-out the Research Division's
+own dashboard test already established for LLM-backed routes).
+
+656 tests (644 -> 656), `npm test` green.

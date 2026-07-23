@@ -473,6 +473,46 @@
     </div>
   </section>
 
+  <section class="panel panel-wide">
+    <h2>Executive Intelligence (Phase 48)</h2>
+    <p class="hint">Cross-department synthesis over Sales/Finance/Marketing's already-real analytics -- company health scoring, risk forecasting, cross-department recommendations, quarterly/annual planning, and an LLM-synthesized executive brief. Every score/risk cites the specific real number it came from.</p>
+    <div class="widget-group">
+      <h3>Company Health &amp; Risk Forecast</h3>
+      <form id="strategic-health-form" class="inline-form">
+        <input type="text" id="strategic-health-company-id" placeholder="Company id" required>
+        <button type="submit">Load</button>
+      </form>
+      <pre id="strategic-health-result" class="widget code-block"></pre>
+    </div>
+    <div class="widget-group">
+      <h3>Cross-Department Recommendations</h3>
+      <form id="cross-department-form" class="inline-form">
+        <input type="text" id="cross-department-company-id" placeholder="Company id" required>
+        <button type="submit">Load</button>
+      </form>
+      <div id="cross-department-list" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Quarterly / Annual Plan</h3>
+      <form id="period-plan-form" class="stacked-form">
+        <input type="text" id="period-plan-company-id" placeholder="Company id" required>
+        <input type="number" id="period-plan-year" placeholder="Year" required>
+        <input type="number" id="period-plan-quarter" placeholder="Quarter (1-4, blank = annual)">
+        <button type="submit">Load Plan</button>
+      </form>
+      <pre id="period-plan-result" class="widget code-block"></pre>
+    </div>
+    <div class="widget-group">
+      <h3>Executive Brief</h3>
+      <form id="executive-brief-form" class="inline-form">
+        <input type="text" id="executive-brief-company-id" placeholder="Company id" required>
+        <button type="submit">Generate Brief</button>
+      </form>
+      <pre id="executive-brief-result" class="widget code-block"></pre>
+      <div id="executive-brief-history" class="widget"></div>
+    </div>
+  </section>
+
   <section class="panel">
     <h2>Executive</h2>
     <div class="widget-group">

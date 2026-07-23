@@ -23,6 +23,7 @@ const ProjectManager = require("./projectManager");
 const PriorityRanking = require("./priorityRanking");
 const GoalMonitor = require("./goalMonitor");
 const BlockerDetector = require("./blockerDetection");
+const executiveIntelligence = require("./executiveIntelligence");
 const ExecutiveRecommendationEngine = require("./executiveRecommendations");
 const ActionProposalEngine = require("./actionProposal");
 const CompanyManager = require("./companyManager");
@@ -438,6 +439,36 @@ class DailyBriefingEngine {
     }
 
 
+    // Phase 48 (Executive Intelligence): per-company composite health
+    // score and top risk, reusing core/executive/executiveIntelligence.js's
+    // real companyHealthScore()/riskForecast() wholesale -- not a new
+    // scoring system. Distinct from companyHealth() above (Phase 37,
+    // plain employee/document counts): this is the cross-department
+    // synthesized score. A company with no scoreable data yet is still
+    // included with a null score, rather than silently omitted like the
+    // other per-company sections above -- "no data yet" is itself
+    // meaningful for an executive reading their own morning briefing.
+    strategicHealth(){
+
+        return this.companyManager.listCompanies().map(company => {
+
+            const health = executiveIntelligence.companyHealthScore(company.id);
+            const risk = executiveIntelligence.riskForecast(company.id);
+
+            return {
+                companyId: company.id,
+                companyName: company.name,
+                overallScore: health.overallScore,
+                unscoredCategories: health.unscoredCategories,
+                riskCount: risk.risks.length,
+                topRisk: risk.risks[0] || null
+            };
+
+        });
+
+    }
+
+
     // Assembles the briefing's contents WITHOUT persisting -- exposed
     // separately so a caller (or a test) can inspect what would be
     // generated without adding to the daily history.
@@ -481,7 +512,9 @@ class DailyBriefingEngine {
             // Phase 45 addition.
             tradingStatus: this.tradingStatus(),
             // Phase 46 addition.
-            operationsStatus: this.operationsStatus()
+            operationsStatus: this.operationsStatus(),
+            // Phase 48 addition.
+            strategicHealth: this.strategicHealth()
         };
 
     }

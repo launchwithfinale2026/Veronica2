@@ -1523,3 +1523,72 @@ proposal, three real recommendation runs -- no mocked adaptive-insights
 data.
 
 641 -> 644 tests, all passing.
+
+## Phase 48 -- Executive Intelligence
+
+**Added:** `core/executive/executiveIntelligence.js` -- the
+cross-department synthesis layer the phase asked for: Company Health
+Scoring, Risk Forecasting, Cross-Department Recommendations, Quarterly/
+Annual Planning, and LLM-synthesized Executive Briefs. Every piece
+composes each Division's already-real analytics rather than tracking
+anything new:
+
+- `companyHealthScore(companyId)`: a composite 0-100 score averaging
+  Finance (real runway status/months, bucketed), Sales (real win rate),
+  and Marketing (real approved/published campaign ratio) -- each
+  sub-score carries its own explaining `reason` string. A category with
+  no real data yet is `null` and excluded from the average (not
+  penalized, not faked), reported honestly in `unscoredCategories`.
+- `riskForecast(companyId)`: combines real deadlocked projects (see the
+  `BlockerDetector` change below), Finance's real "burning" runway
+  status under 6 months, and real off-track KPIs -- each risk cites the
+  exact number it came from.
+- `crossDepartmentRecommendations(companyId)`: currently one real,
+  conservative rule -- open sales pipeline value with zero published
+  marketing campaigns supporting it. Deliberately small and exact
+  rather than a large set of speculative correlations.
+- `quarterlyPlan()`/`annualPlan()`: real roadmap projects and real KPIs
+  filtered by real deadline/period falling in the requested calendar
+  range -- a filtered view over already-real data, not a new planning
+  store.
+- `generateExecutiveBrief(companyId)`: an LLM-synthesized narrative over
+  the three outputs above, following the exact `intelligence.think()`
+  pattern `core/marketing/contentGenerator.js`/
+  `core/sales/proposalGenerator.js`/`core/research/missions.js`'s
+  `generateExecutiveSummary()` already establish -- persisted as an
+  ordinary memory entry (`briefHistory()` reads it back), not a new
+  store shape.
+
+**Prerequisite fix:** `core/executive/blockerDetection.js`'s
+`findDeadlockedProjects()` didn't carry a `company` field on its
+`project` object (only `department`) -- needed additively so
+`riskForecast()` can scope deadlocked projects to one company. The real
+roadmap project object already had `goal.company`
+(`ExecutivePlanner.plan()`), so this was a one-line additive fix, not a
+new field to track.
+
+**Wired into:** `core/executive/dailyBriefing.js`'s `generate()` gained
+a new `strategicHealth()` per-company rollup (composite score + real
+top risk) -- distinct from the pre-existing Phase 37 `companyHealth()`
+(plain employee/document counts). Unlike `campaignHealth()`/
+`salesHealth()`/`financeHealth()`, a company with no scoreable data is
+NOT omitted -- "no data yet" is itself real information for an
+executive's morning read. Also wired into the dashboard: six new
+`/api/executive/*` GET routes (`company-health`, `risk-forecast`,
+`cross-department-recommendations`, `quarterly-plan`, `annual-plan`,
+`briefs`) plus one gated POST (`/api/executive/brief`), and a new
+"Executive Intelligence (Phase 48)" dashboard panel.
+
+**Not a new package/division:** Executive Intelligence has no
+`packages/` entry, no new agents -- it's part of the executive layer
+itself (`core/executive/`), same as `executiveRecommendations.js`/
+`dailyBriefing.js`/`priorityRanking.js`, reusing every Division's real
+analytics rather than being one.
+
+**Tests:** 10 new (`tests/executive-intelligence.test.js`'s 9, plus one
+more in `tests/blocker-detection.test.js` for the `company` field), plus
+one new assertion in an existing `blocker-detection` test and one new
+test in `tests/daily-briefing.test.js` for `strategicHealth()`, plus
+dashboard endpoint coverage in `tests/dashboard.test.js`.
+
+644 -> 656 tests, all passing.

@@ -898,6 +898,59 @@ test("Business Operations Division: create an SOP, track a KPI, log a meeting, a
 
 });
 
+// Deliberately does NOT exercise POST /api/executive/brief here -- it
+// makes a real, billed LLM call with no mock injection point reachable
+// through the dashboard route (already thoroughly covered, mocked, in
+// tests/executive-intelligence.test.js). This test verifies the real
+// GET endpoints only, matching the Research Division test's own
+// carve-out above for the same reason.
+test("Executive Intelligence: real company health, risk forecast, cross-department recommendations, and quarterly/annual planning through every real GET endpoint (Phase 48)", async () => {
+
+    process.env.API_TOKEN = "test-api-secret";
+
+    const authedHeaders = {
+        Authorization: "Bearer test-api-secret",
+        "Content-Type": "application/json"
+    };
+
+    const companyRes = await fetch(`${baseUrl}/api/companies`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ name: "Dashboard Executive Intelligence Co XQZDASH7" })
+    });
+    const company = await companyRes.json();
+
+    const financeRes = await fetch(`${baseUrl}/api/companies/${company.id}/finances`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ label: "Revenue XQZDASH7", amount: 4000, type: "revenue" })
+    });
+    assert.strictEqual(financeRes.status, 200);
+
+    const healthRes = await fetch(`${baseUrl}/api/executive/company-health?companyId=${company.id}`);
+    const health = await healthRes.json();
+    assert.strictEqual(health.categories.finance.score, 100);
+    assert.strictEqual(health.categories.marketing, null);
+
+    const riskRes = await fetch(`${baseUrl}/api/executive/risk-forecast?companyId=${company.id}`);
+    assert.ok(Array.isArray((await riskRes.json()).risks));
+
+    const crossRes = await fetch(`${baseUrl}/api/executive/cross-department-recommendations?companyId=${company.id}`);
+    assert.ok(Array.isArray((await crossRes.json()).recommendations));
+
+    const quarterlyRes = await fetch(`${baseUrl}/api/executive/quarterly-plan?companyId=${company.id}&year=2026&quarter=3`);
+    const quarterly = await quarterlyRes.json();
+    assert.ok(Array.isArray(quarterly.projects));
+    assert.ok(Array.isArray(quarterly.kpis));
+
+    const annualRes = await fetch(`${baseUrl}/api/executive/annual-plan?companyId=${company.id}&year=2026`);
+    assert.ok(Array.isArray((await annualRes.json()).projects));
+
+    const briefsRes = await fetch(`${baseUrl}/api/executive/briefs?companyId=${company.id}`);
+    assert.deepStrictEqual(await briefsRes.json(), []);
+
+});
+
 test("GET /api/memory without a filter returns the real stored memories", async () => {
 
     const res = await fetch(`${baseUrl}/api/memory`);
@@ -1253,6 +1306,7 @@ const ALL_POST_ROUTES = [
     "/api/companies/test-id/brand-profile",
     "/api/companies/test-id/decisions",
     "/api/executive/proposals/external",
+    "/api/executive/brief",
     "/api/marketing/campaigns",
     "/api/marketing/campaigns/test-id/schedule-content",
     "/api/marketing/campaigns/test-id/generate-draft",

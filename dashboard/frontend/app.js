@@ -2894,6 +2894,148 @@ function setupScorecardForm(){
 }
 
 
+function setupStrategicHealthForm(){
+
+    const form = document.getElementById("strategic-health-form");
+    const result = document.getElementById("strategic-health-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const companyId = document.getElementById("strategic-health-company-id").value;
+
+        result.textContent = "Loading...";
+
+        try {
+
+            const health = await fetchJSON(`/api/executive/company-health?companyId=${encodeURIComponent(companyId)}`);
+            const risk = await fetchJSON(`/api/executive/risk-forecast?companyId=${encodeURIComponent(companyId)}`);
+
+            result.textContent = JSON.stringify({ health, risk }, null, 2);
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupCrossDepartmentForm(){
+
+    const form = document.getElementById("cross-department-form");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const companyId = document.getElementById("cross-department-company-id").value;
+
+        try {
+
+            const result = await fetchJSON(`/api/executive/cross-department-recommendations?companyId=${encodeURIComponent(companyId)}`);
+
+            renderList(
+                "cross-department-list",
+                result.recommendations,
+                "No cross-department observations right now.",
+                recommendation => `[${recommendation.departments.join(" + ")}] ${recommendation.detail} -- ${recommendation.action}`
+            );
+
+        } catch(error){
+
+            renderList("cross-department-list", [], `Error: ${error.message}`, () => "");
+
+        }
+
+    });
+
+}
+
+
+function setupPeriodPlanForm(){
+
+    const form = document.getElementById("period-plan-form");
+    const result = document.getElementById("period-plan-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const companyId = document.getElementById("period-plan-company-id").value;
+        const year = document.getElementById("period-plan-year").value;
+        const quarter = document.getElementById("period-plan-quarter").value;
+
+        result.textContent = "Loading...";
+
+        try {
+
+            const url = quarter
+                ? `/api/executive/quarterly-plan?companyId=${encodeURIComponent(companyId)}&year=${encodeURIComponent(year)}&quarter=${encodeURIComponent(quarter)}`
+                : `/api/executive/annual-plan?companyId=${encodeURIComponent(companyId)}&year=${encodeURIComponent(year)}`;
+
+            const plan = await fetchJSON(url);
+
+            result.textContent = JSON.stringify(plan, null, 2);
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupExecutiveBriefForm(){
+
+    const form = document.getElementById("executive-brief-form");
+    const result = document.getElementById("executive-brief-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const companyId = document.getElementById("executive-brief-company-id").value;
+
+        result.textContent = "Generating...";
+
+        try {
+
+            const brief = await authedFetch("/api/executive/brief", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ companyId })
+            });
+
+            result.textContent = brief.brief;
+
+            const history = await fetchJSON(`/api/executive/briefs?companyId=${encodeURIComponent(companyId)}`);
+
+            renderList(
+                "executive-brief-history",
+                history,
+                "No prior briefs for this company.",
+                entry => `${entry.created}: ${entry.brief.slice(0, 120)}${entry.brief.length > 120 ? "..." : ""}`
+            );
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
 function setupCompanyCreateForm(){
 
     const form = document.getElementById("company-create-form");
@@ -3603,6 +3745,10 @@ document.addEventListener("DOMContentLoaded", () => {
     setupKpiActualForm();
     setupMeetingCreateForm();
     setupScorecardForm();
+    setupStrategicHealthForm();
+    setupCrossDepartmentForm();
+    setupPeriodPlanForm();
+    setupExecutiveBriefForm();
     setupCapabilityAnalysisForm();
     setupCapabilityInstallForm();
     setupCapabilitySearchForm();

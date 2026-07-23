@@ -133,7 +133,12 @@ class BlockerDetector {
             });
 
             deadlocked.push({
-                project: { id: project.id, title: project.title, department: project.department },
+                // `company` added Phase 48 (Executive Intelligence) --
+                // additive, already on the real roadmap project object
+                // (ExecutivePlanner.plan()'s own `goal.company` field),
+                // needed to scope deadlocked projects to one company for
+                // riskForecast().
+                project: { id: project.id, title: project.title, department: project.department, company: project.company },
                 remainingTaskCount: remaining.length,
                 holdups,
                 reason: `${remaining.length} remaining task(s), none ready to run -- ${holdups.map(h => h.detail).join("; ")}`

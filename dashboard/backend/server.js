@@ -60,6 +60,7 @@ const operationsSops = require("../../core/operations/sops");
 const operationsKpis = require("../../core/operations/kpis");
 const operationsMeetings = require("../../core/operations/meetings");
 const operationsScorecard = require("../../core/operations/scorecard");
+const executiveIntelligence = require("../../core/executive/executiveIntelligence");
 const ResearchEngine = require("../../core/research/engine");
 const SelfImprovementEngine = require("../../core/system/selfImprovement");
 const OrganizationOverview = require("../../core/executive/organizationOverview");
@@ -285,6 +286,26 @@ const ROUTES = {
     "GET /api/executive/missions": (searchParams) => executive.missionHistory(Number(searchParams.get("limit")) || 10),
 
     "GET /api/executive/report": () => orchestrator.report(),
+
+    // Phase 48 (Executive Intelligence): cross-department synthesis over
+    // each division's already-real analytics -- see
+    // core/executive/executiveIntelligence.js.
+    "GET /api/executive/company-health": (searchParams) => executiveIntelligence.companyHealthScore(searchParams.get("companyId")),
+
+    "GET /api/executive/risk-forecast": (searchParams) => executiveIntelligence.riskForecast(searchParams.get("companyId")),
+
+    "GET /api/executive/cross-department-recommendations": (searchParams) => executiveIntelligence.crossDepartmentRecommendations(searchParams.get("companyId")),
+
+    "GET /api/executive/quarterly-plan": (searchParams) => executiveIntelligence.quarterlyPlan(searchParams.get("companyId"), {
+        year: Number(searchParams.get("year")),
+        quarter: Number(searchParams.get("quarter"))
+    }),
+
+    "GET /api/executive/annual-plan": (searchParams) => executiveIntelligence.annualPlan(searchParams.get("companyId"), {
+        year: Number(searchParams.get("year"))
+    }),
+
+    "GET /api/executive/briefs": (searchParams) => executiveIntelligence.briefHistory(searchParams.get("companyId")),
 
     "GET /api/companies": () => executive.listCompanies(),
 
@@ -933,6 +954,27 @@ function createServer(){
                 }
 
                 return sendJSON(res, 200, executive.dailyReview());
+
+            }
+
+            // Phase 48 (Executive Intelligence): a real LLM-synthesized
+            // executive brief over company health/risk/cross-department
+            // data -- a real, billed call, gated like every other one.
+            if(parsed.pathname === "/api/executive/brief" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { companyId } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!companyId){
+                    return sendJSON(res, 400, { error: "companyId is required" });
+                }
+
+                return sendJSON(res, 200, await executiveIntelligence.generateExecutiveBrief(companyId));
 
             }
 

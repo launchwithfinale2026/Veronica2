@@ -358,6 +358,35 @@ test("generate() surfaces real, system-wide Operations Status (Phase 46 Executiv
 });
 
 
+test("generate() surfaces real, per-company Strategic Health from Executive Intelligence (Phase 48)", () => {
+
+    const realPlanner = new ExecutivePlanner();
+    const briefing = makeBriefingEngine(realPlanner);
+
+    const quietCompany = briefing.companyManager.createCompany({ name: "Briefing Strategic Quiet Co XQZBRIEF13" });
+    const activeCompany = briefing.companyManager.createCompany({ name: "Briefing Strategic Active Co XQZBRIEF13" });
+
+    briefing.companyManager.recordFinance(activeCompany.id, { label: "Revenue XQZBRIEF13", amount: 5000, type: "revenue" });
+    briefing.companyManager.recordFinance(activeCompany.id, { label: "Expense XQZBRIEF13", amount: 1000, type: "expense" });
+
+    const result = briefing.generate();
+
+    // Unlike campaignHealth()/salesHealth()/financeHealth() above,
+    // strategicHealth() does NOT omit a company with no scoreable data --
+    // "no data yet" is itself real information for the reader.
+    const quiet = result.strategicHealth.find(entry => entry.companyId === quietCompany.id);
+    assert.ok(quiet);
+    assert.strictEqual(quiet.overallScore, null);
+    assert.deepStrictEqual(quiet.unscoredCategories.sort(), ["finance", "marketing", "sales"]);
+
+    const active = result.strategicHealth.find(entry => entry.companyId === activeCompany.id);
+    assert.ok(active);
+    assert.strictEqual(active.overallScore, 100);
+    assert.ok(!active.unscoredCategories.includes("finance"));
+
+});
+
+
 test("generate() and run()'s recommendations are computed identically", () => {
 
     const realPlanner = new ExecutivePlanner();

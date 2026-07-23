@@ -112,6 +112,36 @@ test("findDeadlockedProjects() detects a project where the only remaining task i
     assert.strictEqual(deadlockedProjects[0].project.id, project.id);
     assert.strictEqual(deadlockedProjects[0].holdups[0].holdup, "blocked");
     assert.match(deadlockedProjects[0].reason, /simulated XQZBLK2/);
+    // Phase 48 (Executive Intelligence): `company` is additive on the
+    // real roadmap project -- null here since this project was never
+    // scoped to a company.
+    assert.strictEqual(deadlockedProjects[0].project.company, null);
+
+});
+
+
+test("findDeadlockedProjects() reports the real company a deadlocked project is scoped to (Phase 48 Executive Intelligence)", async () => {
+
+    const realPlanner = new ExecutivePlanner();
+
+    const project = realPlanner.plan({ title: "Company-scoped deadlock project XQZBLK5", department: "ares", company: "test-company-xqzblk5" });
+
+    const scoped = scopedPlanner(realPlanner, [project.id]);
+    const decomposer = new GoalDecomposer({ planner: scoped });
+    mockDecomposerBrain(decomposer, {
+        milestones: [{ title: "Milestone XQZBLK5", tasks: [{ title: "Task XQZBLK5", subtasks: [], deliverables: [] }] }]
+    });
+
+    const projectManager = new ProjectManager({ planner: scoped });
+    await decomposer.decompose(project.id);
+
+    const [task] = projectManager.tasksForProject(project.id);
+    projectManager.updateStatus(task.id, "blocked", "Access denied: simulated XQZBLK5");
+
+    const detector = new BlockerDetector({ planner: scoped, projectManager });
+    const { deadlockedProjects } = detector.detect();
+
+    assert.strictEqual(deadlockedProjects[0].project.company, "test-company-xqzblk5");
 
 });
 
