@@ -4,6 +4,7 @@ const http = require("node:http");
 const { EventEmitter } = require("node:events");
 
 const StartupManager = require("../core/system/startupManager");
+const runtimeState = require("../core/system/runtimeState");
 
 // A minimal, event-emitter-shaped stand-in for Node's real ChildProcess
 // -- never spawns a real process. Same "fake the dependency boundary"
@@ -98,6 +99,44 @@ test("stop() prevents a restart after a deliberate stop, and kills the current c
 });
 
 
+test("Project 4: real restart/give-up transitions are recorded into runtimeState with an explanatory reason", async () => {
+
+    runtimeState._resetForTests();
+
+    const { spawnFn, children } = fakeSpawnFactory();
+    const manager = new StartupManager({
+        entry: "/fake/entry.js",
+        spawnFn,
+        maxRestarts: 1,
+        backoffBaseMs: 5,
+        backoffMaxMs: 20,
+        healthCheckIntervalMs: 999999
+    });
+
+    manager.start();
+    assert.strictEqual(runtimeState.getState("dashboard-child").state, "starting");
+
+    children[0].emit("exit", 1, null);
+    await new Promise(resolve => setTimeout(resolve, 30));
+
+    const restarting = runtimeState.getState("dashboard-child");
+    assert.strictEqual(restarting.state, "restarting");
+    assert.ok(restarting.reason.includes("exited unexpectedly"));
+
+    // Second crash exceeds maxRestarts: 1 -> gives up permanently
+    children[1].emit("exit", 1, null);
+    await new Promise(resolve => setTimeout(resolve, 30));
+
+    const errored = runtimeState.getState("dashboard-child");
+    assert.strictEqual(errored.state, "error");
+    assert.ok(errored.reason.includes("Restart limit reached"));
+
+    manager.stop();
+    assert.strictEqual(runtimeState.getState("dashboard-child").state, "offline");
+
+});
+
+
 test("checkHealth() reports a real healthy status against a real ephemeral HTTP server, and a real failure when nothing is listening", async () => {
 
     const server = http.createServer((req, res) => {
@@ -108,6 +147,8 @@ test("checkHealth() reports a real healthy status against a real ephemeral HTTP 
     await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
     const port = server.address().port;
 
+    runtimeState._resetForTests();
+
     try {
 
         const manager = new StartupManager({ host: "127.0.0.1", port, healthCheckIntervalMs: 999999 });
@@ -115,6 +156,7 @@ test("checkHealth() reports a real healthy status against a real ephemeral HTTP 
 
         assert.strictEqual(healthy.healthy, true);
         assert.strictEqual(healthy.statusCode, 200);
+        assert.strictEqual(runtimeState.getState("dashboard-child").state, "online");
 
     } finally {
         await new Promise(resolve => server.close(resolve));
@@ -126,6 +168,7 @@ test("checkHealth() reports a real healthy status against a real ephemeral HTTP 
 
     assert.strictEqual(unhealthy.healthy, false);
     assert.ok(unhealthy.error);
+    assert.strictEqual(runtimeState.getState("dashboard-child").state, "offline");
 
 });
 

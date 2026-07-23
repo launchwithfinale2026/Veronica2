@@ -24,6 +24,16 @@ const path = require("path");
 const http = require("http");
 
 const log = require("../logging");
+const runtimeState = require("./runtimeState");
+
+// Project 4 (Runtime Reliability): the name this supervisor's own view of
+// the dashboard child process is registered under in runtimeState --
+// distinct from "dashboard-process", which is the dashboard's own
+// self-report of its boot progress from inside server.js. Both are real
+// and both are per-process: this file runs in the supervisor process,
+// server.js runs in the child, so neither can see the other's in-memory
+// registry -- each reports what it can actually observe.
+const COMPONENT_NAME = "dashboard-child";
 
 const DEFAULT_ENTRY = path.join(__dirname, "..", "..", "dashboard", "backend", "server.js");
 const DEFAULT_MAX_RESTARTS = 5;
@@ -85,6 +95,7 @@ class StartupManager {
     start(){
 
         this.stopped = false;
+        runtimeState.register(COMPONENT_NAME, "starting");
         this.spawnChild();
 
         this.healthTimer = setInterval(() => this.checkHealth(), this.healthCheckIntervalMs);
@@ -146,7 +157,9 @@ class StartupManager {
         log.error("startup-manager", `Process exited unexpectedly (code ${code}, signal ${signal})`);
 
         if(this.recentRestartCount() >= this.maxRestarts){
-            log.error("startup-manager", `Restart limit reached (${this.maxRestarts} within ${this.restartWindowMs / 1000}s) -- giving up. A human needs to investigate and restart manually.`);
+            const reason = `Restart limit reached (${this.maxRestarts} within ${this.restartWindowMs / 1000}s) -- giving up. A human needs to investigate and restart manually.`;
+            log.error("startup-manager", reason);
+            runtimeState.setState(COMPONENT_NAME, "error", reason);
             return;
         }
 
@@ -154,7 +167,9 @@ class StartupManager {
 
         const backoffMs = Math.min(this.backoffMaxMs, this.backoffBaseMs * (2 ** (this.restarts.length - 1)));
 
-        log.info("startup-manager", `Restarting in ${backoffMs}ms (attempt ${this.restarts.length}/${this.maxRestarts})`);
+        const reason = `Process exited unexpectedly (code ${code}, signal ${signal}) -- restarting in ${backoffMs}ms (attempt ${this.restarts.length}/${this.maxRestarts})`;
+        log.info("startup-manager", reason);
+        runtimeState.setState(COMPONENT_NAME, "restarting", reason);
 
         this.restartTimer = setTimeout(() => {
             if(!this.stopped){
@@ -177,8 +192,12 @@ class StartupManager {
 
                 const healthy = res.statusCode === 200;
 
-                if(!healthy){
-                    log.warn("startup-manager", `Health check returned status ${res.statusCode}`);
+                if(healthy){
+                    runtimeState.setState(COMPONENT_NAME, "online");
+                } else {
+                    const reason = `Health check returned status ${res.statusCode}`;
+                    log.warn("startup-manager", reason);
+                    runtimeState.setState(COMPONENT_NAME, "offline", reason);
                 }
 
                 res.resume();
@@ -188,13 +207,17 @@ class StartupManager {
             });
 
             req.on("error", error => {
-                log.warn("startup-manager", `Health check failed: ${error.message}`);
+                const reason = `Health check failed: ${error.message}`;
+                log.warn("startup-manager", reason);
+                runtimeState.setState(COMPONENT_NAME, "offline", reason);
                 this.lastHealth = { healthy: false, error: error.message, checkedAt: new Date().toISOString() };
                 resolve(this.lastHealth);
             });
 
             req.on("timeout", () => {
                 req.destroy();
+                const reason = "Health check timed out";
+                runtimeState.setState(COMPONENT_NAME, "offline", reason);
                 this.lastHealth = { healthy: false, error: "timeout", checkedAt: new Date().toISOString() };
                 resolve(this.lastHealth);
             });
@@ -220,6 +243,7 @@ class StartupManager {
     stop(){
 
         this.stopped = true;
+        runtimeState.setState(COMPONENT_NAME, "stopping", "Deliberate stop() call, not a crash");
 
         if(this.healthTimer){
             clearInterval(this.healthTimer);
@@ -234,6 +258,8 @@ class StartupManager {
         if(this.child){
             this.child.kill();
         }
+
+        runtimeState.setState(COMPONENT_NAME, "offline", "Stopped");
 
         return { stopped: true };
 
