@@ -30,8 +30,19 @@
 // memory.remember() itself: it only ever creates new entries, there is
 // no update-in-place path used here, so confidence/knowledge accumulate
 // as a real history rather than clobbering what was known before.
+//
+// `../intelligence` is required LAZILY (inside the constructor below),
+// not at module load time -- Phase 44 (Research Division) made this
+// module reachable from a real TOOL HANDLER
+// (packages/research-department/tools/research.dept.synthesize.js, via
+// core/research/missions.js), and core/intelligence's own chain
+// eventually reaches core/brain/providers/claude.js, which requires
+// core/tools/index.js at ITS OWN top level -- the same real,
+// found-live circular require documented in
+// core/sales/analytics.js's comment. This module predates that
+// discovery (Phase 29) and was never reached from a tool-loading path
+// before, so it never tripped it until now.
 
-const IntelligenceEngine = require("../intelligence");
 const memory = require("../memory");
 const http = require("../integrations/http");
 const { parseJsonResponse } = require("../brain/parseJsonResponse");
@@ -88,6 +99,7 @@ class ResearchEngine {
     static TAG = RESEARCH_TAG;
 
     constructor({ intelligence } = {}){
+        const IntelligenceEngine = require("../intelligence");
         this.intelligence = intelligence || new IntelligenceEngine();
     }
 

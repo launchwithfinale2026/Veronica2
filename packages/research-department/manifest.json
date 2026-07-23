@@ -24,8 +24,15 @@
     "tools": [
         {
             "id": "research.dept.synthesize",
-            "description": "Synthesize findings on a topic (skeleton -- not yet implemented; real implementation should call core/research/engine.js).",
-            "permission": "read"
+            "description": "Real executive summary synthesis for a research mission via core/research/missions.js's generateExecutiveSummary() (a genuine LLM call) plus its real, deterministic source ranking.",
+            "permission": "read_memory",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "missionId": { "type": "string" }
+                },
+                "required": ["missionId"]
+            }
         }
     ],
     "dependencies": [],

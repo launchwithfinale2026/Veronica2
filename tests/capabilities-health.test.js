@@ -262,6 +262,28 @@ test("the real \"finance\" package genuinely reports \"active\", not \"Installed
 });
 
 
+test("the real \"research-department\" package genuinely reports \"active\", not \"Installed – Awaiting Integration\" (Phase 44 Research Division)", () => {
+
+    // Same signal as marketing/sales/finance above --
+    // research.dept.synthesize was given a real implementation
+    // (packages/research-department/tools/research.dept.synthesize.js --
+    // calls core/research/missions.js for real) as part of Research
+    // Division production-readiness. This package's fix also required
+    // lazy-requiring core/intelligence in both core/research/missions.js
+    // and core/research/engine.js -- the same circular-require class of
+    // bug first found in Phase 42 (Sales).
+    const report = health.report().find(r => r.name === "research-department");
+
+    assert.ok(report);
+    assert.strictEqual(report.operationalStatus, "active");
+    assert.strictEqual(report.operationalStatusLabel, "Active");
+    assert.deepStrictEqual(report.skeletonTools, []);
+    assert.strictEqual(report.agentsLoaded, report.agentsDeclared);
+    assert.strictEqual(report.toolsLoaded, report.toolsDeclared);
+
+});
+
+
 test("report() excludes core capabilities entirely", () => {
 
     const report = health.report();

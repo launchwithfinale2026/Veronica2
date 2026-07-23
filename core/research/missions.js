@@ -23,10 +23,19 @@
 // isn't inherently tied to one company (Phase 29's engine is
 // deliberately global), so this stays optional rather than forcing a
 // company onto every mission.
+//
+// `./engine` and `../intelligence` are required LAZILY (inside
+// addCitation()/generateExecutiveSummary() below), not at module load
+// time -- the same real, found-live circular require documented in
+// core/sales/analytics.js's own comment: this module is reached from
+// packages/research-department/tools/research.dept.synthesize.js, a
+// TOOL HANDLER loaded by core/tools/loader.js, and both `./engine` and
+// `../intelligence`'s own chains eventually reach
+// core/brain/providers/claude.js, which requires core/tools/index.js
+// at its own top level. Reproduced live here exactly like the Sales
+// case -- fixed the same way.
 
 const memory = require("../memory");
-const ResearchEngine = require("./engine");
-const IntelligenceEngine = require("../intelligence");
 
 const MISSION_TAG = "research-mission";
 
@@ -134,6 +143,7 @@ async function addCitation(missionId, { topic, url }, { researchEngine } = {}){
 
     requireEntry(missionId);
 
+    const ResearchEngine = require("./engine");
     const engine = researchEngine || new ResearchEngine();
     const citation = await engine.research(topic, { url });
 
@@ -218,6 +228,7 @@ async function generateExecutiveSummary(missionId, { intelligence } = {}){
     const mission = getMission(missionId);
     const citations = missionCitations(missionId);
 
+    const IntelligenceEngine = require("../intelligence");
     const engine = intelligence || new IntelligenceEngine();
 
     const thought = await engine.think(

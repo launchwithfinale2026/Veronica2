@@ -396,6 +396,25 @@ test("finance.report.generate tool runs end to end through the real Tool Registr
 
 });
 
+test("research.dept.synthesize tool is registered and wired correctly through the real Tool Registry -- no longer corrupted by the circular-require it used to hit (Phase 44)", async () => {
+
+    // This tool's real implementation always makes a genuine LLM call
+    // (generateExecutiveSummary() has no injection point reachable from
+    // outside tools.run()), so this doesn't assert on real model output
+    // -- it instead proves the module chain resolved correctly: an
+    // unknown missionId surfaces the real, expected error from
+    // core/research/missions.js (requireEntry()), not a "does not
+    // export"/"is not a function" error, which is exactly what the
+    // circular-require bug (core/research/missions.js and
+    // core/research/engine.js both top-level-requiring
+    // core/intelligence) produced before it was fixed.
+    await assert.rejects(
+        () => tools.run("research.dept.synthesize", { missionId: "not-a-real-id" }, { role: "agent" }),
+        /Unknown research mission/
+    );
+
+});
+
 test("DepartmentManager.useTool() runs tools with department_manager permissions", async () => {
 
     const DepartmentManager = require("../core/departments/base");
