@@ -748,6 +748,43 @@
       }
     },
     {
+      "id": "brain.status",
+      "description": "Phase 55: real brain provider status -- which of Claude/OpenAI/local actually initialized, and which is currently active.",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "brain.routingPreferences",
+      "description": "The real, operator-set per-task-type provider routing preferences (empty until the operator configures one -- no fabricated default).",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "brain.setRoutingPreference",
+      "description": "Sets which provider should be tried first for a given real task type (e.g. \"extraction\", \"synthesis\").",
+      "permission": "write_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "taskType": { "type": "string" },
+          "provider": { "type": "string", "enum": ["claude", "openai", "local"] }
+        },
+        "required": ["taskType", "provider"]
+      }
+    },
+    {
+      "id": "brain.clearRoutingPreference",
+      "description": "Clears a previously-set routing preference for a task type, reverting it to the default fallback order.",
+      "permission": "write_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "taskType": { "type": "string" }
+        },
+        "required": ["taskType"]
+      }
+    },
+    {
       "id": "system.understand",
       "description": "Returns VERONICA's full self-knowledge: projects, missions, companies, departments, devices, knowledge graph, memories, capabilities/packages, automations, connectors, planning, and executive recommendations -- one real, live snapshot of the entire system.",
       "permission": "read_memory",

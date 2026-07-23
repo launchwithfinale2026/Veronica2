@@ -3623,3 +3623,94 @@ workflow end to end through the live server and reading its report back
 via the history route.
 
 695 tests (686 -> 695), `npm test` green.
+
+## Multi-Model Intelligence (Phase 55)
+
+**Audit first -- most of the phase's own name was already built.**
+`core/brain/provider.js`'s `BrainProvider` class already IS the
+multi-model layer: it constructs Claude/OpenAI/local providers (Phase
+36), skipping (not crashing on) any whose credentials are missing,
+keeps a real `fallbackOrder` (`["claude", "openai", "local"]`), tries
+each in turn on `generate()` until one succeeds, exposes `use(name)` to
+switch the active provider, and `status()` to report which providers
+actually initialized. "Maintain unified memory regardless of provider"
+-- the phase's other explicit ask -- was also already true: no code
+path anywhere stores a provider name, a model identifier, or any
+provider-specific shape into a memory entry's persisted `content`/
+`metadata`; `Intelligence.think()`'s returned `cognition.response`
+carries a `provider` field, but that's a transient return value, never
+written into `core/memory/store.js`. What genuinely didn't exist was
+routing BY TASK TYPE -- every single call used the one global `active`
+setting, with no way to prefer a different provider for, say,
+structured extraction versus long-form synthesis.
+
+**The one real constraint that shaped this phase: no fabricated
+heuristic.** A routing layer that silently decided "OpenAI handles
+extraction better" would be exactly the kind of unfounded claim this
+project's own explainability principle (now written into
+`core/executive/constitution.js`'s `values`, Phase 51) exists to rule
+out -- there was no real, measured evidence anywhere in this codebase
+for a claim like that. Two honest things were built instead of one
+fabricated one:
+
+- **`core/brain/routing.js`**: `setPreference(taskType, provider)` /
+  `getPreferences()` / `clearPreference(taskType)`, persisted to a real,
+  gitignored `routingPreferences.json` (added to `.gitignore` alongside
+  `core/executive/constitution.json`, same "operator-authored, honestly
+  empty by default" treatment). No preference exists for any task type
+  until an operator sets one -- `BrainProvider.generate()`'s existing
+  `fallbackOrder` behavior is completely unchanged in that default
+  state, which is every task type on a fresh install.
+- **`core/departments/base.js`**'s `run()` now records
+  `provider: thought.cognition.response.provider` on every real
+  `department_run` learning-log entry. This isn't consumed by any
+  routing decision today -- it's real, evidenced data that a FUTURE
+  routing preference could honestly point to ("provider X succeeded
+  more often on this task type, per N real runs") instead of a guess.
+  Exactly the same "evidence, not assertion" principle Phase 47
+  established for recommendation acceptance rates, applied here to
+  provider choice. A new `kind: "workflow_step"`-style addition: every
+  existing learning aggregation (`adaptiveInsights.js`,
+  `learning/engine.js`) filters on `kind === "department_run"`
+  specifically and simply gains one more field on entries it already
+  reads -- nothing had to change to tolerate it.
+
+**`BrainProvider.generate(prompt, options)`** gained one new branch:
+`options.taskType` is looked up in `routing.getPreferences()`; if a
+preference exists AND `this.providers[preferred]` is truthy (the
+provider actually initialized, not just configured in principle), it's
+placed FIRST in the try-order, ahead of `this.active`. No `taskType`,
+or a `taskType` with no configured preference, or a preference naming
+a provider that never initialized (e.g. OPENAI_API_KEY genuinely
+missing) -- all three fall through to the exact same order as before
+this phase existed.
+
+**Wired into:** a new `core/tools/handlers/brain.js` (top-level require
+of `routing.js` is safe -- fs/path only, no circular chain; `Brain`
+itself is lazily constructed and cached, same convention
+`profile.js`'s `getPersonalContext()` already uses) registering 4 tool
+ids in `registry/tools.json`
+(`brain.status`/`routingPreferences`/`setRoutingPreference`/`clearRoutingPreference`),
+dashboard routes (`GET /api/brain/status`,
+`GET /api/brain/routing-preferences`, gated
+`POST /api/brain/routing-preferences/set`/`.../clear`, added to
+`tests/dashboard.test.js`'s `ALL_POST_ROUTES`), and a new dashboard
+panel.
+
+**Tests:** `tests/multi-model-routing.test.js` (4 tests) -- real
+preference persistence/validation (including the two real input
+errors: no task type, no provider); `BrainProvider.generate()` actually
+trying a mocked "openai" provider FIRST when a real preference names it
+(proven by asserting the returned `response` text came from the
+openai mock, not the claude one, even though `active` was still
+`"claude"`), while a call with no `taskType` or an unconfigured one
+still returns the claude mock's response (regression-proofing the
+unchanged default path); a configured preference naming a provider that
+was deliberately deleted from `this.providers` (simulating a genuinely
+missing credential) falling back correctly rather than throwing; and a
+real, non-mocked `DepartmentManager.run()` call (only the brain's
+`generate()` mocked) whose resulting `core/learning/log.js` entry is
+read back and asserted to carry `provider: "claude"`. Plus 1 new
+dashboard test for the status/set/clear routes.
+
+700 tests (695 -> 700), `npm test` green.

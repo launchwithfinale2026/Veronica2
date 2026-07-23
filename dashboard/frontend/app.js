@@ -1855,6 +1855,101 @@ function setupConstitutionForms(){
 }
 
 
+async function loadBrainPanel(){
+
+    try {
+        const status = await fetchJSON("/api/brain/status");
+        renderList(
+            "brain-status",
+            status,
+            "No providers reported.",
+            entry => `${entry.name}: ${entry.configured ? "configured" : "not configured"}${entry.active ? " (active)" : ""}`
+        );
+    } catch(error){
+        renderList("brain-status", [], `Error: ${error.message}`, () => "");
+    }
+
+    try {
+        const preferences = await fetchJSON("/api/brain/routing-preferences");
+        const entries = Object.entries(preferences);
+        renderList(
+            "brain-routing-list",
+            entries,
+            "No routing preferences set -- every task type uses the default fallback order.",
+            ([taskType, provider]) => `${taskType} -> ${provider}`
+        );
+    } catch(error){
+        renderList("brain-routing-list", [], `Error: ${error.message}`, () => "");
+    }
+
+}
+
+
+function setupBrainRoutingForms(){
+
+    loadBrainPanel();
+
+    const setForm = document.getElementById("brain-routing-form");
+    const result = document.getElementById("brain-routing-result");
+
+    setForm.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const taskType = document.getElementById("brain-routing-task-type").value;
+        const provider = document.getElementById("brain-routing-provider").value;
+
+        try {
+
+            await authedFetch("/api/brain/routing-preferences/set", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ taskType, provider })
+            });
+
+            result.textContent = "Saved.";
+            setForm.reset();
+            loadBrainPanel();
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+    const clearForm = document.getElementById("brain-routing-clear-form");
+
+    clearForm.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const taskType = document.getElementById("brain-routing-clear-task-type").value;
+
+        try {
+
+            await authedFetch("/api/brain/routing-preferences/clear", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ taskType })
+            });
+
+            result.textContent = "Cleared.";
+            clearForm.reset();
+            loadBrainPanel();
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
 function setupCollabOpportunitiesForm(){
 
     const form = document.getElementById("collab-opportunities-form");
@@ -3910,6 +4005,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupCollabOpportunitiesForm();
     setupConstitutionForms();
     setupWorkflowRunForm();
+    setupBrainRoutingForms();
     setupSemanticSearchForm();
     setupReindexEmbeddingsForm();
     setupCompanyLookupForm();

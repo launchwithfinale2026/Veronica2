@@ -104,6 +104,9 @@ const orchestrator = automation.registerExecutionJob(departments);
 const personalContext = new PersonalContextEngine();
 const ExecutiveConstitution = require("../../core/executive/constitution");
 const constitution = new ExecutiveConstitution();
+const Brain = require("../../core/brain");
+const brain = new Brain();
+const brainRouting = require("../../core/brain/routing");
 
 const deviceManager = new DeviceManager();
 
@@ -490,6 +493,11 @@ const ROUTES = {
 
     // Phase 51 (Executive Constitution).
     "GET /api/constitution": () => constitution.load(),
+
+    // Phase 55 (Multi-Model Intelligence).
+    "GET /api/brain/status": () => brain.provider.status(),
+
+    "GET /api/brain/routing-preferences": () => brainRouting.getPreferences(),
 
     "GET /api/logs/errors": () => log.readErrors()
 
@@ -1048,6 +1056,43 @@ function createServer(){
                 }
 
                 return sendJSON(res, 200, constitution.add(field, value));
+
+            }
+
+            // Phase 55 (Multi-Model Intelligence).
+            if(parsed.pathname === "/api/brain/routing-preferences/set" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { taskType, provider } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!taskType || !provider){
+                    return sendJSON(res, 400, { error: "taskType and provider are required" });
+                }
+
+                return sendJSON(res, 200, brainRouting.setPreference(taskType, provider));
+
+            }
+
+            if(parsed.pathname === "/api/brain/routing-preferences/clear" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { taskType } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!taskType){
+                    return sendJSON(res, 400, { error: "taskType is required" });
+                }
+
+                return sendJSON(res, 200, brainRouting.clearPreference(taskType));
 
             }
 

@@ -205,6 +205,10 @@ test("registry loads every built-in tool with a real handler", () => {
         "constitution.add",
         "constitution.set",
         "constitution.summary",
+        "brain.status",
+        "brain.routingPreferences",
+        "brain.setRoutingPreference",
+        "brain.clearRoutingPreference",
         "system.understand",
         "vision.analyzeImage",
         "web.fetch"

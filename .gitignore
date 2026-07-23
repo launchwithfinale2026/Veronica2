@@ -89,6 +89,11 @@ core/profile/veronica.profile.json
 # exist.
 core/profile/constitution.json
 
+# Phase 55: real, operator-set per-task-type brain routing preferences
+# -- same treatment as constitution.json above. Empty/absent means no
+# preference has been set for any task type yet.
+core/brain/routingPreferences.json
+
 # Phase 19: real Google OAuth2 tokens (access + refresh) -- the most
 # sensitive file this project has generated yet. Never committed, never
 # logged. core/integrations/google/oauth.js bootstraps nothing here

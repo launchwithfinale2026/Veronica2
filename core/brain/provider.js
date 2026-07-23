@@ -1,6 +1,7 @@
 const LocalProvider = require("./providers/local");
 const ClaudeProvider = require("./providers/claude");
 const OpenAIProvider = require("./providers/openai");
+const routing = require("./routing");
 
 
 const PROVIDER_CLASSES = {
@@ -68,12 +69,22 @@ class BrainProvider {
 
 
 
-    async generate(prompt, options){
+    // Phase 55 (Multi-Model Intelligence): options.taskType is optional
+    // -- when the operator has set a real routing preference for it
+    // (core/brain/routing.js) AND that provider actually initialized,
+    // it's tried FIRST, ahead of `this.active`. No preference configured
+    // (the default, for every task type until an operator sets one)
+    // means this is byte-for-byte the same order as before this phase.
+    async generate(prompt, options = {}){
 
+        const preferences = routing.getPreferences();
+        const preferred = options.taskType && preferences[options.taskType];
+        const preferredAvailable = preferred && this.providers[preferred];
 
         const order = [
+            ...(preferredAvailable ? [preferred] : []),
             this.active,
-            ...this.fallbackOrder.filter(name => name !== this.active)
+            ...this.fallbackOrder.filter(name => name !== this.active && name !== preferred)
         ];
 
 

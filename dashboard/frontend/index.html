@@ -548,6 +548,33 @@
   </section>
 
   <section class="panel">
+    <h2>Brain / Multi-Model Routing (Phase 55)</h2>
+    <p class="hint">Real provider status (Claude/OpenAI/local, whichever actually initialized) and real, operator-set per-task-type routing preferences. No preference set for a task type means the existing fallback order governs it, unchanged.</p>
+    <div class="widget-group">
+      <h3>Provider status</h3>
+      <div id="brain-status" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Routing preferences</h3>
+      <div id="brain-routing-list" class="widget"></div>
+      <form id="brain-routing-form" class="inline-form">
+        <input type="text" id="brain-routing-task-type" placeholder="Task type (e.g. extraction)" required>
+        <select id="brain-routing-provider">
+          <option value="claude">claude</option>
+          <option value="openai">openai</option>
+          <option value="local">local</option>
+        </select>
+        <button type="submit">Set</button>
+      </form>
+      <form id="brain-routing-clear-form" class="inline-form">
+        <input type="text" id="brain-routing-clear-task-type" placeholder="Task type to clear" required>
+        <button type="submit">Clear</button>
+      </form>
+      <p id="brain-routing-result" class="hint"></p>
+    </div>
+  </section>
+
+  <section class="panel">
     <h2>Executive</h2>
     <div class="widget-group">
       <h3>Roadmap</h3>

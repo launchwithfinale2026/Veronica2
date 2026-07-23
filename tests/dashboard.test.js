@@ -87,6 +87,17 @@ if(CONSTITUTION_EXISTED_BEFORE){
     fs.copyFileSync(CONSTITUTION_PATH, CONSTITUTION_BACKUP);
 }
 
+// Phase 55 (Multi-Model Intelligence): POST /api/brain/routing-preferences/set
+// below writes real, gitignored operator data -- same backup/restore
+// discipline as CONSTITUTION_PATH above.
+const ROUTING_PREFERENCES_PATH = path.join(__dirname, "..", "core", "brain", "routingPreferences.json");
+const ROUTING_PREFERENCES_EXISTED_BEFORE = fs.existsSync(ROUTING_PREFERENCES_PATH);
+const ROUTING_PREFERENCES_BACKUP = path.join(os.tmpdir(), `veronica-routing-preferences-backup-dashboard-${process.pid}.json`);
+
+if(ROUTING_PREFERENCES_EXISTED_BEFORE){
+    fs.copyFileSync(ROUTING_PREFERENCES_PATH, ROUTING_PREFERENCES_BACKUP);
+}
+
 const { createServer } = require("../dashboard/backend/server");
 
 let server;
@@ -167,6 +178,13 @@ test.after(async () => {
         fs.unlinkSync(CONSTITUTION_BACKUP);
     } else if(fs.existsSync(CONSTITUTION_PATH)){
         fs.unlinkSync(CONSTITUTION_PATH);
+    }
+
+    if(ROUTING_PREFERENCES_EXISTED_BEFORE){
+        fs.copyFileSync(ROUTING_PREFERENCES_BACKUP, ROUTING_PREFERENCES_PATH);
+        fs.unlinkSync(ROUTING_PREFERENCES_BACKUP);
+    } else if(fs.existsSync(ROUTING_PREFERENCES_PATH)){
+        fs.unlinkSync(ROUTING_PREFERENCES_PATH);
     }
 
     delete process.env.API_TOKEN;
@@ -427,6 +445,40 @@ test("GET/POST /api/constitution reads and updates the real Executive Constituti
 
     const after = await (await fetch(`${baseUrl}/api/constitution`)).json();
     assert.strictEqual(after.mission, "Dashboard mission XQZDASH10");
+
+});
+
+
+test("GET /api/brain/status reports real provider configuration, and routing-preferences set/clear round-trip (Phase 55)", async () => {
+
+    process.env.API_TOKEN = "test-api-secret";
+
+    const authedHeaders = {
+        Authorization: "Bearer test-api-secret",
+        "Content-Type": "application/json"
+    };
+
+    const statusRes = await fetch(`${baseUrl}/api/brain/status`);
+    const status = await statusRes.json();
+    assert.ok(status.some(entry => entry.name === "claude"));
+    assert.ok(status.some(entry => entry.active));
+
+    const setRes = await fetch(`${baseUrl}/api/brain/routing-preferences/set`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ taskType: "dashboard-test-xqzdash12", provider: "openai" })
+    });
+    assert.strictEqual((await setRes.json())["dashboard-test-xqzdash12"], "openai");
+
+    const prefsRes = await fetch(`${baseUrl}/api/brain/routing-preferences`);
+    assert.strictEqual((await prefsRes.json())["dashboard-test-xqzdash12"], "openai");
+
+    const clearRes = await fetch(`${baseUrl}/api/brain/routing-preferences/clear`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ taskType: "dashboard-test-xqzdash12" })
+    });
+    assert.strictEqual((await clearRes.json())["dashboard-test-xqzdash12"], undefined);
 
 });
 
@@ -1443,6 +1495,8 @@ const ALL_POST_ROUTES = [
     "/api/executive/brief",
     "/api/constitution/set",
     "/api/constitution/add",
+    "/api/brain/routing-preferences/set",
+    "/api/brain/routing-preferences/clear",
     "/api/marketing/campaigns",
     "/api/marketing/campaigns/test-id/schedule-content",
     "/api/marketing/campaigns/test-id/generate-draft",

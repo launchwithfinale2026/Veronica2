@@ -1928,3 +1928,61 @@ new dashboard test running a real defined-in-code workflow end to end
 through the live server.
 
 686 -> 695 tests, all passing.
+
+## Phase 55 -- Multi-Model Intelligence
+
+**Audit first:** `core/brain/provider.js`'s `BrainProvider` (Phase 36)
+already IS multi-model infrastructure -- Claude/OpenAI/local, a real
+fallback order, `use()` to switch the active provider, `status()` to
+report what's actually configured. What was missing was routing BY
+TASK TYPE instead of one global "active" setting for every call, and
+"maintain unified memory regardless of provider" (already true --
+verified, not something that needed building: no code path stores
+anything provider-specific into a memory entry's persisted content).
+
+**Deliberately not a fabricated heuristic.** This codebase had zero
+real, evidenced basis for a claim like "OpenAI is better at extraction,
+Claude is better at prose" -- inventing one would violate this
+project's own explainability principle (now written down in the
+Constitution, Phase 51). Two honest things were built instead:
+
+- **`core/brain/routing.js`**: a real, persisted, per-task-type
+  provider preference (`setPreference(taskType, provider)` /
+  `getPreferences()` / `clearPreference(taskType)`), gitignored, same
+  "operator-authored, honestly empty by default" treatment
+  `core/executive/constitution.js`'s personal fields already
+  established. Until the operator sets a preference for a given task
+  type, `BrainProvider.generate()`'s existing fallback order governs it
+  -- byte-for-byte the same behavior as before this phase.
+- **`core/departments/base.js`** now records which real provider
+  actually answered every `department_run` learning-log entry
+  (`provider: thought.cognition.response.provider`) -- not used for any
+  routing decision yet, but real, evidenced data that would eventually
+  make a data-driven routing preference honest instead of invented (the
+  same "evidence, not assertion" principle Phase 47 established for
+  recommendations, applied here to provider choice).
+
+**`BrainProvider.generate(prompt, options)`** gained an optional
+`options.taskType`: when a real preference is configured for it AND
+that provider actually initialized, it's tried FIRST, ahead of
+`this.active`; otherwise the try-order is unchanged.
+
+**Wired into:** a new `core/tools/handlers/brain.js` (4 tool ids:
+`brain.status`/`brain.routingPreferences`/`brain.setRoutingPreference`/
+`brain.clearRoutingPreference`), dashboard routes
+(`GET /api/brain/status`, `GET /api/brain/routing-preferences`, gated
+`POST /api/brain/routing-preferences/set`/`.../clear`, added to
+`tests/dashboard.test.js`'s `ALL_POST_ROUTES`), and a new dashboard
+panel.
+
+**Tests:** `tests/multi-model-routing.test.js` (4 tests) -- real
+preference persistence and validation; `BrainProvider.generate()`
+actually routing to a mocked "openai" provider first when a preference
+is configured (and falling back to the unchanged default order with no
+taskType, or an unconfigured one); a configured preference for a
+provider that never actually initialized being correctly ignored; and
+a real `DepartmentManager.run()` call proving the `provider` field
+lands in the real, persisted learning log. Plus 1 new dashboard test
+for the status/set/clear routes.
+
+695 -> 700 tests, all passing.

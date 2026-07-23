@@ -111,7 +111,14 @@ class DepartmentManager {
                 department: this.id,
                 agent: agent.name,
                 outcome: "success",
-                durationMs
+                durationMs,
+                // Phase 55 (Multi-Model Intelligence): which real brain
+                // provider actually answered this call -- not used for
+                // any routing decision yet (no real evidence exists to
+                // justify one), but this is what WOULD make a future
+                // evidence-based routing preference honest instead of a
+                // guess.
+                provider: thought.cognition.response.provider
             });
 
             bus.publish("department.activity", {
