@@ -1,82 +1,75 @@
 # VERONICA — Next Steps
 
-Snapshot as of Phase 49 (Organizational Knowledge Graph expansion).
-666/666 tests passing. **Phase 41-46 closed the entire "make every
-Division production-ready" arc**, **Phase 47 closed the recommendation
-feedback loop**, **Phase 48 added the cross-department synthesis
-layer**, and **Phase 49 connected every Division's real entities into
-the existing knowledge graph** -- see `docs/CHANGELOG.md` for the full
-history, and `docs/NEXT_HUMAN_ACTIONS.md`/`docs/EXTERNAL_DEPENDENCIES.md`
-for what still needs a human.
+Snapshot as of Phase 50 (Department Collaboration). 673/673 tests
+passing. **Phase 41-46 closed the entire "make every Division
+production-ready" arc**, **Phase 47 closed the recommendation feedback
+loop**, **Phase 48 added the cross-department synthesis layer**,
+**Phase 49 connected every Division's real entities into the knowledge
+graph**, and **Phase 50 added a real, rule-based framework for
+departments to automatically request work from each other** -- see
+`docs/CHANGELOG.md` for the full history, and
+`docs/NEXT_HUMAN_ACTIONS.md`/`docs/EXTERNAL_DEPENDENCIES.md` for what
+still needs a human.
 
 ## Resolved since the last snapshot
 
+- **Department Collaboration** (Phase 50):
+  `core/collaboration/collaborationRules.js` -- a declarative rule
+  framework (not hardcoded per-pair glue) detecting real
+  cross-department collaboration opportunities from each Division's
+  already-real state: `sales_requests_marketing` (open pipeline, no
+  campaign), `marketing_requests_research` (campaign with an audience,
+  no research), `operations_requests_department` (off-track KPI owned
+  by another department). Every detected opportunity becomes a pending,
+  approval-gated `ActionProposalEngine` proposal (a new
+  `request_department_collaboration` external action) -- nothing
+  delegates automatically without a human approving it; execution
+  reuses `core/collaboration/engine.js`'s existing, already-real
+  `delegate()`.
+
+## Resolved earlier (Phase 41-49, unchanged from the last snapshot)
+
 - **Organizational Knowledge Graph expansion** (Phase 49): leads,
-  opportunities, and campaigns now gain a real `belongsTo` relationship
-  to their owning company (their entities already existed, just
-  unconnected). Invoices/subscriptions connect their real CLIENT (not
-  the record itself -- a name-collision hazard, see
-  `docs/Architecture.md`'s Phase 49 section) to the company via
-  `billedBy`. Portfolios and research missions connect to their company
-  only when actually company-scoped. SOPs/KPIs connect to their real
-  department id. Meetings connect to each real attendee. A new
-  `GET /api/knowledge/query?q=...` route exposes the graph's own
-  pre-existing `retrieve()`. The graph's name-based entity identity
-  scheme itself was deliberately NOT redesigned -- see "still open"
-  below.
-
-## Resolved earlier (Phase 41-48, unchanged from the last snapshot)
-
+  opportunities, campaigns, invoices/subscriptions (via their real
+  client), portfolios, research missions, SOPs, KPIs, and meetings are
+  now all connected into the graph. `GET /api/knowledge/query` exposes
+  the graph's own `retrieve()`.
 - **Executive Intelligence** (Phase 48):
   `core/executive/executiveIntelligence.js` -- real company health
   scoring, risk forecasting, cross-department recommendations,
   quarterly/annual planning, and an LLM-synthesized executive brief.
-  Wired into the daily briefing (`strategicHealth()`) and the dashboard.
 - **All six Divisions are production-ready** (Phase 41-46): Marketing,
-  Sales, Finance, Research, Trading Research, Business Operations --
-  each with real domain engines, real tools, real agent prompts, and
-  full dashboard surfacing. `core/capabilities/health.js` reports all
-  six as genuinely `"active"`.
+  Sales, Finance, Research, Trading Research, Business Operations.
 - **The recommendation feedback loop is closed** (Phase 47).
 - **A real, recurring circular-require bug class was found and fixed
   four times** (Sales, proactively Marketing, Research's `missions.js`
   AND `engine.js` itself, designed around from the start in Trading and
   Business Operations): any module reachable from a package tool
   handler must not top-level-require anything in the
-  `core/learning`/`core/intelligence`/`core/brain` chain. Watch for
-  this in any future domain module.
+  `core/learning`/`core/intelligence`/`core/brain` chain.
 - **Minor, unrelated finding, not yet fixed**: `dashboard/frontend/index.html`
   has a pre-existing (predates this session) duplicate
   `id="system-health"` on two different `<div>`s.
 
-## Recommended Phase 50+
+## Recommended Phase 51+
 
-1. **Department Collaboration** -- a real framework for one department
-   requesting work from another (e.g. Marketing requesting Research),
-   rather than hardcoded cross-references. Audit the existing Mission
-   Engine and task-dependency graph (`core/executive/decomposer.js`)
-   first -- a cross-department request may already be expressible as an
-   ordinary task with a dependency on another department's task, rather
-   than needing an entirely new mechanism. Note
-   `executiveIntelligence.js`'s `crossDepartmentRecommendations()` is
-   currently observation-only (surfaces an insight, does not act on it)
-   -- this is where acting on it (e.g. auto-proposing a supporting
-   campaign) would plug in, via the existing `ActionProposalEngine`,
-   not a new mechanism. The knowledge graph's new `belongsTo` edges
-   (Phase 49) mean a company's full real footprint across every
-   Division is now walkable in one place -- useful for deciding which
-   department to route a request to.
+1. **More collaboration rules.** Only 3 real rules ship today
+   (`sales_requests_marketing`, `marketing_requests_research`,
+   `operations_requests_department`) -- the mega-prompt's other named
+   pairs ("Finance advises executive planning", "Research supports
+   every department") are genuine candidates, and the framework
+   (`core/collaboration/collaborationRules.js`'s `RULES` array) was
+   specifically built so adding one is a single declarative object, not
+   a structural change. Audit `executiveIntelligence.riskForecast()`'s
+   real signals (low runway, off-track KPIs) as a starting point for a
+   Finance-initiated rule.
 2. **A dedicated visual/browser-tested dashboard pass.** Every dashboard
-   change across this entire project (every Division panel, the
-   Executive Intelligence panel) has been verified at the endpoint/
+   change across this entire project has been verified at the endpoint/
    content level only -- no browser is available in this environment.
    This would also be the moment to fix the pre-existing
    "system-health" duplicate id, build a real "Knowledge Graph Explorer"
-   panel over the new `/api/knowledge/query` endpoint, and consider the
-   mega-prompt's broader ~25-panel "command-center" dashboard vision --
-   most of the underlying data already exists per-panel; what's missing
-   is a unified command-center layout pass, which needs visual
-   iteration a headless environment can't do responsibly.
+   panel over `/api/knowledge/query`, and consider the mega-prompt's
+   broader ~25-panel "command-center" dashboard vision.
 3. **The six architecture-debt/upgrade items** flagged in
    `core/system/selfImprovement.js` -- genuinely the operator's call.
 4. **Extend the autonomous capability builder's tool generation** to
@@ -92,6 +85,5 @@ for what still needs a human.
    *development*.
 7. **The git-history rewrite question** and **knowledge-graph company
    isolation** (both Phase 10, still open) -- Phase 49 deliberately did
-   NOT redesign the graph's name-based entity identity (two companies
-   each naming an opportunity identically would still collide into one
-   node); still an open business/architecture decision for the operator.
+   NOT redesign the graph's name-based entity identity; still an open
+   business/architecture decision for the operator.

@@ -1722,6 +1722,68 @@ function setupCollabConsensusForm(){
 }
 
 
+function setupCollabOpportunitiesForm(){
+
+    const form = document.getElementById("collab-opportunities-form");
+    const generateButton = document.getElementById("collab-opportunities-generate");
+    const generateResult = document.getElementById("collab-opportunities-generate-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const companyId = document.getElementById("collab-opportunities-company-id").value;
+        const url = companyId
+            ? `/api/collaboration/opportunities?companyId=${encodeURIComponent(companyId)}`
+            : "/api/collaboration/opportunities";
+
+        try {
+
+            const opportunities = await fetchJSON(url);
+
+            renderList(
+                "collab-opportunities-list",
+                opportunities,
+                "No collaboration opportunities detected right now.",
+                opportunity => `[${opportunity.from} -> ${opportunity.to}] ${opportunity.task}`
+            );
+
+        } catch(error){
+
+            renderList("collab-opportunities-list", [], `Error: ${error.message}`, () => "");
+
+        }
+
+    });
+
+    generateButton.addEventListener("click", async () => {
+
+        const companyId = document.getElementById("collab-opportunities-company-id").value;
+
+        generateResult.textContent = "Generating proposals...";
+
+        try {
+
+            const proposals = await authedFetch("/api/collaboration/opportunities/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ companyId: companyId || null })
+            });
+
+            generateResult.textContent = `${proposals.length} proposal(s) created -- review them in the Approval Center.`;
+            loadDashboard();
+
+        } catch(error){
+
+            generateResult.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
 function setupSemanticSearchForm(){
 
     const form = document.getElementById("semantic-search-form");
@@ -3712,6 +3774,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupCollabDelegateForm();
     setupCollabReviewForm();
     setupCollabConsensusForm();
+    setupCollabOpportunitiesForm();
     setupSemanticSearchForm();
     setupReindexEmbeddingsForm();
     setupCompanyLookupForm();

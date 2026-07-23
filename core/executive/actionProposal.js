@@ -75,14 +75,20 @@ const EXTERNAL_ACTION_RISK = {
     // actions a connector can ACTUALLY perform" rule this file's own
     // header comment establishes -- see performExternalAction()'s case
     // below for exactly which platforms that covers today.
-    publish_content: "medium"
+    publish_content: "medium",
+    // Phase 50 (Department Collaboration): a real cross-department task
+    // delegation (core/collaboration/engine.js's own delegate()) --
+    // "medium" because it spends a real LLM call on another
+    // department's behalf, same bucket as publish_content.
+    request_department_collaboration: "medium"
 };
 
 const EXTERNAL_APPROVAL_REQUIRED = {
     create_github_issue: true,
     post_discord_message: true,
     install_capability: true,
-    publish_content: true
+    publish_content: true,
+    request_department_collaboration: true
 };
 
 
@@ -91,9 +97,16 @@ class ActionProposalEngine {
     static TAG = PROPOSAL_TAG;
     static STATUSES = STATUSES;
 
-    constructor({ planner, projectManager, recommendationEngine, blockerDetector } = {}){
+    constructor({ planner, projectManager, recommendationEngine, blockerDetector, departments } = {}){
 
         this.planner = planner || new ExecutivePlanner();
+        // Phase 50 (Department Collaboration): an optional already-
+        // loaded `departments` array, same override pattern
+        // core/collaboration/engine.js's own constructor already uses --
+        // only consumed by the "request_department_collaboration" case
+        // below (lazily loaded from the real registry when not given, so
+        // every other caller's behavior is unchanged).
+        this.departments = departments || null;
         this.projectManager = projectManager || new ProjectManager({ planner: this.planner });
         this.recommendationEngine = recommendationEngine || new ExecutiveRecommendationEngine({
             planner: this.planner,
@@ -422,6 +435,36 @@ class ActionProposalEngine {
                 marketingCampaigns.setPublishingStatus(campaignId, "published");
 
                 return `Published content item "${itemId}" for campaign "${campaignId}" to ${platform}`;
+
+            }
+
+            // Phase 50 (Department Collaboration): actually runs the
+            // delegated task via CollaborationEngine.delegate() -- the
+            // exact same real-reasoning path a human-triggered
+            // POST /api/collaboration/delegate call already uses (Phase
+            // 21). Departments are loaded lazily here (matching
+            // core/executive/dailyBriefing.js's own constructor
+            // convention for this exact dependency) rather than at this
+            // file's module top level -- avoids 9 more IntelligenceEngine/
+            // Brain instances unless this specific action is actually
+            // executed.
+            case "request_department_collaboration": {
+
+                const CollaborationEngine = require("../collaboration/engine");
+
+                const { fromDepartmentId, toDepartmentId, task } = proposal.payload || {};
+
+                if(!this.departments){
+                    const loadAgents = require("../agents/loader");
+                    const loadDepartments = require("../departments/loader");
+                    this.departments = loadDepartments(loadAgents());
+                }
+
+                const collaboration = new CollaborationEngine(this.departments);
+
+                const outcome = await collaboration.delegate(fromDepartmentId, toDepartmentId, task);
+
+                return `"${fromDepartmentId}" delegated to "${toDepartmentId}": ${outcome.response}`;
 
             }
 

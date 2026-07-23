@@ -3231,3 +3231,107 @@ department-scoped SOP/KPI, a real meeting with real attendees, a real
 dashboard test for the query endpoint.
 
 666 tests (656 -> 666), `npm test` green.
+
+## Department Collaboration (Phase 50)
+
+**Audit first:** `core/collaboration/engine.js`'s `delegate()` (Phase
+21) already provides the actual mechanism "one department requests
+real work from another" needs -- it invokes the target department's
+real `DepartmentManager.run()` (real reasoning, not a stub) and
+attributes the outcome back to the requester, logged and graph-linked
+(`delegatesTo`). This was already exercised end-to-end via
+`POST /api/collaboration/delegate` and `tests/collaboration-engine.test.js`.
+What Phase 50 actually needed was the "automatically" half: a real
+detector that notices, from each Division's own already-real state,
+when a cross-department request makes sense -- without a human having
+to think of it first.
+
+**`core/collaboration/collaborationRules.js`: a declarative rule
+framework, not hardcoded per-pair glue.** Each rule is a plain object:
+`{ id, from, detect(companyId) }`, where `detect()` returns an array
+(possibly empty) of `{ to, task }`. The runner,
+`detectCollaborationOpportunities(companyId)`, is completely generic --
+it `flatMap`s every rule's `detect()` output uniformly, with no
+per-rule special-casing. This is the same shape choice
+`executiveRecommendations.js`'s rule table and
+`executiveIntelligence.js`'s division-composition already made:
+a small declarative array plus one generic runner, so a future rule
+("Finance advises the executive," "Research supports every
+department") is one more object in the array, not a change to how
+opportunities get collected or turned into proposals.
+
+Three real rules ship, each reusing an already-real Division signal:
+
+- **`sales_requests_marketing`** (`from: "sales-dept"`): real open
+  sales pipeline value (`core/sales/opportunities.js`'s `forecast()`)
+  with zero published campaigns supporting it. This is the SAME real
+  observation `core/executive/executiveIntelligence.js`'s
+  `crossDepartmentRecommendations()` already makes (Phase 48) -- Phase
+  48 surfaces it as a read-only insight; Phase 50 makes it directly
+  actionable as a real collaboration request. Not duplicated logic by
+  accident: the two call sites answer different questions ("what should
+  an executive know" vs. "what should one department ask another to
+  do"), but the underlying real signal is identical on purpose.
+- **`marketing_requests_research`** (`from: "marketing-dept"`): a real
+  campaign with a defined `audience` and zero research missions
+  recorded for that company (`core/research/missions.js`'s
+  `listMissions()`).
+- **`operations_requests_department`** (`from: "bizops"`): a real
+  off-track KPI (`core/operations/kpis.js`'s `kpiStatus()`) whose
+  `department` isn't bizops itself. Ignores `companyId` -- KPIs are
+  system-wide by design (Phase 46) -- and, unlike the other two rules,
+  routes `to` a DIFFERENT department per opportunity (whichever
+  department actually owns the off-track KPI), which is exactly why
+  `detect()`'s return shape carries `to` per-opportunity rather than
+  fixed per-rule.
+
+**Never executed automatically -- routed through the existing approval
+pipeline.** `generateCollaborationProposals(companyId)` turns every
+currently-detected opportunity into a real, pending
+`core/executive/actionProposal.js` proposal via a new external action
+kind, `request_department_collaboration` (added to both
+`EXTERNAL_ACTION_RISK` as `"medium"` and `EXTERNAL_APPROVAL_REQUIRED` as
+`true`, same required-approval convention every other external action
+already follows -- there is no external action in this file that skips
+approval). `performExternalAction()`'s new case is what actually calls
+`CollaborationEngine.delegate(fromDepartmentId, toDepartmentId, task)`
+-- and only runs once a human has called `approve()` then
+`executeExternal()`, the same unconditional gate every other external
+action already enforces.
+
+**A real bug caught while writing the end-to-end test, and its fix:**
+the first version of the `request_department_collaboration` case
+called `loadAgents()`/`loadDepartments()` fresh, inline, every time it
+ran. Writing a real (non-mocked) end-to-end test -- load the real
+departments once, mock the real `marketing-dept` package department's
+brain, then approve+execute a proposal -- revealed that the case's
+*internal* fresh reload would construct a SECOND, different set of
+department instances than the one the test had just mocked, so the
+execution would have silently tried to reach the real Claude API
+instead of the mock. Fixed by giving `ActionProposalEngine`'s
+constructor an optional `departments` override (`{ ..., departments }`,
+defaulting to `null`), matching `CollaborationEngine`'s own constructor
+pattern -- the case now does `this.departments ||= loadDepartments(loadAgents())`,
+lazily loading only once per engine instance and only if not already
+given, so every existing caller's behavior and cost profile (nobody
+else passes `departments`) is completely unchanged.
+
+**Wired into:** dashboard `GET /api/collaboration/opportunities`
+(pure detection, no LLM call, safe to poll) and a gated
+`POST /api/collaboration/opportunities/generate`
+(added to `tests/dashboard.test.js`'s `ALL_POST_ROUTES`), plus a new
+"Department Collaboration Opportunities" widget inside the existing
+Collaboration panel (detect + a "Generate Proposals" button pointing
+the operator at the Approval Center).
+
+**Tests:** `tests/collaboration-rules.test.js` (6 tests -- each rule
+firing on real data, `sales_requests_marketing` NOT firing once a
+campaign is published, real proposal generation with the right payload
+shape, and the real end-to-end approve+execute test described above,
+using the exact same "construct a real `DepartmentManager`, mock its
+`intelligence.brain.provider`" technique
+`tests/collaboration-engine.test.js` already established, just against
+a real package department instead of a fake one), plus 1 new dashboard
+test for the GET route.
+
+673 tests (666 -> 673), `npm test` green.

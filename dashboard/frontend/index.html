@@ -893,6 +893,17 @@
       </form>
       <p id="collab-consensus-result" class="hint"></p>
     </div>
+    <div class="widget-group">
+      <h3>Department Collaboration Opportunities (Phase 50)</h3>
+      <p class="hint">Real, rule-detected cross-department requests -- e.g. open sales pipeline with no supporting campaign. Generating turns each into a pending, approval-gated proposal (Approval Center); nothing delegates automatically without a human approving it.</p>
+      <form id="collab-opportunities-form" class="inline-form">
+        <input type="text" id="collab-opportunities-company-id" placeholder="Company id (blank = system-wide rules only)">
+        <button type="submit">Detect</button>
+      </form>
+      <div id="collab-opportunities-list" class="widget"></div>
+      <button type="button" id="collab-opportunities-generate">Generate Proposals for Detected Opportunities</button>
+      <p id="collab-opportunities-generate-result" class="hint"></p>
+    </div>
   </section>
 
   <section class="panel">

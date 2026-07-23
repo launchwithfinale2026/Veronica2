@@ -1651,3 +1651,69 @@ calls through every module listed above, no mocks, plus 1 new dashboard
 test for the query endpoint).
 
 656 -> 666 tests, all passing.
+
+## Phase 50 -- Department Collaboration
+
+**Audit first:** `core/collaboration/engine.js`'s `delegate()` (Phase
+21) already does exactly "one department requests real work from
+another" -- it runs the target department's real agent via
+`DepartmentManager.run()` and attributes the result back to the
+requester. What was missing was the "automatically" half of the phase's
+ask: something that notices, from real division state, WHEN a
+cross-department request makes sense, without a human having to think
+of it and type it into the existing manual form.
+
+**Added:** `core/collaboration/collaborationRules.js` -- a declarative
+rule framework, not hardcoded per-pair glue. Each rule is a plain
+`{ id, from, detect(companyId) }` entry; the generic runner
+(`detectCollaborationOpportunities()`) doesn't know or care how many
+rules exist or what they check -- adding a future pair means adding one
+rule object, not touching the runner. Three real rules ship:
+
+- `sales_requests_marketing`: real open sales pipeline value
+  (`core/sales/opportunities.js`'s `forecast()`) with zero published
+  campaigns -- the exact same real observation
+  `core/executive/executiveIntelligence.js`'s
+  `crossDepartmentRecommendations()` already makes (Phase 48), now also
+  reachable as an actionable collaboration request, not just a
+  read-only insight.
+- `marketing_requests_research`: a real campaign with a defined
+  audience and zero research missions recorded for that company.
+- `operations_requests_department`: a real off-track KPI
+  (`core/operations/kpis.js`'s `kpiStatus()`) whose department isn't
+  bizops itself -- system-wide, matching KPIs' own design (Phase 46).
+
+**Not executed automatically.** Every detected opportunity becomes a
+pending `core/executive/actionProposal.js` proposal via a new
+`request_department_collaboration` external action
+(`generateCollaborationProposals()`) -- same Observation ->
+Recommendation -> Proposal -> Approval -> Execution pipeline (Phase 15)
+every other autonomous suggestion in this codebase already goes
+through. `performExternalAction()`'s new case actually calls the real
+`CollaborationEngine.delegate()` only once a human has approved it.
+
+**Constructor change, additive:** `ActionProposalEngine` gained an
+optional `departments` constructor param (same override pattern
+`CollaborationEngine`'s own constructor already established) --
+defaults to lazily loading the real registry only when the
+`request_department_collaboration` case actually runs, so every
+existing caller's behavior and cost profile is unchanged.
+
+**Wired into:** dashboard `GET /api/collaboration/opportunities`
+(pure detection, no LLM call) and gated
+`POST /api/collaboration/opportunities/generate`, plus a new widget in
+the existing Collaboration panel.
+
+**Tests:** `tests/collaboration-rules.test.js` (6 tests: each rule
+firing/not-firing on real data, real proposal generation, and one real
+end-to-end approve+execute that actually delegates to the real
+marketing-dept package department, brain mocked the same way
+`tests/collaboration-engine.test.js` already mocks a department's brain
+-- caught and fixed a real bug in the process: the execution case
+originally reloaded departments fresh from the registry internally, so
+mocking an externally-loaded instance before calling it silently
+wouldn't have reached the copy actually invoked; fixed by giving
+`ActionProposalEngine` an injectable `departments` override instead),
+plus 1 new dashboard test for the GET route.
+
+666 -> 673 tests, all passing.

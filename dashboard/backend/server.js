@@ -26,6 +26,7 @@ const learning = require("../../core/learning");
 const automation = require("../../core/automation");
 const bus = require("../../core/bus");
 const CollaborationEngine = require("../../core/collaboration/engine");
+const collaborationRules = require("../../core/collaboration/collaborationRules");
 const ExecutiveOrchestrator = require("../../core/executive/orchestrator");
 const integrationRegistry = require("../../core/integrations/registry");
 const credentialManager = require("../../core/integrations/credentialManager");
@@ -332,6 +333,11 @@ const ROUTES = {
     "GET /api/automation/history": () => automation.history(),
 
     "GET /api/collaboration/history": () => collaboration.history(),
+
+    // Phase 50 (Department Collaboration): real, rule-detected cross-
+    // department requests -- pure observation, no proposal created yet
+    // (see the gated POST below for that).
+    "GET /api/collaboration/opportunities": (searchParams) => collaborationRules.detectCollaborationOpportunities(searchParams.get("companyId") || null),
 
     "GET /api/integrations": () => integrationRegistry.overview(),
 
@@ -1321,6 +1327,25 @@ function createServer(){
                 const { departmentIds, proposal } = JSON.parse((await readBody(req)) || "{}");
 
                 return sendJSON(res, 200, await collaboration.consensus(departmentIds, proposal));
+
+            }
+
+            // Phase 50 (Department Collaboration): turns every currently-
+            // detected opportunity into a real, pending ActionProposal --
+            // no department actually delegates anything until a human
+            // approves and executes it (see actionProposal.js's
+            // "request_department_collaboration" case).
+            if(parsed.pathname === "/api/collaboration/opportunities/generate" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { companyId } = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, collaborationRules.generateCollaborationProposals(companyId || null));
 
             }
 

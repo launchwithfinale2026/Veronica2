@@ -229,6 +229,44 @@ test("GET /api/executive/proposals?status=pending only returns pending proposals
 });
 
 
+// Phase 50 (Department Collaboration): pure detection, no LLM call --
+// safe to exercise over the real running server. The gated
+// POST .../generate route is already covered end-to-end, real
+// department included, in tests/collaboration-rules.test.js.
+test("GET /api/collaboration/opportunities returns real, rule-detected cross-department requests", async () => {
+
+    process.env.API_TOKEN = "test-api-secret";
+
+    const authedHeaders = {
+        Authorization: "Bearer test-api-secret",
+        "Content-Type": "application/json"
+    };
+
+    const companyRes = await fetch(`${baseUrl}/api/companies`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ name: "Dashboard Collab Co XQZDASH8" })
+    });
+    const company = await companyRes.json();
+
+    const opportunityRes = await fetch(`${baseUrl}/api/sales/opportunities`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ companyId: company.id, name: "Dashboard Collab Deal XQZDASH8", value: 9000 })
+    });
+    assert.strictEqual(opportunityRes.status, 200);
+
+    const res = await fetch(`${baseUrl}/api/collaboration/opportunities?companyId=${company.id}`);
+    const body = await res.json();
+
+    const found = body.find(o => o.ruleId === "sales_requests_marketing");
+    assert.ok(found);
+    assert.strictEqual(found.from, "sales-dept");
+    assert.strictEqual(found.to, "marketing-dept");
+
+});
+
+
 test("GET /api/devices/network returns an array (empty is valid -- no devices registered yet)", async () => {
 
     const res = await fetch(`${baseUrl}/api/devices/network`);
@@ -1306,6 +1344,7 @@ const ALL_POST_ROUTES = [
     "/api/collaboration/delegate",
     "/api/collaboration/review",
     "/api/collaboration/consensus",
+    "/api/collaboration/opportunities/generate",
     "/api/executive/projects/test-id/decompose",
     "/api/executive/projects/test-id/status",
     "/api/executive/projects/test-id/artifacts",
