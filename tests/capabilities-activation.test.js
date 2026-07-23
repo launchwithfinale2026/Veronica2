@@ -103,6 +103,58 @@ test("loadAgents() ignores a package's agents once it's disabled, not just remov
 });
 
 
+test("loadAgents() logs and skips (rather than crashing all agent loading) a package agent with a broken prompt file (Phase 33 resilience fix)", () => {
+
+    const dir = makeTempPackage();
+    fs.mkdirSync(path.join(dir, "agents"));
+    fs.writeFileSync(path.join(dir, "agents", "brokenagentxqzact8.js"), "not valid javascript {{{");
+
+    const manifest = {
+        name: "test-activation-agent-xqzact8",
+        version: "1.0.0",
+        description: "test",
+        agents: [{ name: "BrokenAgentXQZACT8" }]
+    };
+
+    registry.register({ ...manifest, status: "installed", source: dir, manifest });
+    registry.setStatus("test-activation-agent-xqzact8", "active");
+
+    let agents;
+    assert.doesNotThrow(() => { agents = loadAgents(); });
+    assert.ok(!agents.some(a => a.name === "BrokenAgentXQZACT8"));
+    assert.ok(agents.some(a => a.name === "METIS")); // a real base-roster agent still loaded
+
+    registry.remove("test-activation-agent-xqzact8");
+
+});
+
+
+test("loadDepartments() logs and skips (rather than crashing all department loading) a package department with a broken manager.js (Phase 33 resilience fix)", () => {
+
+    const dir = makeTempPackage();
+    fs.mkdirSync(path.join(dir, "department"));
+    fs.writeFileSync(path.join(dir, "department", "manager.js"), "not valid javascript {{{");
+
+    const manifest = {
+        name: "test-activation-dept-xqzact9",
+        version: "1.0.0",
+        description: "test",
+        department: { id: "xqzact9dept", name: "XQZACT9 Dept", domain: "Testing" }
+    };
+
+    registry.register({ ...manifest, status: "installed", source: dir, manifest });
+    registry.setStatus("test-activation-dept-xqzact9", "active");
+
+    let departments;
+    assert.doesNotThrow(() => { departments = loadDepartments(loadAgents()); });
+    assert.ok(!departments.some(d => d.id === "xqzact9dept"));
+    assert.ok(departments.some(d => d.id === "athena")); // a real base-roster department still loaded
+
+    registry.remove("test-activation-dept-xqzact9");
+
+});
+
+
 test("loadTools() includes a real, active package tool that actually executes", async () => {
 
     const dir = makeTempPackage();
@@ -135,7 +187,7 @@ test("loadTools() includes a real, active package tool that actually executes", 
 });
 
 
-test("loadTools() throws a clear error when a package's declared tool handler doesn't export the right id", () => {
+test("loadTools() logs and skips (rather than crashing all tool loading) when a package's declared tool handler doesn't export the right id (Phase 33 resilience fix)", () => {
 
     const dir = makeTempPackage();
     fs.mkdirSync(path.join(dir, "tools"));
@@ -151,7 +203,14 @@ test("loadTools() throws a clear error when a package's declared tool handler do
     registry.register({ ...manifest, status: "installed", source: dir, manifest });
     registry.setStatus("test-activation-tool-xqzact4", "active");
 
-    assert.throws(() => loadTools(), /does not export it/);
+    // Previously threw and crashed loadTools() entirely -- now, per
+    // Phase 33's "improve recovery after failures," this ONE broken
+    // package tool is logged and skipped, and every other (legitimate)
+    // tool still loads normally.
+    let tools;
+    assert.doesNotThrow(() => { tools = loadTools(); });
+    assert.ok(!tools.some(t => t.id === "test.act.xqzact4"));
+    assert.ok(tools.some(t => t.id === "memory.remember")); // a real base-roster tool still loaded
 
     registry.remove("test-activation-tool-xqzact4");
 

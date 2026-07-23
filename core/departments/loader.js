@@ -5,6 +5,7 @@ const path = require("path");
 // Most packages won't declare a department (packages/example/ doesn't) --
 // packageDepartmentConfigs() returns [] unless one explicitly does.
 const activation = require("../capabilities/activation");
+const log = require("../logging");
 
 
 // Loads registry/departments.json, requires each department's own
@@ -41,16 +42,26 @@ function loadDepartments(agents){
     // A package-declared department follows the EXACT same
     // manager.js factory convention as the built-in departments above --
     // just loaded from the package's own directory instead of
-    // departments/<id>/.
-    const packageDepartments = activation.packageDepartmentConfigs().map(({ departmentConfig, managerPath, packageDir }) => {
+    // departments/<id>/. Phase 33: logged and skipped on failure, same
+    // resilience pattern as core/agents/loader.js/core/tools/loader.js's
+    // package loops -- a broken package department shouldn't crash
+    // department loading (and therefore boot) entirely.
+    const packageDepartments = activation.packageDepartmentConfigs().flatMap(({ departmentConfig, managerPath, packageDir, packageName }) => {
 
-        const createManager = require(managerPath);
+        let createManager;
+
+        try {
+            createManager = require(managerPath);
+        } catch(error){
+            log.error("capabilities", `Package "${packageName}" department "${departmentConfig.id}" failed to load: ${error.message} -- skipped`);
+            return [];
+        }
 
         const deptAgents = agents.filter(
             agent => agent.department === departmentConfig.id
         );
 
-        return createManager({
+        return [createManager({
             ...departmentConfig,
             agents: deptAgents,
             // Phase 33: see core/departments/base.js's constructor
@@ -58,7 +69,7 @@ function loadDepartments(agents){
             // of a departments/<id>/ path that doesn't exist for a
             // package.
             logDir: packageDir
-        });
+        })];
 
     });
 

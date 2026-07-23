@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 
 const Tool = require("./base");
+const log = require("../logging");
 
 // Phase 25: see core/agents/loader.js's own comment on this same require --
 // zero active packages means packageToolConfigs() returns [], a pure
@@ -50,18 +51,30 @@ function loadTools(){
 
     });
 
-    const packageTools = activation.packageToolConfigs().map(({ toolConfig, handlerPath, packageName }) => {
+    // Phase 33: same resilience pattern as core/agents/loader.js's
+    // package-agent loop above -- a package's tool handler file could
+    // become broken after installation despite passing installer.js's
+    // health check at install time; logged and skipped rather than
+    // crashing tool loading (and therefore boot) entirely.
+    const packageTools = activation.packageToolConfigs().flatMap(({ toolConfig, handlerPath, packageName }) => {
 
-        const handlerModule = require(handlerPath);
+        let handlerModule;
+
+        try {
+            handlerModule = require(handlerPath);
+        } catch(error){
+            log.error("capabilities", `Package "${packageName}" tool "${toolConfig.id}" failed to load: ${error.message} -- skipped`);
+            return [];
+        }
+
         const handler = handlerModule[toolConfig.id];
 
         if(!handler){
-            throw new Error(
-                `Package "${packageName}" declares tool "${toolConfig.id}" but ${handlerPath} does not export it`
-            );
+            log.error("capabilities", `Package "${packageName}" declares tool "${toolConfig.id}" but ${handlerPath} does not export it -- skipped`);
+            return [];
         }
 
-        return new Tool({ ...toolConfig, handler });
+        return [new Tool({ ...toolConfig, handler })];
 
     });
 
