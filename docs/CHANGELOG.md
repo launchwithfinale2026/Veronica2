@@ -759,6 +759,174 @@ else). 6 new tests.
   real, specific URL; it cannot discover documentation on its own.
 - Every limitation listed in the Phase 19-24 section above still
   applies except where superseded here.
-- **Recommended next phase:** see docs/Architecture.md's "Phases 25-32"
-  section and the final architecture review for the full Phase 33+
-  roadmap.
+
+## Phase 33 -- Core Stabilization
+
+Audited "dynamic loading/eliminate hardcoded paths/unify loader
+behavior/rollback+upgrade reliability/startup validation/recovery after
+failures/dependency validation" against the real code, per this phase's
+own "audit before modifying" instruction. Found and fixed four real,
+contained issues:
+
+1. `core/capabilities/registry.js`'s `load()` had no recovery from a
+   corrupted `state.json` -- and since Phase 25 wired this registry into
+   every agent/tool/department loader, a corrupted file would crash ALL
+   of them. Now preserves the corrupt file (timestamped) and
+   reinitializes to defaults rather than crashing boot.
+2. `DepartmentManager`'s activity-log path
+   (`departments/<id>/logs/activity.log`) is runtime output, not
+   checked into git -- missing on a fresh clone for built-ins, and never
+   existing at all for a package-declared department. Fixed by always
+   ensuring the log directory exists at construction, and accepting an
+   optional `logDir` so a package logs to its own directory.
+3. Real dependency version constraints: `manifest.dependencies` entries
+   can now be `{name, minVersion}`, not just a plain name -- backward
+   compatible with the plain-string form.
+4. The exact "unify loader behavior" gap: `core/automation/jobs.js`'s
+   package-job loop already logged-and-skipped a broken package
+   automation (Phase 25), but `core/agents/loader.js`/
+   `core/tools/loader.js`/`core/departments/loader.js`'s package loops
+   did not -- a broken package file (edited/corrupted after
+   installation) would crash agent/tool/department loading entirely.
+   All three now match the existing resilience pattern.
+
+Also added `registry.validateStartup()` (logs any capability already in
+error/disabled status at boot, same posture as
+`credentialManager.validateStartup()`).
+
+9 new tests (one existing test's asserted behavior deliberately updated
+to match the improved resilience, not a regression).
+
+## Phase 34 -- Production Dashboard
+
+Not a visual redesign (unverifiable without a browser in this
+environment) -- three genuinely new real capabilities, placed first in
+the layout per the "what needs attention" information-hierarchy
+principle: `core/system/health.js` (real CPU/RAM/disk via Node's
+built-in `os`/`fs`, zero new dependencies, plus VERONICA's own internal
+service status), `core/system/search.js` (one search entry point across
+memory/knowledge/capabilities, each a passthrough to that system's own
+existing search), and `core/executive/executiveSummary.js` (Today's
+Priorities + Critical Alerts, composed from already-existing detectors).
+New "Executive Summary" panel, header search, and a Ctrl+K/Cmd+K command
+palette (a flat quick-navigation list).
+
+10 new tests.
+
+## Phase 35 -- Production Capability Packages
+
+Six real, generated (Phase 27's builder) packages for Business
+Operations/Marketing/Sales/Research/Finance/Trading Research -- real
+manifests, agent/tool skeletons, package-owned departments,
+self-validating tests, READMEs, `approvalRequired: true`. Still
+skeletons, honestly: no ad-platform/broker/market-data/MLS API
+integration exists for any of these. All six were installed for real
+via `installer.install()` -- each created a genuine PENDING proposal,
+none self-approved.
+
+7 new tests (validates all six real manifests stay valid as part of the
+main test run).
+
+## Phase 36 -- Connector Completion
+
+Audited all 7 named connectors against register/validate/report
+status/respect approval/log activity/store credentials securely/report
+failures/retry safely. Two real gaps fixed: `core/integrations/http.js`
+gains `requestWithRetry()` (bounded, backoff retries -- GET only by
+default, since a POST/PUT/PATCH/DELETE retry could double-execute a
+write whose response was simply lost), wired into GitHub's and every
+Google connector's shared `call()` helper; `BrainProvider` gains
+`status()`, and Claude/OpenAI now appear in the integration registry
+alongside every other connector.
+
+Two real bugs found by tests before being wired in anywhere: the last
+retry attempt returned a still-failing response as success instead of
+throwing (a silent failure); `requestWithRetry()` initially bypassed
+every existing test's `http.request = fakeFn` mocking convention by
+calling the bare local function instead of `module.exports.request`.
+
+4 new tests, 2 existing tests updated for the two new registry entries.
+
+## Phase 37 -- Executive Assistant
+
+Extends `DailyBriefingEngine`/`DailyReviewEngine` (not a new daily-
+workflow system) with the sections this phase's ask named that weren't
+there: pending approvals, company health, mission status, package
+updates, learning summary (morning); knowledge evolution -- real
+entities/relationships added TODAY (evening). System health deliberately
+NOT duplicated into the (synchronous, heavily-tested) briefing class --
+Phase 34's Executive Summary panel already surfaces it on the same
+dashboard view.
+
+2 new tests.
+
+## Phase 38 -- Learning Engine
+
+`core/learning/adaptiveInsights.js` tracks accepted/rejected
+recommendations, repeated behaviors, automation success, and package
+tool usage -- entirely from already-persisted real records (Phase 15's
+proposal status history, Phase 11's recommendation history, Phase 8's
+automation history, tool-call telemetry). Rule-based, fully explainable,
+a reporting layer only -- does not feed back into recommendation
+generation itself (named as real future work, not done silently).
+
+5 new tests.
+
+## Phase 39 -- Autonomous Capability Builder
+
+`core/capabilities/autonomousBuilder.js` chains analyze (Phase 28) ->
+generate package/agents/tools/tests/docs + validate (Phase 27) ->
+request approval (Phase 20) into one pipeline from a single objective
+("Build a recruiting department" -- added for real as a new
+`CAPABILITY_CATALOG` domain). `approvalRequired` is structurally forced
+`true` on every autonomously-derived package, not just a default --
+"no execution without approval" as a guarantee, not a convention.
+
+6 new tests.
+
+## Phase 40 -- Personal Operating System
+
+Closes the last real gaps in Phase 32's `OrganizationOverview`
+(memories, connectors, executive recommendations), then makes the WHOLE
+aggregation callable by VERONICA herself: `core/system/selfKnowledge.js`
++ a new `system.understand` tool. Building this surfaced (and required
+fixing) the exact "Goal Decomposition Engine" circular-require class
+this project has hit before -- fixed with the same lazy-require
+convention already established, with a dedicated regression test
+guarding the specific path.
+
+12 new tests.
+
+## Totals (Phases 33-40)
+
+- 8 commits, one per phase, each with `npm test` green before
+  committing.
+- Test count: 446 (end of Phase 32) -> 449 (33 part 1) -> 448 (33 part
+  2 -- net includes a corrected assertion) -> 451 (33 part 3) -> 461
+  (34) -> 468 (35) -> 472 (36) -> 474 (37) -> 479 (38) -> 485 (39) ->
+  491 (40), all passing throughout.
+- No existing test broken; every behavior change (the loader resilience
+  fix, Phase 33) was deliberate and documented, with the affected test's
+  assertion updated to match the improved behavior, not silently
+  reverted.
+
+## Remaining limitations / future work (Phases 33-40)
+
+- **Package-declared departments' activity logging is fixed** (Phase
+  33) -- the gap named at the end of the Phase 19-24 section is closed.
+- **No dynamic dashboard-panel plugin system still** -- unchanged from
+  before this arc.
+- **Adaptive insights are reporting-only** (Phase 38) -- not yet wired
+  into how `executiveRecommendations.js` actually generates
+  recommendations. Real next step, not done silently.
+- **The autonomous capability builder always requires approval** (Phase
+  39, by design) -- there is no path for it to install/activate
+  anything without a human.
+- **`system.understand` (Phase 40) constructs fresh department
+  instances on every call** (via the existing loaders) rather than
+  reusing a host's already-running ones -- correct, but real IntelligenceEngine
+  construction for all 9 departments on every call is not free; caching
+  within a single reasoning session would be the natural optimization
+  if this tool sees heavy use.
+- **Recommended next phase:** see the final architecture review's Phase
+  41+ roadmap.
