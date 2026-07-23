@@ -162,3 +162,56 @@ button:hover {
   border-radius: 6px;
   padding: 0.5rem 0.7rem;
 }
+
+/* Phase 34: command palette -- minimal, no animation, purely functional */
+.command-palette-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  z-index: 100;
+}
+
+.command-palette-overlay.hidden {
+  display: none;
+}
+
+.command-palette {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: min(32rem, 90vw);
+  padding: 0.75rem;
+}
+
+.command-palette input {
+  width: 100%;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.command-palette ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.command-palette li {
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.command-palette li:hover,
+.command-palette li.active {
+  background: var(--accent-dim);
+}
+
+.alert-critical { color: #f47174; }
+.alert-warning { color: #e3b341; }
+.alert-info { color: var(--text-dim); }

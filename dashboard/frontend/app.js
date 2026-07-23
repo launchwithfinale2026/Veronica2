@@ -770,7 +770,9 @@ async function loadDashboard(){
             loadCompanies(),
             loadResearchHistory(),
             loadMissionHistory(),
-            loadOrganizationOverview()
+            loadOrganizationOverview(),
+            loadExecutiveSummary(),
+            loadSystemHealth()
         ]);
 
     } catch(error){
@@ -2082,6 +2084,198 @@ async function loadOrganizationOverview(){
 }
 
 
+// --- Phase 34: Executive Summary / System Health / Universal Search / Command Palette
+
+async function loadExecutiveSummary(){
+
+    const summary = await fetchJSON("/api/executive/summary");
+
+    const alertContainer = document.getElementById("critical-alerts");
+    alertContainer.innerHTML = "";
+
+    if(!summary.criticalAlerts.length){
+        alertContainer.appendChild(el("p", { className: "empty", textContent: "Nothing needs attention." }));
+    } else {
+        const list = el("ul", { className: "list" });
+        for(const alert of summary.criticalAlerts){
+            list.appendChild(el("li", { className: `alert-${alert.severity}`, textContent: `[${alert.severity}] ${alert.detail}` }));
+        }
+        alertContainer.appendChild(list);
+    }
+
+    renderList(
+        "todays-priorities",
+        summary.todaysPriorities,
+        "No prioritized projects.",
+        entry => `${entry.title} (score ${entry.score}) -- ${(entry.reasons || []).join("; ")}`
+    );
+
+}
+
+
+async function loadSystemHealth(){
+
+    const health = await fetchJSON("/api/system/health");
+    const container = document.getElementById("system-health");
+
+    const lines = [
+        `CPU: ${health.cpu.cores} core(s), load ${health.cpu.loadPercent1m}%`,
+        `Memory: ${health.memory.usedPercent}% used`,
+        health.disk.error ? `Disk: unavailable (${health.disk.error})` : `Disk (${health.disk.path}): ${health.disk.usedPercent}% used`,
+        ...health.services.map(s => `${s.name}: ${s.running ? "running" : "stopped"}`)
+    ];
+
+    container.textContent = lines.join("\n");
+
+}
+
+
+function setupUniversalSearchForm(){
+
+    const form = document.getElementById("universal-search-form");
+    const result = document.getElementById("universal-search-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const query = document.getElementById("universal-search-query").value;
+
+        if(!query){
+            return;
+        }
+
+        const results = await fetchJSON(`/api/search?q=${encodeURIComponent(query)}`);
+
+        result.textContent = [
+            `${results.memories.length} memor(y/ies), ${results.entities.length} knowledge entit(y/ies), ${results.capabilities.length} capabilit(y/ies)`,
+            "",
+            JSON.stringify(results, null, 2)
+        ].join("\n");
+
+        document.getElementById("executive-summary-panel").scrollIntoView({ block: "start" });
+
+    });
+
+}
+
+
+// A flat, static list of quick-navigation actions -- every panel is
+// reachable in the two interactions this phase's UX section asks for:
+// Ctrl+K (or Cmd+K), then type + Enter.
+const COMMAND_PALETTE_ACTIONS = [
+    { label: "Go to Executive Summary", target: "executive-summary-panel" },
+    { label: "Go to Organization Overview", target: "organization-overview" },
+    { label: "Go to Capability Marketplace", target: "capability-marketplace" },
+    { label: "Go to Mission Engine", target: "mission-history" },
+    { label: "Go to Self-Improvement", target: "self-improvement-result" },
+    { label: "Go to Research & Knowledge Engine", target: "research-history" },
+    { label: "Go to Integrations", target: "integrations-status" },
+    { label: "Go to Automation", target: "automation-status" },
+    { label: "Go to Learning", target: "learning-overview" },
+    { label: "Go to Action Proposals", target: "action-proposals" }
+];
+
+let commandPaletteActiveIndex = 0;
+
+function renderCommandPaletteResults(query){
+
+    const list = document.getElementById("command-palette-results");
+    list.innerHTML = "";
+
+    const lower = query.toLowerCase();
+    const matches = COMMAND_PALETTE_ACTIONS.filter(action => action.label.toLowerCase().includes(lower));
+
+    matches.forEach((action, index) => {
+        const item = el("li", { textContent: action.label, className: index === commandPaletteActiveIndex ? "active" : "" });
+        item.addEventListener("click", () => runCommandPaletteAction(action));
+        list.appendChild(item);
+    });
+
+    return matches;
+
+}
+
+function runCommandPaletteAction(action){
+
+    const target = document.getElementById(action.target);
+
+    if(target){
+        target.scrollIntoView({ block: "start" });
+    }
+
+    closeCommandPalette();
+
+}
+
+function openCommandPalette(){
+
+    document.getElementById("command-palette-overlay").classList.remove("hidden");
+
+    const input = document.getElementById("command-palette-input");
+    input.value = "";
+    input.focus();
+
+    commandPaletteActiveIndex = 0;
+    renderCommandPaletteResults("");
+
+}
+
+function closeCommandPalette(){
+    document.getElementById("command-palette-overlay").classList.add("hidden");
+}
+
+function setupCommandPalette(){
+
+    const overlay = document.getElementById("command-palette-overlay");
+    const input = document.getElementById("command-palette-input");
+
+    document.addEventListener("keydown", event => {
+
+        if((event.metaKey || event.ctrlKey) && event.key === "k"){
+            event.preventDefault();
+            openCommandPalette();
+            return;
+        }
+
+        if(event.key === "Escape" && !overlay.classList.contains("hidden")){
+            closeCommandPalette();
+        }
+
+    });
+
+    overlay.addEventListener("click", event => {
+        if(event.target === overlay){
+            closeCommandPalette();
+        }
+    });
+
+    input.addEventListener("input", () => {
+        commandPaletteActiveIndex = 0;
+        renderCommandPaletteResults(input.value);
+    });
+
+    input.addEventListener("keydown", event => {
+
+        const matches = renderCommandPaletteResults(input.value);
+
+        if(event.key === "ArrowDown"){
+            event.preventDefault();
+            commandPaletteActiveIndex = Math.min(commandPaletteActiveIndex + 1, matches.length - 1);
+            renderCommandPaletteResults(input.value);
+        } else if(event.key === "ArrowUp"){
+            event.preventDefault();
+            commandPaletteActiveIndex = Math.max(commandPaletteActiveIndex - 1, 0);
+            renderCommandPaletteResults(input.value);
+        } else if(event.key === "Enter" && matches[commandPaletteActiveIndex]){
+            runCommandPaletteAction(matches[commandPaletteActiveIndex]);
+        }
+
+    });
+
+}
+
+
 // --- Live updates (Server-Sent Events) ------------------------------------
 //
 // Replaces interval polling: GET /api/events streams memory/knowledge
@@ -2226,6 +2420,8 @@ document.addEventListener("DOMContentLoaded", () => {
     setupSelfImprovementButton();
     setupMissionDefineForm();
     setupMissionStatusForm();
+    setupUniversalSearchForm();
+    setupCommandPalette();
 
     populateDepartmentSelect("department-select");
     populateDepartmentSelect("plan-department", { includeAuto: true });

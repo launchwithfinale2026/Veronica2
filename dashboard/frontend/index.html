@@ -12,9 +12,42 @@
   <h1>VERONICA</h1>
   <p id="status-banner" class="status-banner">Connecting...</p>
   <p id="live-indicator" class="status-banner">Live updates: connecting...</p>
+  <form id="universal-search-form" class="inline-form">
+    <input type="text" id="universal-search-query" placeholder="Search everything (memory, knowledge, capabilities)... or press Ctrl+K">
+    <button type="submit">Search</button>
+  </form>
 </header>
 
+<div id="command-palette-overlay" class="command-palette-overlay hidden">
+  <div class="command-palette">
+    <input type="text" id="command-palette-input" placeholder="Type a command or search...">
+    <ul id="command-palette-results"></ul>
+    <p class="hint">Esc to close</p>
+  </div>
+</div>
+
 <main class="grid">
+
+  <section class="panel panel-wide" id="executive-summary-panel">
+    <h2>Executive Summary (Phase 34)</h2>
+    <p class="hint">What needs attention, right now -- critical alerts first, today's priorities second. Everything below is read live; nothing here is a fabricated placeholder.</p>
+    <div class="widget-group">
+      <h3>Critical Alerts</h3>
+      <div id="critical-alerts" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Today's Priorities</h3>
+      <div id="todays-priorities" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>System Health</h3>
+      <div id="system-health" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Universal search results</h3>
+      <pre id="universal-search-result" class="hint"></pre>
+    </div>
+  </section>
 
   <section class="panel panel-wide">
     <h2>Organization Overview (Phase 32)</h2>

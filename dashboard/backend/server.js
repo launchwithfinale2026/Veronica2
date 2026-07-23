@@ -40,6 +40,9 @@ const capabilitiesBuilder = require("../../core/capabilities/builder");
 const ResearchEngine = require("../../core/research/engine");
 const SelfImprovementEngine = require("../../core/system/selfImprovement");
 const OrganizationOverview = require("../../core/executive/organizationOverview");
+const systemHealth = require("../../core/system/health");
+const universalSearch = require("../../core/system/search");
+const executiveSummary = require("../../core/executive/executiveSummary");
 const PersonalContextEngine = require("../../core/profile/personalContextEngine");
 const log = require("../../core/logging");
 const { installCrashGuards } = require("../../core/logging/crashGuard");
@@ -530,6 +533,30 @@ function createServer(){
             // "Production Hardening".
             if(parsed.pathname === "/api/events" && req.method === "GET"){
                 return handleEventStream(req, res);
+            }
+
+            // Phase 34 (Production Dashboard): real CPU/RAM/disk/service
+            // status -- see core/system/health.js. Async (fs.statfs has
+            // no sync counterpart), so this can't live in the sync
+            // ROUTES table below.
+            if(parsed.pathname === "/api/system/health" && req.method === "GET"){
+                return sendJSON(res, 200, await systemHealth.generate());
+            }
+
+            // Universal search across memory/knowledge/capabilities in
+            // one call -- see core/system/search.js.
+            if(parsed.pathname === "/api/search" && req.method === "GET"){
+                const q = parsed.searchParams.get("q");
+                return sendJSON(res, 200, q ? universalSearch.search(q) : { query: "", memories: [], entities: [], capabilities: [] });
+            }
+
+            // Today's Priorities + Critical Alerts -- the dashboard's
+            // top-of-page executive summary. Includes a real health
+            // snapshot so resource-usage alerts are based on the SAME
+            // figures /api/system/health reports, not a second read.
+            if(parsed.pathname === "/api/executive/summary" && req.method === "GET"){
+                const health = await systemHealth.generate();
+                return sendJSON(res, 200, executiveSummary.generate({ health }));
             }
 
             if(parsed.pathname === "/api/memory" && req.method === "GET"){
