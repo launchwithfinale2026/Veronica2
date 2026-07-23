@@ -209,6 +209,11 @@ test("registry loads every built-in tool with a real handler", () => {
         "brain.routingPreferences",
         "brain.setRoutingPreference",
         "brain.clearRoutingPreference",
+        "personalIntelligence.relationships",
+        "personalIntelligence.decisionPatterns",
+        "personalIntelligence.keyClients",
+        "personalIntelligence.dismiss",
+        "personalIntelligence.dismissed",
         "system.understand",
         "vision.analyzeImage",
         "web.fetch"

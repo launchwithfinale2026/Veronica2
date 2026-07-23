@@ -22,6 +22,7 @@ const HANDLER_MODULES = [
     require("./handlers/profile"),
     require("./handlers/constitution"),
     require("./handlers/brain"),
+    require("./handlers/personalIntelligence"),
     require("./handlers/system")
 ];
 

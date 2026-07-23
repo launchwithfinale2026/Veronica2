@@ -3714,3 +3714,97 @@ read back and asserted to carry `provider: "claude"`. Plus 1 new
 dashboard test for the status/set/clear routes.
 
 700 tests (695 -> 700), `npm test` green.
+
+## Personal Intelligence Engine (Phase 56)
+
+**The constraint that shaped this phase, stated before any code was
+written:** Phase 56 asked for "evolving models" of the operator,
+companies, clients, employees, goals, habits, preferences, working
+style, and decision patterns -- inferred ONLY from real observed
+evidence, confidence tracked, correction allowed. This environment has
+no real months-long interaction history, no real habitual-behavior log,
+no real preference survey -- building rich personal models from
+evidence that doesn't exist would mean fabricating it, exactly what
+this phase explicitly forbids. The honest deliverable is the real
+inference FRAMEWORK (evidence-cited, confidence-scored, correctable),
+applied to whatever real evidence genuinely exists in this system
+today -- not manufactured insight to make the phase look more finished
+than the available evidence supports.
+
+**`core/profile/personalIntelligence.js`'s inference shape is fixed and
+uniform:** every inference is `{ subject, inference, confidence,
+evidence }`. `evidence` is always the literal real data point(s) that
+produced the inference -- a connection count, an acceptance rate's
+sample size, a billing total -- never omitted, never a vague "trust
+me." `confidence` comes from one deterministic function,
+`confidenceFromSampleSize(n)`: 0 real data points is EXACTLY 0
+confidence (an inference from nothing is not an inference), rising in
+fixed steps as real evidence accumulates, capped at 0.9 -- deliberately
+short of 1.0, since this framework should never claim certainty. This
+is arithmetic anyone can audit, not a model's self-reported confidence
+score.
+
+**Three real inference functions, each reusing an existing real signal
+rather than inventing a new one:**
+
+- **`inferImportantRelationships()`**: `core/knowledge/index.js`'s real
+  `"person"`/`"client"`-typed entities, ranked by their real
+  `connections()` count. A person mentioned/linked more often across
+  real conversations, projects, and companies has more real evidence
+  behind them mattering -- not a guess about who's important.
+- **`inferDecisionPatterns()`**: does NOT compute a second acceptance-
+  rate signal -- it calls `core/learning/adaptiveInsights.js`'s already-
+  real, already-evidenced `recommendationAcceptance()` (Phase 38/47)
+  directly and re-expresses each entry in this module's `{ subject,
+  inference, confidence, evidence }` shape. Two modules computing the
+  same real number independently would be a real duplication bug
+  waiting to drift; one computes it, the other re-surfaces it.
+- **`inferKeyClients(companyId)`**: `core/finance/invoices.js`'s/
+  `core/finance/subscriptions.js`'s real `clientName`/`amount` fields
+  (Phase 43) aggregated per client, ranked by real activity volume.
+  **A real bug caught while writing the test, not assumed correct:**
+  the first version counted only `invoiceCount` as the confidence
+  sample size, which would silently zero out a client with a real,
+  ongoing subscription but zero invoices (a genuinely common real
+  case). Fixed by tracking `activityCount` (one per invoice OR
+  subscription record) separately from `invoiceCount` (kept only for
+  the human-readable inference text) -- confidence now reflects ALL
+  real billing evidence, not just one kind of it.
+
+**Correction is a real, visible record, not silent suppression.**
+`dismissInference(subject, reason)` persists an ordinary memory entry
+tagged `personal-intelligence-dismissed`; every `infer*()` function
+calls `dismissedSubjects()` first and filters accordingly.
+`listDismissed()` surfaces the real correction history itself -- an
+operator can always see what they've told VERONICA to stop inferring
+and why, the same "explainable, never hidden" principle every other
+override in this codebase (a low-acceptance recommendation, Phase 47;
+an honestly-labeled unset Constitution field, Phase 51) already
+follows.
+
+**Wired into:** a new `core/tools/handlers/personalIntelligence.js` (5
+tool ids: `relationships`/`decisionPatterns`/`keyClients`/`dismiss`/
+`dismissed`; top-level require is safe -- the module's own top level
+only requires `memory`/`knowledge`, everything else is lazy inside
+each function), dashboard routes (`GET /api/personal-intelligence/relationships`,
+`.../decision-patterns`, `.../key-clients?companyId=`, `.../dismissed`,
+gated `POST /api/personal-intelligence/dismiss`, added to
+`tests/dashboard.test.js`'s `ALL_POST_ROUTES`), and a new dashboard
+panel (three read-only inference lists, a dismiss form, and the
+dismissed-history list).
+
+**Tests:** `tests/personal-intelligence.test.js` (5 tests) -- the
+confidence formula's determinism including the zero-evidence-means-
+zero-confidence floor; real relationship ranking against a real
+knowledge graph (asserting a `"department"`-typed entity is correctly
+excluded, a genuinely zero-connection person is correctly excluded via
+zero confidence rather than appearing with a fake floor value); real
+decision-pattern re-surfacing against one real, freshly-approved
+`ActionProposalEngine` proposal; real key-client ranking against real
+invoices AND the subscription-only-client edge case the bug above was
+caught by; and a full real dismiss -> `listDismissed()` -> re-infer
+round trip proving the correction is honestly honored on the next call,
+not just accepted and ignored. Plus 1 new dashboard test exercising the
+same round trip through the live server.
+
+706 tests (700 -> 706), `npm test` green.

@@ -1950,6 +1950,98 @@ function setupBrainRoutingForms(){
 }
 
 
+function formatInference(entry){
+    return `${entry.subject} (confidence ${Math.round(entry.confidence * 100)}%): ${entry.inference}`;
+}
+
+
+async function loadPersonalIntelligencePanel(){
+
+    try {
+        const relationships = await fetchJSON("/api/personal-intelligence/relationships");
+        renderList("personal-intelligence-relationships", relationships, "No real relationship evidence yet.", formatInference);
+    } catch(error){
+        renderList("personal-intelligence-relationships", [], `Error: ${error.message}`, () => "");
+    }
+
+    try {
+        const patterns = await fetchJSON("/api/personal-intelligence/decision-patterns");
+        renderList("personal-intelligence-patterns", patterns, "No real decision-pattern evidence yet.", formatInference);
+    } catch(error){
+        renderList("personal-intelligence-patterns", [], `Error: ${error.message}`, () => "");
+    }
+
+    try {
+        const dismissed = await fetchJSON("/api/personal-intelligence/dismissed");
+        renderList(
+            "personal-intelligence-dismissed",
+            dismissed,
+            "No dismissed inferences.",
+            entry => `${entry.subject}${entry.reason ? ` -- ${entry.reason}` : ""}`
+        );
+    } catch(error){
+        renderList("personal-intelligence-dismissed", [], `Error: ${error.message}`, () => "");
+    }
+
+}
+
+
+function setupPersonalIntelligenceForms(){
+
+    loadPersonalIntelligencePanel();
+
+    document.getElementById("personal-intelligence-clients-form").addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const companyId = document.getElementById("personal-intelligence-clients-company-id").value;
+
+        try {
+
+            const clients = await fetchJSON(`/api/personal-intelligence/key-clients?companyId=${encodeURIComponent(companyId)}`);
+            renderList("personal-intelligence-clients", clients, "No real billing activity for this company yet.", formatInference);
+
+        } catch(error){
+
+            renderList("personal-intelligence-clients", [], `Error: ${error.message}`, () => "");
+
+        }
+
+    });
+
+    const dismissForm = document.getElementById("personal-intelligence-dismiss-form");
+    const dismissResult = document.getElementById("personal-intelligence-dismiss-result");
+
+    dismissForm.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const subject = document.getElementById("personal-intelligence-dismiss-subject").value;
+        const reason = document.getElementById("personal-intelligence-dismiss-reason").value;
+
+        try {
+
+            await authedFetch("/api/personal-intelligence/dismiss", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ subject, reason })
+            });
+
+            dismissResult.textContent = "Dismissed.";
+            dismissForm.reset();
+            loadPersonalIntelligencePanel();
+
+        } catch(error){
+
+            dismissResult.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
 function setupCollabOpportunitiesForm(){
 
     const form = document.getElementById("collab-opportunities-form");
@@ -4006,6 +4098,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupConstitutionForms();
     setupWorkflowRunForm();
     setupBrainRoutingForms();
+    setupPersonalIntelligenceForms();
     setupSemanticSearchForm();
     setupReindexEmbeddingsForm();
     setupCompanyLookupForm();

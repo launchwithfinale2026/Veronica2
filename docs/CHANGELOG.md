@@ -1986,3 +1986,65 @@ lands in the real, persisted learning log. Plus 1 new dashboard test
 for the status/set/clear routes.
 
 695 -> 700 tests, all passing.
+
+## Phase 56 -- Personal Intelligence Engine
+
+**Constraint acknowledged up front:** this phase asked for "evolving
+models" of the operator/companies/clients/employees/goals/habits/
+preferences, inferred only from real observed evidence, never invented,
+with confidence tracked and correction allowed. This environment has no
+real long-term interaction history to learn personal habits from -- so
+the honest version of this phase is the real inference FRAMEWORK
+(evidence-cited, confidence-scored, correctable), applied to whatever
+real evidence already exists in this system today, not fabricated
+insight where no real evidence exists yet.
+
+**Added:** `core/profile/personalIntelligence.js`. Every inference is
+`{ subject, inference, confidence, evidence }` -- `evidence` is the
+exact real data point(s) behind it, `confidence` is
+`confidenceFromSampleSize(n)`, a deterministic function of real sample
+size (0 evidence = 0 confidence, capped at 0.9, never a black-box score
+an LLM guessed at its own certainty). Three real inference functions,
+each reusing existing real data rather than inventing a new signal:
+
+- `inferImportantRelationships()`: knowledge-graph `"person"`/`"client"`
+  entities ranked by their real connection count
+  (`knowledge.connections()`).
+- `inferDecisionPatterns()`: re-surfaces
+  `core/learning/adaptiveInsights.js`'s already-real, already-evidenced
+  proposal acceptance rates (Phase 38/47) in this module's inference
+  vocabulary -- not a second, parallel computation of the same thing.
+- `inferKeyClients(companyId)`: reuses `core/finance/invoices.js`'s/
+  `core/finance/subscriptions.js`'s real `clientName`/`amount` fields
+  (Phase 43), ranked by real billing activity (a client with only a
+  subscription and zero invoices still counts as real evidence -- found
+  while writing the test, fixed by tracking real "activity count"
+  separately from invoice count specifically).
+
+**Correction, not silent suppression:** `dismissInference(subject,
+reason)` persists a real, auditable record; every `infer*()` function
+excludes a dismissed subject from every future call, and
+`listDismissed()` shows the real correction history. Dismissing doesn't
+delete evidence -- it's a real, visible operator override, same
+principle as every other "explainable, not hidden" decision in this
+codebase.
+
+**Wired into:** a new `core/tools/handlers/personalIntelligence.js` (5
+tool ids), dashboard routes (`GET /api/personal-intelligence/relationships`,
+`.../decision-patterns`, `.../key-clients?companyId=`, `.../dismissed`,
+gated `POST /api/personal-intelligence/dismiss`, added to
+`tests/dashboard.test.js`'s `ALL_POST_ROUTES`), and a new dashboard
+panel.
+
+**Tests:** `tests/personal-intelligence.test.js` (5 tests) -- real
+confidence-formula determinism (including zero-evidence = zero
+confidence); real relationship ranking against real knowledge-graph
+entities/relationships (a department-typed entity correctly excluded, a
+zero-connection person correctly excluded via zero confidence); real
+decision-pattern re-surfacing against a real, freshly-approved proposal;
+real key-client ranking against real invoices/subscriptions (including
+the subscription-only-client edge case above); and a real dismiss ->
+listDismissed -> re-infer round trip proving the correction is honestly
+honored afterward. Plus 1 new dashboard test.
+
+700 -> 706 tests, all passing.

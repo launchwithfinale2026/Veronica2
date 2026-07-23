@@ -107,6 +107,7 @@ const constitution = new ExecutiveConstitution();
 const Brain = require("../../core/brain");
 const brain = new Brain();
 const brainRouting = require("../../core/brain/routing");
+const personalIntelligence = require("../../core/profile/personalIntelligence");
 
 const deviceManager = new DeviceManager();
 
@@ -498,6 +499,15 @@ const ROUTES = {
     "GET /api/brain/status": () => brain.provider.status(),
 
     "GET /api/brain/routing-preferences": () => brainRouting.getPreferences(),
+
+    // Phase 56 (Personal Intelligence Engine).
+    "GET /api/personal-intelligence/relationships": () => personalIntelligence.inferImportantRelationships(),
+
+    "GET /api/personal-intelligence/decision-patterns": () => personalIntelligence.inferDecisionPatterns(),
+
+    "GET /api/personal-intelligence/key-clients": (searchParams) => personalIntelligence.inferKeyClients(searchParams.get("companyId")),
+
+    "GET /api/personal-intelligence/dismissed": () => personalIntelligence.listDismissed(),
 
     "GET /api/logs/errors": () => log.readErrors()
 
@@ -1093,6 +1103,25 @@ function createServer(){
                 }
 
                 return sendJSON(res, 200, brainRouting.clearPreference(taskType));
+
+            }
+
+            // Phase 56 (Personal Intelligence Engine).
+            if(parsed.pathname === "/api/personal-intelligence/dismiss" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { subject, reason } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!subject){
+                    return sendJSON(res, 400, { error: "subject is required" });
+                }
+
+                return sendJSON(res, 200, personalIntelligence.dismissInference(subject, reason));
 
             }
 

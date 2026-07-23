@@ -785,6 +785,54 @@
       }
     },
     {
+      "id": "personalIntelligence.relationships",
+      "description": "Phase 56: real, evidence-cited inferences about important relationships -- knowledge-graph person/client entities ranked by real connection count, with confidence derived from real sample size (never invented).",
+      "permission": "read_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": { "type": "number" }
+        }
+      }
+    },
+    {
+      "id": "personalIntelligence.decisionPatterns",
+      "description": "Real decision patterns re-surfacing core/learning/adaptiveInsights.js's already-evidenced proposal acceptance data (Phase 38/47) in this module's inference vocabulary.",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
+      "id": "personalIntelligence.keyClients",
+      "description": "Real key clients for a company, ranked by real billing activity (invoices/subscriptions, Phase 43) -- never invented importance.",
+      "permission": "read_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "companyId": { "type": "string" }
+        },
+        "required": ["companyId"]
+      }
+    },
+    {
+      "id": "personalIntelligence.dismiss",
+      "description": "Dismisses (corrects) a real inference by subject -- future inferences honestly exclude it.",
+      "permission": "write_memory",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "subject": { "type": "string" },
+          "reason": { "type": "string" }
+        },
+        "required": ["subject"]
+      }
+    },
+    {
+      "id": "personalIntelligence.dismissed",
+      "description": "Lists every real, previously-dismissed inference and its stated reason.",
+      "permission": "read_memory",
+      "inputSchema": { "type": "object", "properties": {} }
+    },
+    {
       "id": "system.understand",
       "description": "Returns VERONICA's full self-knowledge: projects, missions, companies, departments, devices, knowledge graph, memories, capabilities/packages, automations, connectors, planning, and executive recommendations -- one real, live snapshot of the entire system.",
       "permission": "read_memory",

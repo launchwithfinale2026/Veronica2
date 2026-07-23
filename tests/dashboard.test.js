@@ -483,6 +483,43 @@ test("GET /api/brain/status reports real provider configuration, and routing-pre
 });
 
 
+test("Personal Intelligence: real relationship/decision-pattern inferences and a real dismiss round-trip through the live server (Phase 56)", async () => {
+
+    process.env.API_TOKEN = "test-api-secret";
+
+    const authedHeaders = {
+        Authorization: "Bearer test-api-secret",
+        "Content-Type": "application/json"
+    };
+
+    const knowledge = require("../core/knowledge");
+    knowledge.addEntity({ name: "Dashboard Intel Person XQZDASH13", type: "person" });
+    knowledge.addRelationship({ from: "Dashboard Intel Person XQZDASH13", to: "VERONICA", type: "contains" });
+
+    const relationshipsRes = await fetch(`${baseUrl}/api/personal-intelligence/relationships`);
+    const relationships = await relationshipsRes.json();
+    assert.ok(relationships.some(r => r.subject === "Dashboard Intel Person XQZDASH13"));
+
+    const patternsRes = await fetch(`${baseUrl}/api/personal-intelligence/decision-patterns`);
+    assert.ok(Array.isArray(await patternsRes.json()));
+
+    const dismissRes = await fetch(`${baseUrl}/api/personal-intelligence/dismiss`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ subject: "Dashboard Intel Person XQZDASH13", reason: "test dismiss XQZDASH13" })
+    });
+    assert.strictEqual(dismissRes.status, 200);
+
+    const dismissedRes = await fetch(`${baseUrl}/api/personal-intelligence/dismissed`);
+    assert.ok((await dismissedRes.json()).some(d => d.subject === "Dashboard Intel Person XQZDASH13"));
+
+    const afterRes = await fetch(`${baseUrl}/api/personal-intelligence/relationships`);
+    const after = await afterRes.json();
+    assert.ok(!after.some(r => r.subject === "Dashboard Intel Person XQZDASH13"));
+
+});
+
+
 test("GET /api/tools returns the real registered tools", async () => {
 
     const res = await fetch(`${baseUrl}/api/tools`);
@@ -1497,6 +1534,7 @@ const ALL_POST_ROUTES = [
     "/api/constitution/add",
     "/api/brain/routing-preferences/set",
     "/api/brain/routing-preferences/clear",
+    "/api/personal-intelligence/dismiss",
     "/api/marketing/campaigns",
     "/api/marketing/campaigns/test-id/schedule-content",
     "/api/marketing/campaigns/test-id/generate-draft",

@@ -575,6 +575,37 @@
   </section>
 
   <section class="panel">
+    <h2>Personal Intelligence (Phase 56)</h2>
+    <p class="hint">Real, evidence-cited inferences only -- every entry names the real data point it came from and a confidence derived from real sample size, never invented. Dismiss any inference that's wrong; VERONICA excludes it honestly afterward.</p>
+    <div class="widget-group">
+      <h3>Important relationships</h3>
+      <div id="personal-intelligence-relationships" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Decision patterns</h3>
+      <div id="personal-intelligence-patterns" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Key clients</h3>
+      <form id="personal-intelligence-clients-form" class="inline-form">
+        <input type="text" id="personal-intelligence-clients-company-id" placeholder="Company id" required>
+        <button type="submit">Load</button>
+      </form>
+      <div id="personal-intelligence-clients" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Dismiss an inference</h3>
+      <form id="personal-intelligence-dismiss-form" class="inline-form">
+        <input type="text" id="personal-intelligence-dismiss-subject" placeholder="Subject to dismiss" required>
+        <input type="text" id="personal-intelligence-dismiss-reason" placeholder="Reason (optional)">
+        <button type="submit">Dismiss</button>
+      </form>
+      <p id="personal-intelligence-dismiss-result" class="hint"></p>
+      <div id="personal-intelligence-dismissed" class="widget"></div>
+    </div>
+  </section>
+
+  <section class="panel">
     <h2>Executive</h2>
     <div class="widget-group">
       <h3>Roadmap</h3>
