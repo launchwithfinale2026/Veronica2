@@ -1815,6 +1815,156 @@ function setupCompanyLookupForm(){
 }
 
 
+function setupBrandProfileForm(){
+
+    const form = document.getElementById("brand-profile-form");
+    const result = document.getElementById("brand-profile-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const companyId = document.getElementById("brand-profile-company-id").value;
+        const mission = document.getElementById("brand-profile-mission").value;
+        const audience = document.getElementById("brand-profile-audience").value;
+        const tone = document.getElementById("brand-profile-tone").value;
+
+        const patch = {};
+        if(mission) patch.mission = mission;
+        if(audience) patch.audience = audience;
+        if(tone) patch.voice = { tone };
+
+        result.textContent = "Saving...";
+
+        try {
+
+            const profile = await authedFetch(`/api/companies/${encodeURIComponent(companyId)}/brand-profile`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(patch)
+            });
+
+            result.textContent = JSON.stringify(profile, null, 2);
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupCampaignPlanForm(){
+
+    const form = document.getElementById("campaign-plan-form");
+    const result = document.getElementById("campaign-plan-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const companyId = document.getElementById("campaign-company-id").value;
+        const objective = document.getElementById("campaign-objective").value;
+        const platformsRaw = document.getElementById("campaign-platforms").value;
+        const platforms = platformsRaw ? platformsRaw.split(",").map(p => p.trim()).filter(Boolean) : [];
+
+        result.textContent = "Planning...";
+
+        try {
+
+            const campaign = await authedFetch("/api/marketing/campaigns", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ companyId, objective, platforms })
+            });
+
+            result.textContent = `Created campaign "${campaign.objective}" (id: ${campaign.id})`;
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupCampaignLookupForm(){
+
+    const form = document.getElementById("campaign-lookup-form");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const companyId = document.getElementById("campaign-lookup-company-id").value;
+
+        try {
+
+            const campaigns = await fetchJSON(`/api/marketing/campaigns?companyId=${encodeURIComponent(companyId)}`);
+
+            renderList(
+                "campaign-list",
+                campaigns,
+                "No campaigns for this company yet.",
+                campaign => `${campaign.name} — ${campaign.approvalStatus} / ${campaign.publishingStatus} — ${campaign.objective}`
+            );
+
+            const calendarEntries = await fetchJSON(`/api/marketing/calendar?companyId=${encodeURIComponent(companyId)}`);
+
+            renderList(
+                "campaign-calendar",
+                calendarEntries,
+                "No scheduled content yet.",
+                item => `${item.date} — ${item.platform} — ${item.description} (${item.status})`
+            );
+
+        } catch(error){
+
+            document.getElementById("campaign-list").textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupCompanyBrainForm(){
+
+    const form = document.getElementById("company-brain-form");
+    const result = document.getElementById("company-brain-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const companyId = document.getElementById("company-brain-id").value;
+
+        result.textContent = "Loading...";
+
+        try {
+
+            const brain = await fetchJSON(`/api/companies/${encodeURIComponent(companyId)}/brain`);
+
+            result.textContent = JSON.stringify(brain, null, 2);
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
 function setupCompanyCreateForm(){
 
     const form = document.getElementById("company-create-form");
@@ -2495,6 +2645,10 @@ document.addEventListener("DOMContentLoaded", () => {
     setupReindexEmbeddingsForm();
     setupCompanyLookupForm();
     setupCompanyCreateForm();
+    setupBrandProfileForm();
+    setupCampaignPlanForm();
+    setupCampaignLookupForm();
+    setupCompanyBrainForm();
     setupCapabilityAnalysisForm();
     setupCapabilityInstallForm();
     setupCapabilitySearchForm();

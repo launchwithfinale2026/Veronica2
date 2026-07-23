@@ -12,6 +12,15 @@ const os = require("os");
 const DB_PATH = path.join(__dirname, "..", "core", "memory", "database.json");
 const DB_BACKUP = path.join(os.tmpdir(), `veronica-database-backup-dashboard-${process.pid}.json`);
 
+// Phase 41's real company/campaign creation tests below also write a
+// real knowledge graph entity (same as CompanyManager.createCompany()/
+// core/marketing/campaigns.js's createCampaign() do everywhere else in
+// this codebase) -- this file never needed a graph.json backup before
+// since no prior test here actually exercised POST /api/companies with
+// valid auth.
+const GRAPH_PATH = path.join(__dirname, "..", "core", "knowledge", "graph.json");
+const GRAPH_BACKUP = path.join(os.tmpdir(), `veronica-graph-backup-dashboard-${process.pid}.json`);
+
 // POST /api/tools/:id/run and POST /api/departments/:id/run exercise the
 // real Tool.execute()/DepartmentManager.run() instrumentation, which
 // records to core/learning/log.js's executions.log.
@@ -75,6 +84,7 @@ let baseUrl;
 test.before(async () => {
 
     fs.copyFileSync(DB_PATH, DB_BACKUP);
+    fs.copyFileSync(GRAPH_PATH, GRAPH_BACKUP);
 
     if(EXEC_LOG_EXISTED_BEFORE){
         fs.copyFileSync(EXEC_LOG_PATH, EXEC_LOG_BACKUP);
@@ -103,6 +113,8 @@ test.after(async () => {
 
     fs.copyFileSync(DB_BACKUP, DB_PATH);
     fs.unlinkSync(DB_BACKUP);
+    fs.copyFileSync(GRAPH_BACKUP, GRAPH_PATH);
+    fs.unlinkSync(GRAPH_BACKUP);
 
     if(EXEC_LOG_EXISTED_BEFORE){
         fs.copyFileSync(EXEC_LOG_BACKUP, EXEC_LOG_PATH);
@@ -312,6 +324,116 @@ test("GET /api/capabilities/health reports real per-package operational status (
     assert.strictEqual(tradingResearch.operationalStatus, "installed_awaiting_integration");
     assert.strictEqual(tradingResearch.operationalStatusLabel, "Installed – Awaiting Integration");
     assert.ok(tradingResearch.agentsLoaded > 0);
+
+});
+
+test("Marketing Division: create a company, set its brand profile, plan a real campaign, and read it back through every real endpoint (Phase 41)", async () => {
+
+    process.env.API_TOKEN = "test-api-secret";
+
+    const authedHeaders = {
+        Authorization: "Bearer test-api-secret",
+        "Content-Type": "application/json"
+    };
+
+    const companyRes = await fetch(`${baseUrl}/api/companies`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ name: "Dashboard Marketing Co XQZDASH1" })
+    });
+    assert.strictEqual(companyRes.status, 200);
+    const company = await companyRes.json();
+
+    const brandRes = await fetch(`${baseUrl}/api/companies/${company.id}/brand-profile`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ mission: "Dashboard test mission XQZDASH1", voice: { tone: "direct" } })
+    });
+    assert.strictEqual(brandRes.status, 200);
+    const brand = await brandRes.json();
+    assert.strictEqual(brand.mission, "Dashboard test mission XQZDASH1");
+
+    const brandGetRes = await fetch(`${baseUrl}/api/companies/${company.id}/brand-profile`);
+    assert.strictEqual((await brandGetRes.json()).voice.tone, "direct");
+
+    const decisionRes = await fetch(`${baseUrl}/api/companies/${company.id}/decisions`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ decision: "Ship the dashboard test XQZDASH1" })
+    });
+    assert.strictEqual((await decisionRes.json()).history.length, 1);
+
+    const campaignRes = await fetch(`${baseUrl}/api/marketing/campaigns`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ companyId: company.id, objective: "Dashboard campaign XQZDASH1" })
+    });
+    assert.strictEqual(campaignRes.status, 200);
+    const campaign = await campaignRes.json();
+    assert.strictEqual(campaign.objective, "Dashboard campaign XQZDASH1");
+
+    const scheduleRes = await fetch(`${baseUrl}/api/marketing/campaigns/${campaign.id}/schedule-content`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ date: "2026-09-01", platform: "discord", description: "Dashboard test post XQZDASH1" })
+    });
+    assert.strictEqual((await scheduleRes.json()).contentSchedule.length, 1);
+
+    const approvalRes = await fetch(`${baseUrl}/api/marketing/campaigns/${campaign.id}/approval-status`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ status: "approved" })
+    });
+    assert.strictEqual((await approvalRes.json()).approvalStatus, "approved");
+
+    const metricsRes = await fetch(`${baseUrl}/api/marketing/campaigns/${campaign.id}/metrics`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ impressions: 500 })
+    });
+    assert.strictEqual((await metricsRes.json()).performanceMetrics.impressions, 500);
+
+    const lessonRes = await fetch(`${baseUrl}/api/marketing/campaigns/${campaign.id}/lessons`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ lesson: "Post earlier next time XQZDASH1" })
+    });
+    assert.strictEqual((await lessonRes.json()).lessonsLearned.length, 1);
+
+    const detailRes = await fetch(`${baseUrl}/api/marketing/campaigns/${campaign.id}`);
+    assert.strictEqual((await detailRes.json()).approvalStatus, "approved");
+
+    const listRes = await fetch(`${baseUrl}/api/marketing/campaigns?companyId=${company.id}`);
+    assert.strictEqual((await listRes.json()).length, 1);
+
+    const calendarRes = await fetch(`${baseUrl}/api/marketing/calendar?companyId=${company.id}`);
+    const calendarBody = await calendarRes.json();
+    assert.strictEqual(calendarBody.length, 1);
+    assert.strictEqual(calendarBody[0].description, "Dashboard test post XQZDASH1");
+
+    const analyticsRes = await fetch(`${baseUrl}/api/marketing/analytics?companyId=${company.id}`);
+    const analyticsBody = await analyticsRes.json();
+    assert.strictEqual(analyticsBody.totals.impressions, 500);
+
+    const brainRes = await fetch(`${baseUrl}/api/companies/${company.id}/brain`);
+    const brain = await brainRes.json();
+    assert.strictEqual(brain.mission, "Dashboard test mission XQZDASH1");
+    assert.strictEqual(brain.campaigns.length, 1);
+    assert.strictEqual(brain.historicalDecisions.length, 1);
+
+    const externalProposalRes = await fetch(`${baseUrl}/api/executive/proposals/external`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({
+            action: "publish_content",
+            reason: "Dashboard test publish XQZDASH1",
+            payload: { campaignId: campaign.id, itemId: calendarBody[0].id, platform: "discord", content: "test" }
+        })
+    });
+    assert.strictEqual(externalProposalRes.status, 200);
+    const proposal = await externalProposalRes.json();
+    assert.strictEqual(proposal.action, "publish_content");
+    assert.strictEqual(proposal.status, "pending");
 
 });
 
@@ -667,6 +789,15 @@ const ALL_POST_ROUTES = [
     "/api/companies/test-id/finances",
     "/api/companies/test-id/relationships",
     "/api/companies/test-id/communications",
+    "/api/companies/test-id/brand-profile",
+    "/api/companies/test-id/decisions",
+    "/api/executive/proposals/external",
+    "/api/marketing/campaigns",
+    "/api/marketing/campaigns/test-id/schedule-content",
+    "/api/marketing/campaigns/test-id/generate-draft",
+    "/api/marketing/campaigns/test-id/approval-status",
+    "/api/marketing/campaigns/test-id/metrics",
+    "/api/marketing/campaigns/test-id/lessons",
     "/api/departments/athena/run",
     "/api/tools/memory.recall/run"
 ];

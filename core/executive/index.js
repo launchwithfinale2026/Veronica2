@@ -105,6 +105,15 @@ module.exports = {
 
     logCommunication: (companyId, communication) => companyManager.logCommunication(companyId, communication),
 
+    // Phase 41 (Marketing Division / Company Brain).
+    setBrandProfile: (companyId, patch) => companyManager.setBrandProfile(companyId, patch),
+
+    getBrandProfile: (companyId) => companyManager.getBrandProfile(companyId),
+
+    recordDecision: (companyId, decision) => companyManager.recordDecision(companyId, decision),
+
+    companyBrain: (companyId) => companyManager.companyBrain(companyId),
+
     // Enforced logical isolation boundary (v1 release audit's answer to
     // "each company must have separate memory/knowledge/permissions" --
     // see core/executive/companyContext.js). Every read/write made
@@ -173,6 +182,13 @@ module.exports = {
     // this is a separate method rather than making execute() itself
     // async.
     executeExternalProposal: (id) => actionProposalEngine.executeExternal(id),
+
+    // Phase 41: the one ActionProposalEngine method that didn't already
+    // have a facade wrapper -- proposes any external action (including
+    // "publish_content", the Marketing Division's Publishing Queue),
+    // generically. Not marketing-specific: any external action this
+    // engine supports goes through the same call.
+    proposeExternalAction: (input) => actionProposalEngine.proposeExternalAction(input),
 
     // Phase 31 -- Mission Engine.
     defineMission: (objective, options) => missionEngine.defineMission(objective, options),

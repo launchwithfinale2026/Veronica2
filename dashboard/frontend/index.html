@@ -155,6 +155,49 @@
     </div>
   </section>
 
+  <section class="panel panel-wide">
+    <h2>Marketing Division (Phase 41)</h2>
+    <p class="hint">Look up a company id from the Companies list above, then plan a real campaign, set its Brand Profile, and view its full Company Brain (mission/vision/values/brand/products/services/goals/audience/competitors/assets/departments/projects/campaigns/clients/team/operating rules/historical decisions in one place).</p>
+    <div class="widget-group">
+      <h3>Set Brand Profile</h3>
+      <form id="brand-profile-form" class="stacked-form">
+        <input type="text" id="brand-profile-company-id" placeholder="Company id" required>
+        <input type="text" id="brand-profile-mission" placeholder="Mission (optional)">
+        <input type="text" id="brand-profile-audience" placeholder="Audience (optional)">
+        <input type="text" id="brand-profile-tone" placeholder="Voice tone (optional)">
+        <button type="submit">Set Brand Profile</button>
+      </form>
+      <pre id="brand-profile-result" class="hint"></pre>
+    </div>
+    <div class="widget-group">
+      <h3>Plan a Campaign</h3>
+      <form id="campaign-plan-form" class="stacked-form">
+        <input type="text" id="campaign-company-id" placeholder="Company id" required>
+        <input type="text" id="campaign-objective" placeholder="Objective" required>
+        <input type="text" id="campaign-platforms" placeholder="Platforms, comma-separated (e.g. discord)">
+        <button type="submit">Plan Campaign</button>
+      </form>
+      <p id="campaign-plan-result" class="hint"></p>
+    </div>
+    <div class="widget-group">
+      <h3>Campaigns &amp; Calendar</h3>
+      <form id="campaign-lookup-form" class="inline-form">
+        <input type="text" id="campaign-lookup-company-id" placeholder="Company id" required>
+        <button type="submit">Load</button>
+      </form>
+      <div id="campaign-list" class="widget"></div>
+      <div id="campaign-calendar" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Company Brain</h3>
+      <form id="company-brain-form" class="inline-form">
+        <input type="text" id="company-brain-id" placeholder="Company id" required>
+        <button type="submit">Load Brain</button>
+      </form>
+      <pre id="company-brain-result" class="widget code-block"></pre>
+    </div>
+  </section>
+
   <section class="panel">
     <h2>Executive</h2>
     <div class="widget-group">

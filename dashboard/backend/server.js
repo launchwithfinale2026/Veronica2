@@ -39,6 +39,9 @@ const capabilitiesMarketplace = require("../../core/capabilities/marketplace");
 const capabilitiesBuilder = require("../../core/capabilities/builder");
 const capabilitiesHealth = require("../../core/capabilities/health");
 const autonomousBuilder = require("../../core/capabilities/autonomousBuilder");
+const marketingCampaigns = require("../../core/marketing/campaigns");
+const marketingContentGenerator = require("../../core/marketing/contentGenerator");
+const marketingAnalytics = require("../../core/marketing/analytics");
 const ResearchEngine = require("../../core/research/engine");
 const SelfImprovementEngine = require("../../core/system/selfImprovement");
 const OrganizationOverview = require("../../core/executive/organizationOverview");
@@ -336,6 +339,18 @@ const ROUTES = {
     // /api/capabilities/marketplace's install/version/update metadata --
     // this is "is it actually working," not "is it installed."
     "GET /api/capabilities/health": () => capabilitiesHealth.report(),
+
+    // Phase 41 (Marketing Division). Real, per-company campaign
+    // list/calendar/analytics -- see core/marketing/campaigns.js and
+    // core/marketing/analytics.js. Mutating campaign routes (create/
+    // schedule-content/generate-draft/approval-status/metrics/lessons)
+    // live below as dynamic routes (need a POST body and/or a campaign
+    // id in the path).
+    "GET /api/marketing/campaigns": (searchParams) => marketingCampaigns.listCampaigns(searchParams.get("companyId")),
+
+    "GET /api/marketing/calendar": (searchParams) => marketingCampaigns.calendar(searchParams.get("companyId")),
+
+    "GET /api/marketing/analytics": (searchParams) => marketingAnalytics.campaignPerformance(searchParams.get("companyId")),
 
     "GET /api/research/history": (searchParams) => researchEngine.history(searchParams.get("topic") || undefined),
 
@@ -889,6 +904,26 @@ function createServer(){
 
             }
 
+            // Phase 41: proposes ANY external action generically (not
+            // marketing-specific) -- this is how the Marketing Division's
+            // Publishing Queue ("publish_content") reaches a pending
+            // proposal from the dashboard; approve/reject/execute-external
+            // below already work on it identically to every other
+            // external action.
+            if(parsed.pathname === "/api/executive/proposals/external" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { action, reason, payload, risk } = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, executive.proposeExternalAction({ action, reason, payload, risk }));
+
+            }
+
             const proposalApproveMatch = parsed.pathname.match(/^\/api\/executive\/proposals\/([^/]+)\/approve$/);
 
             if(proposalApproveMatch && req.method === "POST"){
@@ -1352,6 +1387,181 @@ function createServer(){
                 }
 
                 return sendJSON(res, 200, executive.logCommunication(decodeURIComponent(communicationMatch[1]), { summary, channel }));
+
+            }
+
+            // Phase 41 (Marketing Division / Company Brain).
+            const brandProfileMatch = parsed.pathname.match(/^\/api\/companies\/([^/]+)\/brand-profile$/);
+
+            if(brandProfileMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const patch = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, executive.setBrandProfile(decodeURIComponent(brandProfileMatch[1]), patch));
+
+            }
+
+            if(brandProfileMatch && req.method === "GET"){
+
+                return sendJSON(res, 200, executive.getBrandProfile(decodeURIComponent(brandProfileMatch[1])));
+
+            }
+
+            const decisionMatch = parsed.pathname.match(/^\/api\/companies\/([^/]+)\/decisions$/);
+
+            if(decisionMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { decision, reason } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!decision){
+                    return sendJSON(res, 400, { error: "decision is required" });
+                }
+
+                return sendJSON(res, 200, { history: executive.recordDecision(decodeURIComponent(decisionMatch[1]), { decision, reason }) });
+
+            }
+
+            // Read-only: no auth required. The single aggregated "Company
+            // Brain" view -- mission/vision/values/brand/products/
+            // services/goals/audience/competitors/assets/departments/
+            // projects/campaigns/clients/team/operatingRules/
+            // historicalDecisions in one call (core/executive/
+            // companyManager.js's companyBrain()).
+            const companyBrainMatch = parsed.pathname.match(/^\/api\/companies\/([^/]+)\/brain$/);
+
+            if(companyBrainMatch && req.method === "GET"){
+
+                return sendJSON(res, 200, executive.companyBrain(decodeURIComponent(companyBrainMatch[1])));
+
+            }
+
+            // Phase 41 (Marketing Division): campaign lifecycle routes.
+            if(parsed.pathname === "/api/marketing/campaigns" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const input = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, marketingCampaigns.createCampaign(input));
+
+            }
+
+            const campaignScheduleMatch = parsed.pathname.match(/^\/api\/marketing\/campaigns\/([^/]+)\/schedule-content$/);
+
+            if(campaignScheduleMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const item = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, { contentSchedule: marketingCampaigns.scheduleContent(decodeURIComponent(campaignScheduleMatch[1]), item) });
+
+            }
+
+            // Real LLM call (core/marketing/contentGenerator.js) -- auth
+            // required, same as any other real-cost action.
+            const campaignDraftMatch = parsed.pathname.match(/^\/api\/marketing\/campaigns\/([^/]+)\/generate-draft$/);
+
+            if(campaignDraftMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { itemId } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!itemId){
+                    return sendJSON(res, 400, { error: "itemId is required" });
+                }
+
+                const draftContent = await marketingContentGenerator.generateDraft(decodeURIComponent(campaignDraftMatch[1]), itemId);
+
+                return sendJSON(res, 200, { draftContent });
+
+            }
+
+            const campaignApprovalMatch = parsed.pathname.match(/^\/api\/marketing\/campaigns\/([^/]+)\/approval-status$/);
+
+            if(campaignApprovalMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { status } = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, { approvalStatus: marketingCampaigns.setApprovalStatus(decodeURIComponent(campaignApprovalMatch[1]), status) });
+
+            }
+
+            const campaignMetricsMatch = parsed.pathname.match(/^\/api\/marketing\/campaigns\/([^/]+)\/metrics$/);
+
+            if(campaignMetricsMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const metrics = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, { performanceMetrics: marketingCampaigns.recordMetrics(decodeURIComponent(campaignMetricsMatch[1]), metrics) });
+
+            }
+
+            const campaignLessonMatch = parsed.pathname.match(/^\/api\/marketing\/campaigns\/([^/]+)\/lessons$/);
+
+            if(campaignLessonMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { lesson } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!lesson){
+                    return sendJSON(res, 400, { error: "lesson is required" });
+                }
+
+                return sendJSON(res, 200, { lessonsLearned: marketingCampaigns.recordLessonLearned(decodeURIComponent(campaignLessonMatch[1]), lesson) });
+
+            }
+
+            // Read-only: no auth required -- must come after the write
+            // routes above since they share the /api/marketing/campaigns/:id...
+            // prefix.
+            const campaignDetailMatch = parsed.pathname.match(/^\/api\/marketing\/campaigns\/([^/]+)$/);
+
+            if(campaignDetailMatch && req.method === "GET"){
+
+                return sendJSON(res, 200, marketingCampaigns.getCampaign(decodeURIComponent(campaignDetailMatch[1])));
 
             }
 
