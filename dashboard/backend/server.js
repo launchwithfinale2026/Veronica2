@@ -50,6 +50,7 @@ const financeBudgets = require("../../core/finance/budgets");
 const financeInvoices = require("../../core/finance/invoices");
 const financeSubscriptions = require("../../core/finance/subscriptions");
 const financeReports = require("../../core/finance/reports");
+const researchMissions = require("../../core/research/missions");
 const ResearchEngine = require("../../core/research/engine");
 const SelfImprovementEngine = require("../../core/system/selfImprovement");
 const OrganizationOverview = require("../../core/executive/organizationOverview");
@@ -390,6 +391,11 @@ const ROUTES = {
     "GET /api/finance/forecast": (searchParams) => financeReports.forecast(searchParams.get("companyId")),
 
     "GET /api/finance/kpis": (searchParams) => financeReports.kpis(searchParams.get("companyId")),
+
+    // Phase 44 (Research Division). companyId is optional -- research
+    // missions aren't inherently tied to one company (see
+    // core/research/missions.js's own header comment).
+    "GET /api/research/missions": (searchParams) => researchMissions.listMissions(searchParams.get("companyId")),
 
     "GET /api/research/history": (searchParams) => researchEngine.history(searchParams.get("topic") || undefined),
 
@@ -1900,6 +1906,97 @@ function createServer(){
                 }
 
                 return sendJSON(res, 200, { status: financeSubscriptions.cancelSubscription(decodeURIComponent(subscriptionCancelMatch[1])) });
+
+            }
+
+            // Phase 44 (Research Division): mission lifecycle routes.
+            if(parsed.pathname === "/api/research/missions" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const input = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, researchMissions.createMission(input));
+
+            }
+
+            // Real network fetch + real LLM call
+            // (core/research/engine.js's research() pipeline) -- auth
+            // required, same as any other real-cost action.
+            const missionCitationMatch = parsed.pathname.match(/^\/api\/research\/missions\/([^/]+)\/citations$/);
+
+            if(missionCitationMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { topic, url } = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, await researchMissions.addCitation(decodeURIComponent(missionCitationMatch[1]), { topic, url }));
+
+            }
+
+            if(missionCitationMatch && req.method === "GET"){
+
+                return sendJSON(res, 200, researchMissions.missionCitations(decodeURIComponent(missionCitationMatch[1])));
+
+            }
+
+            const missionRankedSourcesMatch = parsed.pathname.match(/^\/api\/research\/missions\/([^/]+)\/ranked-sources$/);
+
+            if(missionRankedSourcesMatch && req.method === "GET"){
+
+                return sendJSON(res, 200, researchMissions.rankSources(decodeURIComponent(missionRankedSourcesMatch[1])));
+
+            }
+
+            // Real LLM call (core/research/missions.js's
+            // generateExecutiveSummary()) -- auth required.
+            const missionSummaryMatch = parsed.pathname.match(/^\/api\/research\/missions\/([^/]+)\/summary$/);
+
+            if(missionSummaryMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const executiveSummary = await researchMissions.generateExecutiveSummary(decodeURIComponent(missionSummaryMatch[1]));
+
+                return sendJSON(res, 200, { executiveSummary });
+
+            }
+
+            const missionCompleteMatch = parsed.pathname.match(/^\/api\/research\/missions\/([^/]+)\/complete$/);
+
+            if(missionCompleteMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                return sendJSON(res, 200, { status: researchMissions.completeMission(decodeURIComponent(missionCompleteMatch[1])) });
+
+            }
+
+            // Read-only: no auth required -- must come after the write
+            // routes above since they share the
+            // /api/research/missions/:id... prefix.
+            const missionDetailMatch = parsed.pathname.match(/^\/api\/research\/missions\/([^/]+)$/);
+
+            if(missionDetailMatch && req.method === "GET"){
+
+                return sendJSON(res, 200, researchMissions.getMission(decodeURIComponent(missionDetailMatch[1])));
 
             }
 

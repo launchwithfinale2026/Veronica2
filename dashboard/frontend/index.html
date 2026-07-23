@@ -290,6 +290,47 @@
     </div>
   </section>
 
+  <section class="panel panel-wide">
+    <h2>Research Division (Phase 44)</h2>
+    <p class="hint">Create a research mission, collect real citations (each a real fetch + LLM extraction from a real URL -- no web search, no fabricated findings), and generate a real executive summary. Missions are optionally company-scoped -- leave the company id blank for a global mission.</p>
+    <div class="widget-group">
+      <h3>Create a Mission</h3>
+      <form id="mission-create-form" class="stacked-form">
+        <input type="text" id="research-mission-objective" placeholder="Objective" required>
+        <select id="mission-type">
+          <option value="general">General</option>
+          <option value="competitor">Competitor</option>
+          <option value="industry">Industry</option>
+          <option value="technology">Technology</option>
+          <option value="market_trend">Market Trend</option>
+        </select>
+        <input type="text" id="mission-company-id" placeholder="Company id (optional)">
+        <button type="submit">Create Mission</button>
+      </form>
+      <p id="mission-create-result" class="hint"></p>
+    </div>
+    <div class="widget-group">
+      <h3>Add a Citation</h3>
+      <form id="mission-citation-form" class="stacked-form">
+        <input type="text" id="citation-mission-id" placeholder="Mission id" required>
+        <input type="text" id="citation-topic" placeholder="Topic" required>
+        <input type="text" id="citation-url" placeholder="Real, fetchable URL" required>
+        <button type="submit">Add Citation</button>
+      </form>
+      <p id="mission-citation-result" class="hint"></p>
+    </div>
+    <div class="widget-group">
+      <h3>Missions &amp; Sources</h3>
+      <form id="mission-lookup-form" class="inline-form">
+        <input type="text" id="mission-lookup-id" placeholder="Mission id" required>
+        <button type="submit">Load</button>
+      </form>
+      <div id="mission-sources-list" class="widget"></div>
+      <button id="mission-summary-button" type="button">Generate Executive Summary</button>
+      <pre id="mission-summary-result" class="widget code-block"></pre>
+    </div>
+  </section>
+
   <section class="panel">
     <h2>Executive</h2>
     <div class="widget-group">

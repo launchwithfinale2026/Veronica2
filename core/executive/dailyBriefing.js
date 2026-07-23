@@ -51,7 +51,7 @@ class DailyBriefingEngine {
 
     static TAG = BRIEFING_TAG;
 
-    constructor({ planner, projectManager, priorityRanking, goalMonitor, blockerDetector, recommendationEngine, actionProposalEngine, companyManager, missionEngine, learning, organizationOverview, marketingCampaigns, salesOpportunities, salesLeads, financeReports, financeBudgets, financeInvoices } = {}){
+    constructor({ planner, projectManager, priorityRanking, goalMonitor, blockerDetector, recommendationEngine, actionProposalEngine, companyManager, missionEngine, learning, organizationOverview, marketingCampaigns, salesOpportunities, salesLeads, financeReports, financeBudgets, financeInvoices, researchMissions } = {}){
 
         this.planner = planner || new ExecutivePlanner();
         this.projectManager = projectManager || new ProjectManager({ planner: this.planner });
@@ -117,6 +117,9 @@ class DailyBriefingEngine {
         this.financeReports = financeReports || require("../finance/reports");
         this.financeBudgets = financeBudgets || require("../finance/budgets");
         this.financeInvoices = financeInvoices || require("../finance/invoices");
+
+        // Phase 44 (Research Division).
+        this.researchMissions = researchMissions || require("../research/missions");
 
     }
 
@@ -339,6 +342,32 @@ class DailyBriefingEngine {
     }
 
 
+    // Phase 44 (Research Division): system-wide research status, not
+    // per-company -- core/research/missions.js's own header comment
+    // establishes that missions aren't inherently tied to one company
+    // (the base engine, Phase 29, is deliberately global), so this is a
+    // single global rollup rather than a per-company list like
+    // campaignHealth()/salesHealth()/financeHealth() above.
+    researchStatus(){
+
+        const allMissions = this.researchMissions.listMissions();
+
+        const allCitations = allMissions.flatMap(mission => this.researchMissions.missionCitations(mission.id));
+
+        const avgSourceConfidence = allCitations.length
+            ? allCitations.reduce((sum, citation) => sum + (citation.confidence || 0), 0) / allCitations.length
+            : null;
+
+        return {
+            totalMissions: allMissions.length,
+            inProgress: allMissions.filter(mission => mission.status === "in_progress").length,
+            completed: allMissions.filter(mission => mission.status === "completed").length,
+            avgSourceConfidence
+        };
+
+    }
+
+
     // Assembles the briefing's contents WITHOUT persisting -- exposed
     // separately so a caller (or a test) can inspect what would be
     // generated without adding to the daily history.
@@ -376,7 +405,9 @@ class DailyBriefingEngine {
             // Phase 42 addition.
             salesHealth: this.salesHealth(),
             // Phase 43 addition.
-            financeHealth: this.financeHealth()
+            financeHealth: this.financeHealth(),
+            // Phase 44 addition.
+            researchStatus: this.researchStatus()
         };
 
     }

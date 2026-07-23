@@ -259,6 +259,48 @@ test("generate() surfaces real Finance Health (Phase 43 Executive Daily Operatio
 });
 
 
+test("generate() surfaces real, system-wide Research Status (Phase 44 Executive Daily Operations)", async () => {
+
+    const http = require("../core/integrations/http");
+    const ResearchEngine = require("../core/research/engine");
+    const researchMissions = require("../core/research/missions");
+
+    const realPlanner = new ExecutivePlanner();
+    const briefing = makeBriefingEngine(realPlanner);
+
+    const before = briefing.generate().researchStatus;
+
+    const mission = researchMissions.createMission({ objective: "Briefing research status XQZBRIEF10" });
+
+    const extractionEngine = new ResearchEngine();
+    extractionEngine.intelligence.brain.provider.providers = {
+        claude: { generate: async () => ({ response: JSON.stringify({ summary: "Finding XQZBRIEF10", keyFacts: [], confidence: 0.7 }), provider: "claude", toolCalls: [] }) }
+    };
+    extractionEngine.intelligence.brain.provider.active = "claude";
+
+    const originalRequest = http.request;
+    http.request = async () => ({ status: 200, headers: {}, body: "<title>T</title><p>XQZBRIEF10</p>" });
+
+    try {
+        await researchMissions.addCitation(mission.id, { topic: "Topic XQZBRIEF10", url: "https://example.test/xqzbrief10" }, { researchEngine: extractionEngine });
+    } finally {
+        http.request = originalRequest;
+    }
+
+    const after = briefing.generate().researchStatus;
+
+    // Deltas, not absolute values -- researchStatus() is a real,
+    // system-wide rollup (missions aren't company-scoped), so this
+    // asserts only what THIS test's own activity actually changed,
+    // regardless of whatever else might already be in the store.
+    assert.strictEqual(after.totalMissions, before.totalMissions + 1);
+    assert.strictEqual(after.inProgress, before.inProgress + 1);
+    assert.strictEqual(after.completed, before.completed);
+    assert.ok(typeof after.avgSourceConfidence === "number" && after.avgSourceConfidence > 0);
+
+});
+
+
 test("generate() and run()'s recommendations are computed identically", () => {
 
     const realPlanner = new ExecutivePlanner();

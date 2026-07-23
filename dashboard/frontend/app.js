@@ -2258,6 +2258,145 @@ function setupFinanceKpisForm(){
 }
 
 
+function setupMissionCreateForm(){
+
+    const form = document.getElementById("mission-create-form");
+    const result = document.getElementById("mission-create-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const objective = document.getElementById("research-mission-objective").value;
+        const type = document.getElementById("mission-type").value;
+        const companyId = document.getElementById("mission-company-id").value;
+
+        result.textContent = "Creating...";
+
+        try {
+
+            const mission = await authedFetch("/api/research/missions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ objective, type, companyId: companyId || undefined })
+            });
+
+            result.textContent = `Created mission "${mission.objective}" (id: ${mission.id})`;
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupMissionCitationForm(){
+
+    const form = document.getElementById("mission-citation-form");
+    const result = document.getElementById("mission-citation-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const missionId = document.getElementById("citation-mission-id").value;
+        const topic = document.getElementById("citation-topic").value;
+        const url = document.getElementById("citation-url").value;
+
+        result.textContent = "Researching (real fetch + LLM extraction, may take a moment)...";
+
+        try {
+
+            const mission = await authedFetch(`/api/research/missions/${encodeURIComponent(missionId)}/citations`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ topic, url })
+            });
+
+            result.textContent = `Mission now has ${mission.citationIds.length} citation(s)`;
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupMissionLookupForm(){
+
+    const form = document.getElementById("mission-lookup-form");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const missionId = document.getElementById("mission-lookup-id").value;
+
+        try {
+
+            const sources = await fetchJSON(`/api/research/missions/${encodeURIComponent(missionId)}/ranked-sources`);
+
+            renderList(
+                "mission-sources-list",
+                sources,
+                "No sources collected yet.",
+                source => `[confidence ${source.confidence}] ${source.topic} — ${source.summary} (${source.citation})`
+            );
+
+        } catch(error){
+
+            document.getElementById("mission-sources-list").textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupMissionSummaryButton(){
+
+    const button = document.getElementById("mission-summary-button");
+    const result = document.getElementById("mission-summary-result");
+
+    button.addEventListener("click", async () => {
+
+        const missionId = document.getElementById("mission-lookup-id").value;
+
+        if(!missionId){
+            result.textContent = "Enter a mission id above first.";
+            return;
+        }
+
+        result.textContent = "Generating (real LLM call, may take a moment)...";
+
+        try {
+
+            const { executiveSummary } = await authedFetch(`/api/research/missions/${encodeURIComponent(missionId)}/summary`, {
+                method: "POST"
+            });
+
+            result.textContent = executiveSummary;
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
 function setupCompanyCreateForm(){
 
     const form = document.getElementById("company-create-form");
@@ -2950,6 +3089,10 @@ document.addEventListener("DOMContentLoaded", () => {
     setupInvoiceCreateForm();
     setupSubscriptionCreateForm();
     setupFinanceKpisForm();
+    setupMissionCreateForm();
+    setupMissionCitationForm();
+    setupMissionLookupForm();
+    setupMissionSummaryButton();
     setupCapabilityAnalysisForm();
     setupCapabilityInstallForm();
     setupCapabilitySearchForm();

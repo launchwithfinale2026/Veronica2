@@ -657,6 +657,56 @@ test("Finance Division: create a company, record real revenue, set a budget, inv
 
 });
 
+test("Research Division: create a mission, read it back, and mark it complete through every real endpoint (Phase 44)", async () => {
+
+    // Deliberately does NOT exercise POST .../citations or .../summary
+    // here -- both make a real network fetch + a real LLM call with no
+    // mock injection point reachable through the dashboard route (the
+    // underlying core/research/missions.js addCitation()/
+    // generateExecutiveSummary() logic is already thoroughly covered,
+    // mocked, in tests/research-missions.test.js). This test verifies
+    // the HTTP plumbing for the rest of the mission lifecycle.
+    process.env.API_TOKEN = "test-api-secret";
+
+    const authedHeaders = {
+        Authorization: "Bearer test-api-secret",
+        "Content-Type": "application/json"
+    };
+
+    const missionRes = await fetch(`${baseUrl}/api/research/missions`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ objective: "Dashboard research mission XQZDASH4", type: "industry" })
+    });
+    assert.strictEqual(missionRes.status, 200);
+    const mission = await missionRes.json();
+    assert.strictEqual(mission.status, "in_progress");
+    assert.strictEqual(mission.type, "industry");
+
+    const detailRes = await fetch(`${baseUrl}/api/research/missions/${mission.id}`);
+    assert.strictEqual((await detailRes.json()).objective, "Dashboard research mission XQZDASH4");
+
+    const listRes = await fetch(`${baseUrl}/api/research/missions`);
+    const list = await listRes.json();
+    assert.ok(list.some(m => m.id === mission.id));
+
+    const citationsRes = await fetch(`${baseUrl}/api/research/missions/${mission.id}/citations`);
+    assert.deepStrictEqual(await citationsRes.json(), []);
+
+    const rankedRes = await fetch(`${baseUrl}/api/research/missions/${mission.id}/ranked-sources`);
+    assert.deepStrictEqual(await rankedRes.json(), []);
+
+    const completeRes = await fetch(`${baseUrl}/api/research/missions/${mission.id}/complete`, {
+        method: "POST",
+        headers: authedHeaders
+    });
+    assert.strictEqual((await completeRes.json()).status, "completed");
+
+    const finalDetailRes = await fetch(`${baseUrl}/api/research/missions/${mission.id}`);
+    assert.strictEqual((await finalDetailRes.json()).status, "completed");
+
+});
+
 test("GET /api/memory without a filter returns the real stored memories", async () => {
 
     const res = await fetch(`${baseUrl}/api/memory`);
@@ -1035,6 +1085,10 @@ const ALL_POST_ROUTES = [
     "/api/finance/invoices/test-id/status",
     "/api/finance/subscriptions",
     "/api/finance/subscriptions/test-id/cancel",
+    "/api/research/missions",
+    "/api/research/missions/test-id/citations",
+    "/api/research/missions/test-id/summary",
+    "/api/research/missions/test-id/complete",
     "/api/departments/athena/run",
     "/api/tools/memory.recall/run"
 ];
