@@ -47,8 +47,26 @@ async function loadStatus(){
     document.getElementById("status-banner").textContent =
         `${status.status} — ${status.agents} agents, ${status.departments} departments — uptime ${status.uptimeSeconds}s`;
 
-    document.getElementById("system-health").textContent =
-        `Executive core online since ${new Date(Date.now() - status.uptimeSeconds * 1000).toLocaleTimeString()}`;
+    // Project F (Self Diagnostics): the real, unified 0-100 health
+    // score, not just an uptime string -- the Executive Summary panel
+    // is exactly where a degraded/critical score belongs, alongside
+    // Critical Alerts. Fixed alongside this: index.html previously had
+    // a real duplicate id="system-health" on two different <div>s (this
+    // one and the "System" panel's own Health widget below) -- only the
+    // first ever received anything, via getElementById()'s
+    // first-match-wins behavior; this one is now uniquely
+    // "executive-system-health".
+    try {
+
+        const health = await fetchJSON("/api/system/health-score");
+        const el = document.getElementById("executive-system-health");
+
+        el.textContent = `${health.status.toUpperCase()} (${health.score}/100)` +
+            (health.breakdown.length ? `\n${health.breakdown.map(b => `- ${b.detail}`).join("\n")}` : "");
+
+    } catch(error){
+        document.getElementById("executive-system-health").textContent = `Error: ${error.message}`;
+    }
 
 }
 
@@ -3860,6 +3878,19 @@ async function loadSystemHealth(){
         health.disk.error ? `Disk: unavailable (${health.disk.error})` : `Disk (${health.disk.path}): ${health.disk.usedPercent}% used`,
         ...health.services.map(s => `${s.name}: ${s.running ? "running" : "stopped"}`)
     ];
+
+    // Project F (Self Diagnostics): the same unified score the
+    // Executive Summary panel shows, plus its full real breakdown --
+    // this panel is the detailed view, that one is the at-a-glance one.
+    try {
+
+        const score = await fetchJSON("/api/system/health-score");
+        lines.push("", `Unified score: ${score.status.toUpperCase()} (${score.score}/100)`);
+        lines.push(...score.breakdown.map(b => `  - [${b.category}] ${b.detail} (-${b.penalty})`));
+
+    } catch(error){
+        lines.push("", `Unified score: Error: ${error.message}`);
+    }
 
     container.textContent = lines.join("\n");
 

@@ -2232,3 +2232,66 @@ a real, existing vault/root, and honestly reports `configured: false`
 against a real, deliberately-missing one.
 
 716 -> 720 tests, all passing.
+
+## Project F -- Self Diagnostics: a unified health score
+
+**Audit first:** `core/system/health.js` (CPU/RAM/disk/running
+services), `core/system/connectorHealth.js` (real connector
+status-transition detection), and `core/system/selfImprovement.js`
+(poor performers, broken/outdated capabilities, architecture debt)
+each already compute a real signal -- but each reports separately, with
+no single combined view. Genuinely missing, and now built.
+
+**Added:** `core/system/healthScore.js`'s `score()` -- a deterministic,
+explainable 0-100 score. Fixed thresholds/penalties (documented
+constants, not a hidden model): -15 each for CPU load/RAM/disk over
+90%, -10 per non-running internal service, -10 per poor-performing
+department, -5 per poor-performing tool, -10 per capability in a real
+error state. Every deduction lands in a real `breakdown` array naming
+the exact metric that caused it -- never a bare number. `health`/
+`poorPerformers`/`broken` are optional overrides (same
+dependency-injection convention `core/executive/actionProposal.js`'s
+Phase 50 `departments` override established) so tests can supply exact,
+deterministic real-shaped data without spiking this machine's actual
+CPU or manufacturing a real failing department.
+
+**Wired into Project B (startup diagnostics):**
+`core/system/startupManager.js`'s `start()` now calls
+`runStartupDiagnostics()` -- NOT awaited, so a slow CPU/disk read never
+delays actually spawning the dashboard child process, logged (not
+thrown) so a diagnostics failure never blocks startup. `status()`
+gained `lastStartupDiagnostics`. This is the "startup diagnostics"
+piece Project B's own spec named that didn't exist before.
+
+**A real, pre-existing bug fixed in the same pass:**
+`dashboard/frontend/index.html` had a genuine duplicate
+`id="system-health"` on two different `<div>`s (flagged repeatedly in
+`docs/NEXT_STEPS.md` since it was first found, always deferred as
+"needs a browser pass" -- but this was a structural correctness bug,
+not a visual/design one, so it didn't actually need a browser to fix).
+`getElementById()`'s first-match-wins behavior meant the "System"
+panel's own dedicated Health widget had never once been populated --
+whichever of the two writers ran last silently won the shared element.
+Fixed by renaming the Executive Summary panel's copy to
+`executive-system-health`; both now correctly show their own real
+content (a compact score at the top of the page, the full CPU/RAM/disk/
+service/score breakdown in the System panel).
+
+**Wired into:** `GET /api/system/health-score` (dashboard route), the
+Executive Summary panel (compact score + status), and the System
+panel's Health widget (full breakdown).
+
+**Tests:** `tests/system-health-score.test.js` (8 tests) -- an all-clear
+snapshot scoring exactly 100; each threshold (CPU/memory/disk/disk-read-
+error/service-down) deducting exactly the documented penalty with a
+traceable breakdown entry; poor departments/tools/broken capabilities
+all deducting and citing their exact real numbers; the score floor
+never going below 0 under many simultaneous real problems;
+`statusFor()`'s exact boundary mapping; and the real, live, no-overrides
+pipeline running end to end without throwing. `tests/system-startup-manager.test.js`
+gained 2 -- `runStartupDiagnostics()` populating a real score onto
+`status()` without ever throwing, and `start()` proven to trigger
+diagnostics without blocking the actual child-process spawn. Plus 1 new
+dashboard test for the GET route.
+
+720 -> 731 tests, all passing.

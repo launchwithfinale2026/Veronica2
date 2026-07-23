@@ -67,6 +67,7 @@ const ResearchEngine = require("../../core/research/engine");
 const SelfImprovementEngine = require("../../core/system/selfImprovement");
 const OrganizationOverview = require("../../core/executive/organizationOverview");
 const systemHealth = require("../../core/system/health");
+const healthScore = require("../../core/system/healthScore");
 const universalSearch = require("../../core/system/search");
 const executiveSummary = require("../../core/executive/executiveSummary");
 const PersonalContextEngine = require("../../core/profile/personalContextEngine");
@@ -734,6 +735,15 @@ function createServer(){
             // ROUTES table below.
             if(parsed.pathname === "/api/system/health" && req.method === "GET"){
                 return sendJSON(res, 200, await systemHealth.generate());
+            }
+
+            // Project F (Self Diagnostics): the unified, explainable
+            // 0-100 health score combining CPU/RAM/disk/services
+            // (health.js), poor-performing departments/tools
+            // (selfImprovement.js), and broken capabilities
+            // (marketplace.js) -- see core/system/healthScore.js.
+            if(parsed.pathname === "/api/system/health-score" && req.method === "GET"){
+                return sendJSON(res, 200, await healthScore.score());
             }
 
             // Universal search across memory/knowledge/capabilities in

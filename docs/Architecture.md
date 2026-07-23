@@ -4031,3 +4031,91 @@ fields; both filesystem connectors' `status()` proven against a real
 existing directory and a real deliberately-missing one.
 
 720 tests (716 -> 720), `npm test` green.
+
+## Project F -- Self Diagnostics: a unified health score
+
+**Audit first, three real signals, zero combination.**
+`core/system/health.js` reports real CPU/RAM/disk/service metrics as a
+point-in-time snapshot with no scoring. `core/system/connectorHealth.js`
+only detects a connector's `configured` status FLIPPING between two
+polls (Phase 52) -- it has no opinion on whether the current state is
+good or bad. `core/system/selfImprovement.js` (Phase 30) produces real
+proposals (poor performers, broken/outdated capabilities, architecture
+debt) but explicitly never executes or scores anything -- "this engine
+never changes anything; it only reports" is its own header comment's
+words. None of the three talk to each other. Project F's actual job was
+combining what already exists into one number, not building a fourth
+parallel analysis system.
+
+**`core/system/healthScore.js`'s `score()`: fixed, documented,
+deterministic arithmetic.** `PENALTIES`/`THRESHOLDS` are plain, editable
+constants at the top of the file -- CPU load/RAM/disk each over 90%
+costs 15 points; each non-running internal service costs 10; each
+poor-performing department costs 10, each poor-performing tool costs 5;
+each capability in a real error state costs 10. Every single deduction
+pushes a `{ category, detail, penalty }` entry onto a real `breakdown`
+array BEFORE the point total is touched -- the final score is always
+reconstructable by summing the breakdown, never a number with no
+paper trail. `statusFor()` maps the 0-100 range to
+healthy/fair/degraded/critical at fixed boundaries (90/70/40), the same
+"explainable, not a model's guess" principle `core/executive/planner.js`'s
+department-assignment scoring already established for this codebase.
+
+**A real dependency-injection need, anticipated from the design this
+time** (not discovered mid-test, unlike Phase 50's `departments`
+override or Phase 52's `cwd`/`stateFile` ones): `score({ health,
+poorPerformers, broken })` accepts each of the three combined signals
+as an optional override. Production code omits all three and gets the
+real, live pipeline; tests supply an exact 95%-loaded CPU reading or an
+exact poor-performing department entry, proving threshold behavior
+deterministically without spiking this actual machine's CPU or
+manufacturing a real failing department just to test a boundary.
+
+**Wired into Project B, closing its one genuinely-missing piece.**
+`core/system/startupManager.js`'s own Phase 21 design already covers
+crash recovery and hang detection -- "startup diagnostics" was the one
+real gap Project B's spec named that didn't exist. `start()` now calls
+a new `runStartupDiagnostics()`, deliberately NOT awaited (a slow disk
+read must never delay actually spawning the dashboard child process,
+which is the real priority at boot) and never throwing (logged via
+`core/logging` instead, since a diagnostics hiccup right at boot should
+never prevent VERONICA from starting at all). `status()` gained
+`lastStartupDiagnostics`.
+
+**A real, pre-existing structural bug, fixed because fixing it needed
+no browser.** `dashboard/frontend/index.html` had carried a genuine
+duplicate `id="system-health"` since before this development arc began
+-- flagged in `docs/NEXT_STEPS.md` across multiple snapshots, always
+deferred under "needs a browser pass" alongside the broader visual/UX
+redesign. But `document.getElementById()`'s first-match-wins behavior is
+a structural JavaScript fact, not a design opinion -- no browser was
+ever actually required to diagnose or fix which of two `<div>`s a
+script call was silently always targeting. The "System" panel's own
+dedicated Health widget had genuinely never been populated with
+anything since it was built; whichever of the two writer functions
+(`loadStatus()`'s brief uptime string, `loadSystemHealth()`'s full
+CPU/RAM/disk/service report) ran last on any given page load silently
+overwrote the other's content in the SAME shared element. Fixed by
+renaming the Executive Summary panel's copy to
+`executive-system-health` and repointing `loadStatus()` at it -- both
+now correctly render their own real content, and both were extended to
+show the new unified health score (a compact score+status line at the
+top of the page; the full breakdown in the System panel's detailed
+view).
+
+**Wired into:** `GET /api/system/health-score`.
+
+**Tests:** `tests/system-health-score.test.js` (8 tests) -- a 100/healthy
+all-clear baseline; each individual threshold (CPU/memory/disk/a real
+disk-read error/a down service) deducting exactly its documented
+penalty with a traceable breakdown entry; poor departments/tools/broken
+capabilities all deducting and citing their exact real numbers in the
+detail string; the 0-point floor holding under many simultaneous real
+problems at once; `statusFor()`'s exact boundary values; and the real,
+live, zero-override pipeline running end to end without throwing.
+`tests/system-startup-manager.test.js` gained 2 real tests for the new
+diagnostics wiring, including proof that `start()`'s synchronous return
+is never blocked by the async diagnostics call. Plus 1 new dashboard
+test.
+
+731 tests (720 -> 731), `npm test` green.

@@ -128,3 +128,40 @@ test("checkHealth() reports a real healthy status against a real ephemeral HTTP 
     assert.ok(unhealthy.error);
 
 });
+
+
+test("runStartupDiagnostics() populates a real, unified health score onto status(), without ever throwing (Project B/F)", async () => {
+
+    const { spawnFn } = fakeSpawnFactory();
+    const manager = new StartupManager({ entry: "/fake/entry.js", spawnFn, healthCheckIntervalMs: 999999 });
+
+    assert.strictEqual(manager.status().lastStartupDiagnostics, null);
+
+    await manager.runStartupDiagnostics();
+
+    const diagnostics = manager.status().lastStartupDiagnostics;
+
+    assert.ok(diagnostics);
+    assert.ok(typeof diagnostics.score === "number");
+    assert.ok(["healthy", "fair", "degraded", "critical"].includes(diagnostics.status));
+    assert.ok(Array.isArray(diagnostics.breakdown));
+
+});
+
+
+test("start() triggers startup diagnostics without blocking the actual spawn", () => {
+
+    const { spawnFn, children } = fakeSpawnFactory();
+    const manager = new StartupManager({ entry: "/fake/entry.js", spawnFn, healthCheckIntervalMs: 999999 });
+
+    const result = manager.start();
+
+    // start() itself is synchronous and must return immediately -- the
+    // real diagnostics call is a genuinely async CPU/RAM/disk read that
+    // must never delay actually spawning the child process.
+    assert.strictEqual(result.started, true);
+    assert.strictEqual(children.length, 1);
+
+    manager.stop();
+
+});

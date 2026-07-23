@@ -63,6 +63,7 @@ class StartupManager {
         this.restartTimer = null;
         this.stopped = true;
         this.lastHealth = null;
+        this.lastStartupDiagnostics = null;
 
     }
 
@@ -89,7 +90,38 @@ class StartupManager {
         this.healthTimer = setInterval(() => this.checkHealth(), this.healthCheckIntervalMs);
         this.healthTimer.unref?.();
 
+        // Project B (Resident Personal Operating System) / Project F
+        // (Self Diagnostics): a real, unified startup health report --
+        // NOT awaited, so a slow CPU/disk read never delays actually
+        // spawning the dashboard child process above, which is the real
+        // priority at boot. Logged, not thrown -- a diagnostics failure
+        // (e.g. this machine's disk stats being briefly unreadable right
+        // at boot) should never prevent VERONICA from starting.
+        this.runStartupDiagnostics();
+
         return { started: true, pid: this.child.pid };
+
+    }
+
+
+    async runStartupDiagnostics(){
+
+        try {
+
+            const healthScore = require("./healthScore");
+            const result = await healthScore.score();
+
+            log.info("startup-manager", `Startup diagnostics: ${result.status.toUpperCase()} (${result.score}/100)`);
+
+            for(const entry of result.breakdown){
+                log.warn("startup-manager", `Startup diagnostics: [${entry.category}] ${entry.detail}`);
+            }
+
+            this.lastStartupDiagnostics = result;
+
+        } catch(error){
+            log.error("startup-manager", `Startup diagnostics failed: ${error.message}`);
+        }
 
     }
 
@@ -178,7 +210,8 @@ class StartupManager {
             running: Boolean(this.child && !this.child.killed),
             pid: this.child ? this.child.pid : null,
             restarts: this.restarts.length,
-            lastHealth: this.lastHealth
+            lastHealth: this.lastHealth,
+            lastStartupDiagnostics: this.lastStartupDiagnostics || null
         };
 
     }

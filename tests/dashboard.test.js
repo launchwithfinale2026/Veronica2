@@ -387,6 +387,19 @@ test("GET /api/knowledge/query returns real matching entities and their real rel
 });
 
 
+test("GET /api/system/health-score returns the real, unified 0-100 health score (Project F)", async () => {
+
+    const res = await fetch(`${baseUrl}/api/system/health-score`);
+    assert.strictEqual(res.status, 200);
+
+    const body = await res.json();
+    assert.ok(typeof body.score === "number");
+    assert.ok(["healthy", "fair", "degraded", "critical"].includes(body.status));
+    assert.ok(Array.isArray(body.breakdown));
+
+});
+
+
 // Phase 57 (Knowledge Acquisition Engine): pure history read, no LLM
 // call -- safe to exercise over the real running server. The gated
 // POST .../acquire-file/.../acquire-note routes are already covered
