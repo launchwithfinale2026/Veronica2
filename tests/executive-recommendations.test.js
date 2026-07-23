@@ -170,3 +170,100 @@ test("run() persists a recommendation record and history() returns it", () => {
     assert.ok(history.some(r => r.id === record.id));
 
 });
+
+
+test("generate() annotates a fresh recommendation with a null acceptanceRate and zero timesRecommendedBefore before any real history exists (Phase 47 Organizational Learning)", () => {
+
+    const realPlanner = new ExecutivePlanner();
+    const project = realPlanner.plan({
+        title: "Adaptive fresh recommendation project XQZREC6",
+        department: "ares",
+        priority: 5,
+        deadline: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    });
+
+    const scoped = scopedPlanner(realPlanner, [project.id]);
+    const { engine } = makeEngines(scoped);
+
+    const rec = engine.generate().find(r => r.subject === project.id);
+
+    assert.ok(rec);
+    assert.strictEqual(rec.acceptanceRate, null);
+    assert.strictEqual(rec.timesRecommendedBefore, 0);
+
+});
+
+
+test("generate() reports a real acceptanceRate derived from an actual approved proposal's status (Phase 47 Organizational Learning)", () => {
+
+    const ActionProposalEngine = require("../core/executive/actionProposal");
+
+    const realPlanner = new ExecutivePlanner();
+    const project = realPlanner.plan({
+        title: "Adaptive acceptance recommendation project XQZREC7",
+        department: "ares",
+        priority: 5,
+        deadline: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    });
+
+    const scoped = scopedPlanner(realPlanner, [project.id]);
+    const { engine, projectManager } = makeEngines(scoped);
+
+    const rec = engine.generate().find(r => r.subject === project.id);
+    assert.ok(rec);
+
+    // A real proposal, from the real recommendation, genuinely approved
+    // -- core/learning/adaptiveInsights.js's recommendationAcceptance()
+    // reads exactly this kind of real, persisted status transition.
+    const proposalEngine = new ActionProposalEngine({ planner: scoped, projectManager });
+    const proposal = proposalEngine.fromRecommendation(rec);
+    proposalEngine.approve(proposal.id, "Approved for test XQZREC7");
+
+    const annotated = engine.generate().find(r => r.subject === project.id);
+
+    assert.strictEqual(annotated.acceptanceRate, 100);
+
+});
+
+
+test("generate() resurfaces a genuinely recurring recommendation more prominently, with a real recurrence count (Phase 47 Organizational Learning)", () => {
+
+    const realPlanner = new ExecutivePlanner();
+    const recurringProject = realPlanner.plan({
+        title: "Adaptive recurring recommendation project XQZREC8",
+        department: "ares",
+        priority: 5,
+        deadline: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    });
+
+    const oneTimeProject = realPlanner.plan({
+        title: "Adaptive one-time recommendation project XQZREC8",
+        department: "ares",
+        priority: 4,
+        deadline: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    });
+
+    const scoped = scopedPlanner(realPlanner, [recurringProject.id, oneTimeProject.id]);
+    const { engine } = makeEngines(scoped);
+
+    // Persist three real recommendation runs -- the recurring project's
+    // condition never changes, so it's genuinely re-flagged every time,
+    // building a real repetition count core/learning/adaptiveInsights.js's
+    // repeatedRecommendations() actually reads.
+    engine.run();
+    engine.run();
+    engine.run();
+
+    const recommendations = engine.generate();
+
+    const recurring = recommendations.find(r => r.subject === recurringProject.id);
+    const oneTime = recommendations.find(r => r.subject === oneTimeProject.id);
+
+    assert.ok(recurring);
+    assert.ok(oneTime);
+    assert.strictEqual(recurring.timesRecommendedBefore, 3);
+
+    // Resurfaced more prominently -- sorted ahead of a less-recurring one.
+    assert.ok(recommendations.indexOf(recurring) < recommendations.indexOf(oneTime));
+
+});

@@ -16,11 +16,15 @@
 // -- no LLM call, no fuzzy scoring, so every number here can be traced
 // back to the exact records that produced it.
 //
-// This is a REPORTING layer, not a feedback loop wired into
-// recommendation generation itself -- core/executive/executiveRecommendations.js's
-// generate() is untouched. Feeding this data back into HOW future
-// recommendations get generated is real future work (see
-// docs/NEXT_STEPS.md), not something this file does silently.
+// Phase 47 (Organizational Learning) closed the feedback loop this
+// header used to describe as future work:
+// core/executive/executiveRecommendations.js's generate() now calls
+// recommendationAcceptance()/repeatedRecommendations() (via
+// applyAdaptiveInsights()) to annotate every recommendation with its
+// real historical acceptance rate and real recurrence count, and to
+// resurface genuinely recurring issues more prominently. This module
+// itself stays a pure reporting layer -- generate() here is unchanged --
+// the feedback loop lives entirely on the consuming side.
 
 const memory = require("../memory");
 const automation = require("../automation");

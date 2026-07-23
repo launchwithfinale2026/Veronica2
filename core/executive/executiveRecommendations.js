@@ -106,6 +106,56 @@ class ExecutiveRecommendationEngine {
     }
 
 
+    // Phase 47 (Organizational Learning): the recommendation feedback
+    // loop core/learning/adaptiveInsights.js's own header comment
+    // explicitly named as real future work -- "feeding this data back
+    // into HOW future recommendations get generated." Annotates each
+    // recommendation with real, already-persisted historical outcomes:
+    // its kind's real acceptance rate (from every past proposal's own
+    // status transition) and how many times this exact kind+subject has
+    // been recommended before (a real recurrence, not a guessed
+    // pattern). Deliberately does NOT silently drop or hide a
+    // low-acceptance recommendation -- that would hide a real, current
+    // issue from the operator, which is the opposite of "explainable."
+    // Instead it annotates honestly and resurfaces genuinely recurring
+    // issues more prominently (sorted to the front), leaving the
+    // decision to act on a low-acceptance recommendation to the
+    // operator, same as always.
+    //
+    // Lazy require -- adaptiveInsights.js itself lazily requires this
+    // exact class back (for repeatedRecommendations()'s own TAG lookup),
+    // so this stays a safe, symmetrical lazy pair rather than a
+    // top-level cycle.
+    applyAdaptiveInsights(recommendations){
+
+        const adaptiveInsights = require("../learning/adaptiveInsights");
+
+        const acceptanceByKind = new Map(
+            adaptiveInsights.recommendationAcceptance().map(entry => [entry.action, entry])
+        );
+
+        const repeatedByKey = new Map(
+            adaptiveInsights.repeatedRecommendations().map(entry => [`${entry.kind}::${entry.subject}`, entry])
+        );
+
+        return recommendations
+            .map(rec => {
+
+                const acceptance = acceptanceByKind.get(rec.kind);
+                const repeated = repeatedByKey.get(`${rec.kind}::${rec.subject}`);
+
+                return {
+                    ...rec,
+                    acceptanceRate: acceptance ? acceptance.acceptanceRate : null,
+                    timesRecommendedBefore: repeated ? repeated.count : 0
+                };
+
+            })
+            .sort((a, b) => b.timesRecommendedBefore - a.timesRecommendedBefore);
+
+    }
+
+
     // Gathers fresh findings from all three engines and turns them into
     // recommendations -- no LLM call, no synthesis beyond the rules
     // above, so this is cheap enough to run as often as useful (every
@@ -116,12 +166,14 @@ class ExecutiveRecommendationEngine {
         const goalIssues = this.goalMonitor.check();
         const blockers = this.blockerDetector.detect();
 
-        return [
+        const recommendations = [
             ...this.fromDeadlocks(blockers.deadlockedProjects),
             ...this.fromBlockedTasks(blockers.blockedTasks),
             ...this.fromStalledProjects(goalIssues.stalledProjects),
             ...this.fromPriorityRanking(ranked)
         ];
+
+        return this.applyAdaptiveInsights(recommendations);
 
     }
 
