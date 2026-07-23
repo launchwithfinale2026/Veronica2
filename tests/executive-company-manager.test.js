@@ -212,3 +212,127 @@ test("company operations reject an unknown company id", () => {
     assert.throws(() => companyManager.logCommunication("not-a-real-id", { summary: "X" }));
     assert.throws(() => companyManager.projects("not-a-real-id"));
 });
+
+
+test("a new company's brandProfile starts as the real empty default shape", () => {
+
+    const { companyManager } = makeStack();
+
+    const company = companyManager.createCompany({ name: "Brand Default Co XQZC11" });
+
+    assert.strictEqual(company.brandProfile.mission, null);
+    assert.deepStrictEqual(company.brandProfile.values, []);
+    assert.deepStrictEqual(company.brandProfile.voice, { tone: null, style: null, doNots: [] });
+    assert.deepStrictEqual(company.history, []);
+
+});
+
+
+test("setBrandProfile() merges into the existing profile rather than replacing it (Phase 41 Company Brain)", () => {
+
+    const { companyManager } = makeStack();
+
+    const company = companyManager.createCompany({ name: "Brand Merge Co XQZC12" });
+
+    companyManager.setBrandProfile(company.id, { mission: "Ship real software XQZC12", values: ["honesty"] });
+    companyManager.setBrandProfile(company.id, { audience: "developers XQZC12", voice: { tone: "direct" } });
+
+    const profile = companyManager.getBrandProfile(company.id);
+
+    // Both calls' fields survive -- the second call didn't clobber the
+    // first's mission/values.
+    assert.strictEqual(profile.mission, "Ship real software XQZC12");
+    assert.deepStrictEqual(profile.values, ["honesty"]);
+    assert.strictEqual(profile.audience, "developers XQZC12");
+    // voice merges one level deeper too -- setting tone doesn't wipe
+    // style/doNots.
+    assert.strictEqual(profile.voice.tone, "direct");
+    assert.deepStrictEqual(profile.voice.doNots, []);
+
+});
+
+
+test("recordDecision() appends a real, live decision log entry (metadata.history was previously dead state)", () => {
+
+    const { companyManager } = makeStack();
+
+    const company = companyManager.createCompany({ name: "Decision Log Co XQZC13" });
+
+    companyManager.recordDecision(company.id, { decision: "Adopt Claude as primary LLM XQZC13", reason: "Already integrated" });
+    companyManager.recordDecision(company.id, { decision: "Defer paid ads XQZC13" });
+
+    const history = companyManager.getCompany(company.id).history;
+
+    assert.strictEqual(history.length, 2);
+    assert.strictEqual(history[0].decision, "Adopt Claude as primary LLM XQZC13");
+    assert.strictEqual(history[0].reason, "Already integrated");
+    assert.strictEqual(history[1].reason, null);
+    assert.ok(history[0].timestamp);
+
+});
+
+
+test("recordDecision() requires a decision summary", () => {
+
+    const { companyManager } = makeStack();
+
+    const company = companyManager.createCompany({ name: "Decision Required Co XQZC14" });
+
+    assert.throws(() => companyManager.recordDecision(company.id, {}));
+
+});
+
+
+test("clientRelationships() reports business relationships without the departments/employees/documents edges already modeled elsewhere", () => {
+
+    const { companyManager } = makeStack();
+
+    const company = companyManager.createCompany({ name: "Client Relationships Co XQZC15", departments: ["hades"] });
+
+    companyManager.addEmployee(company.id, "Test Employee XQZC15");
+    companyManager.addDocument(company.id, "spec.md XQZC15");
+    companyManager.addRelationship(company.id, { to: "Acme Corp XQZC15", type: "client" });
+    companyManager.addRelationship(company.id, { to: "Vendor Co XQZC15", type: "vendor" });
+
+    const clients = companyManager.clientRelationships(company.id);
+
+    assert.strictEqual(clients.length, 2);
+    assert.ok(clients.some(c => c.to === "Acme Corp XQZC15" && c.type === "client"));
+    assert.ok(clients.some(c => c.to === "Vendor Co XQZC15" && c.type === "vendor"));
+    // The department (staffedBy) and employee (employedBy) edges must NOT
+    // leak into this view -- they're already modeled as `departments`/
+    // `employees` fields.
+    assert.ok(!clients.some(c => c.type === "staffedBy" || c.type === "employedBy" || c.type === "produces"));
+
+});
+
+
+test("companyBrain() aggregates every Company Brain field, including real campaigns, in one call (Phase 41)", () => {
+
+    const { companyManager } = makeStack();
+    const campaigns = require("../core/marketing/campaigns");
+
+    const company = companyManager.createCompany({ name: "Company Brain Co XQZC16" });
+
+    companyManager.setBrandProfile(company.id, { mission: "Test the brain XQZC16", products: ["Widget"] });
+    companyManager.recordDecision(company.id, { decision: "Launch Q3 XQZC16" });
+    companyManager.addEmployee(company.id, "Brain Employee XQZC16");
+    companyManager.addRelationship(company.id, { to: "Brain Client XQZC16", type: "client" });
+
+    const campaign = campaigns.createCampaign({ companyId: company.id, objective: "Brain campaign XQZC16" });
+
+    const brain = companyManager.companyBrain(company.id);
+
+    assert.strictEqual(brain.name, "Company Brain Co XQZC16");
+    assert.strictEqual(brain.mission, "Test the brain XQZC16");
+    assert.deepStrictEqual(brain.products, ["Widget"]);
+    assert.strictEqual(brain.historicalDecisions.length, 1);
+    assert.strictEqual(brain.team.length, 1);
+    assert.ok(brain.clients.some(c => c.to === "Brain Client XQZC16"));
+    assert.strictEqual(brain.campaigns.length, 1);
+    assert.strictEqual(brain.campaigns[0].id, campaign.id);
+    assert.ok(brain.financialSummary);
+    assert.deepStrictEqual(brain.departments, []);
+    assert.deepStrictEqual(brain.projects, []);
+
+});

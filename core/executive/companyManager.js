@@ -31,6 +31,29 @@ const DEPARTMENTS_REGISTRY = path.join(__dirname, "../../registry/departments.js
 
 const COMPANY_TAG = "executive-company";
 
+// Phase 41 (Marketing Division / Company Brain). Every field the "Company
+// Brain" spec asks for that ISN'T already covered by an existing concept
+// (departments/employees/finances/projects/communications/relationships
+// all already existed -- see this file's header comment) -- stored as one
+// object on metadata.brandProfile, same shallow-merge-on-update pattern
+// every other metadata field here already uses. Defaults keep every
+// consumer able to assume the full shape exists, same reasoning as
+// core/capabilities/manifest.js's normalize().
+const EMPTY_BRAND_PROFILE = {
+    mission: null,
+    vision: null,
+    values: [],
+    brand: null,
+    products: [],
+    services: [],
+    goals: [],
+    audience: null,
+    competitors: [],
+    assets: [],
+    operatingRules: [],
+    voice: { tone: null, style: null, doNots: [] }
+};
+
 
 class CompanyManager {
 
@@ -78,6 +101,8 @@ class CompanyManager {
             // core/executive/companyContext.js). A non-empty list
             // restricts it to just those roles.
             permissions: meta.permissions || { allowedRoles: [] },
+            brandProfile: { ...EMPTY_BRAND_PROFILE, ...(meta.brandProfile || {}) },
+            history: meta.history || [],
             created: entry.created,
             updated: entry.updated
         };
@@ -130,6 +155,7 @@ class CompanyManager {
                 documents: [],
                 finances: [],
                 permissions: { allowedRoles },
+                brandProfile: { ...EMPTY_BRAND_PROFILE },
                 history: []
             }
         });
@@ -252,6 +278,28 @@ class CompanyManager {
     }
 
 
+    // Every business relationship (client/partner/vendor -- whatever
+    // addRelationship() above was called with) this company has, as
+    // {to, type}. Every OTHER edge touching a company entity comes from a
+    // different, already-modeled concept (staffedBy = departments,
+    // employedBy = employees/team, produces = documents) -- excluding
+    // those three leaves exactly the free-form business relationships
+    // addRelationship() creates, without needing a second parallel list.
+    clientRelationships(companyId){
+
+        const entry = this.requireEntry(companyId);
+        const MODELED_ELSEWHERE = new Set(["staffedBy", "employedBy", "produces"]);
+
+        return knowledge.connections(entry.content)
+            .filter(rel => !MODELED_ELSEWHERE.has(rel.type))
+            .map(rel => ({
+                to: rel.from.toLowerCase() === entry.content.toLowerCase() ? rel.to : rel.from,
+                type: rel.type
+            }));
+
+    }
+
+
     // Communications are a stream, not a small bounded list like
     // employees/documents -- stored as their own searchable memory
     // entries (type "businesses", tagged to this company + "communication")
@@ -298,6 +346,112 @@ class CompanyManager {
         this.requireEntry(companyId);
 
         return this.planner.roadmap({ company: companyId });
+
+    }
+
+
+    // Partial update -- merges into the existing brandProfile rather than
+    // replacing it, so "set the mission" and "set the audience" can be two
+    // separate calls without clobbering each other. `voice` merges one
+    // level deeper for the same reason (tone/style/doNots are usually set
+    // independently too).
+    setBrandProfile(companyId, patch = {}){
+
+        const entry = this.requireEntry(companyId);
+        const current = { ...EMPTY_BRAND_PROFILE, ...(entry.metadata.brandProfile || {}) };
+
+        const brandProfile = {
+            ...current,
+            ...patch,
+            voice: { ...current.voice, ...(patch.voice || {}) }
+        };
+
+        const updated = memory.update(companyId, { metadata: { brandProfile } });
+
+        return updated.metadata.brandProfile;
+
+    }
+
+
+    getBrandProfile(companyId){
+
+        const entry = this.requireEntry(companyId);
+
+        return { ...EMPTY_BRAND_PROFILE, ...(entry.metadata.brandProfile || {}) };
+
+    }
+
+
+    // Historical decisions -- metadata.history existed as a field since
+    // this file's very first version but nothing ever appended to it
+    // (found true during the Phase 41 Company Brain audit). This is what
+    // makes it a real, live decision log rather than always-empty dead
+    // state.
+    recordDecision(companyId, { decision, reason } = {}){
+
+        if(!decision){
+            throw new Error("A decision summary is required");
+        }
+
+        const entry = this.requireEntry(companyId);
+
+        const history = [
+            ...(entry.metadata.history || []),
+            { decision, reason: reason || null, timestamp: new Date().toISOString() }
+        ];
+
+        const updated = memory.update(companyId, { metadata: { history } });
+
+        return updated.metadata.history;
+
+    }
+
+
+    // The "Company Brain" -- every field the spec asks for, in one place.
+    // Reuses every existing concept rather than duplicating it:
+    // departments/employees(team)/finances already lived on the entry,
+    // projects(goals-in-execution)/communications were already derived
+    // views, relationships already lived in the knowledge graph. Campaigns
+    // is the one genuinely new addition (core/marketing/campaigns.js,
+    // lazy-required here to avoid a circular require -- campaigns.js has
+    // no reason to require this file back, but keeping the require local
+    // to this one method matches this codebase's standing convention for
+    // any cross-module pull that isn't needed at load time).
+    companyBrain(companyId){
+
+        const company = this.getCompany(companyId);
+        const campaigns = require("../marketing/campaigns");
+
+        return {
+
+            id: company.id,
+            name: company.name,
+            industry: company.industry,
+            status: company.status,
+
+            mission: company.brandProfile.mission,
+            vision: company.brandProfile.vision,
+            values: company.brandProfile.values,
+            brand: company.brandProfile.brand,
+            voice: company.brandProfile.voice,
+            products: company.brandProfile.products,
+            services: company.brandProfile.services,
+            goals: company.brandProfile.goals,
+            audience: company.brandProfile.audience,
+            competitors: company.brandProfile.competitors,
+            assets: company.brandProfile.assets,
+            operatingRules: company.brandProfile.operatingRules,
+
+            departments: company.departments,
+            projects: company.projects,
+            campaigns: campaigns.listCampaigns(companyId),
+            clients: this.clientRelationships(companyId),
+            team: company.employees,
+            historicalDecisions: company.history,
+
+            financialSummary: company.financialSummary
+
+        };
 
     }
 
