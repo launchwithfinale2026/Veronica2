@@ -315,15 +315,19 @@ test("GET /api/capabilities/health reports real per-package operational status (
     const res = await fetch(`${baseUrl}/api/capabilities/health`);
     const body = await res.json();
 
-    // The six real, active production packages (Phase 35/41) all have
-    // only generated-skeleton tools right now -- see
-    // core/capabilities/health.js and tests/capabilities-health.test.js
-    // for the underlying logic this endpoint just exposes.
-    const tradingResearch = body.find(entry => entry.name === "trading-research");
-    assert.ok(tradingResearch);
-    assert.strictEqual(tradingResearch.operationalStatus, "installed_awaiting_integration");
-    assert.strictEqual(tradingResearch.operationalStatusLabel, "Installed – Awaiting Integration");
-    assert.ok(tradingResearch.agentsLoaded > 0);
+    // Five of the six real, active production packages (Phase 35) have
+    // since gone through their own production-readiness pass (Phase
+    // 41-45: marketing, sales, finance, research-department,
+    // trading-research) and now genuinely report "active" -- only
+    // business-operations still has a generated-skeleton tool, awaiting
+    // the same pass. See core/capabilities/health.js and
+    // tests/capabilities-health.test.js for the underlying logic this
+    // endpoint just exposes.
+    const businessOperations = body.find(entry => entry.name === "business-operations");
+    assert.ok(businessOperations);
+    assert.strictEqual(businessOperations.operationalStatus, "installed_awaiting_integration");
+    assert.strictEqual(businessOperations.operationalStatusLabel, "Installed – Awaiting Integration");
+    assert.ok(businessOperations.agentsLoaded > 0);
 
 });
 

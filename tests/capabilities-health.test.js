@@ -284,6 +284,28 @@ test("the real \"research-department\" package genuinely reports \"active\", not
 });
 
 
+test("the real \"trading-research\" package genuinely reports \"active\", not \"Installed – Awaiting Integration\" (Phase 45 Trading Research Division)", () => {
+
+    // Same signal as marketing/sales/finance/research above --
+    // trading.portfolio.review was given a real implementation
+    // (packages/trading-research/tools/trading.portfolio.review.js --
+    // calls core/trading/analytics.js for real) as part of Trading
+    // Research Division production-readiness. core/trading/analytics.js
+    // was written with core/learning required lazily from the start,
+    // having now seen the circular-require bug class three times
+    // (Sales, Marketing, Research).
+    const report = health.report().find(r => r.name === "trading-research");
+
+    assert.ok(report);
+    assert.strictEqual(report.operationalStatus, "active");
+    assert.strictEqual(report.operationalStatusLabel, "Active");
+    assert.deepStrictEqual(report.skeletonTools, []);
+    assert.strictEqual(report.agentsLoaded, report.agentsDeclared);
+    assert.strictEqual(report.toolsLoaded, report.toolsDeclared);
+
+});
+
+
 test("report() excludes core capabilities entirely", () => {
 
     const report = health.report();

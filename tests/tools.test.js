@@ -415,6 +415,25 @@ test("research.dept.synthesize tool is registered and wired correctly through th
 
 });
 
+test("trading.portfolio.review tool runs end to end through the real Tool Registry (Phase 45 -- no longer a skeleton)", async () => {
+
+    const portfolio = require("../core/trading/portfolio");
+
+    const p = portfolio.createPortfolio({ name: "Tool Test Trading Portfolio XQZTOOL4", startingCash: 10000 });
+    portfolio.applyTrade(p.id, { symbol: "ACME", side: "buy", quantity: 10, price: 100 });
+
+    const review = await tools.run(
+        "trading.portfolio.review",
+        { portfolioId: p.id, currentPrices: { ACME: 120 } },
+        { role: "agent" }
+    );
+
+    assert.strictEqual(review.value.positions[0].unrealizedPnl, 200);
+    assert.strictEqual(review.performance.closedTrades, 0);
+    assert.ok("executionHealth" in review);
+
+});
+
 test("DepartmentManager.useTool() runs tools with department_manager permissions", async () => {
 
     const DepartmentManager = require("../core/departments/base");

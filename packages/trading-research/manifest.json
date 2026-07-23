@@ -31,8 +31,16 @@
     "tools": [
         {
             "id": "trading.portfolio.review",
-            "description": "Review a described portfolio's composition (skeleton -- not yet implemented; needs a real market data API).",
-            "permission": "read"
+            "description": "Real portfolio review via core/trading/analytics.js: position value/unrealized P&L (from caller-supplied current prices -- no market data feed exists), real realized P&L via FIFO lot matching, and execution telemetry. Research/analysis only, no trade execution.",
+            "permission": "read_memory",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "portfolioId": { "type": "string" },
+                    "currentPrices": { "type": "object" }
+                },
+                "required": ["portfolioId"]
+            }
         }
     ],
     "dependencies": [],
