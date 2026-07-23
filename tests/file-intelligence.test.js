@@ -101,3 +101,19 @@ test("searchFiles() requires a query, listFiles() requires the root to exist", (
     assert.throws(() => fileIntelligence.listFiles(path.join(TEMP_ROOT, "does-not-exist")));
 
 });
+
+
+test("isConfigured()/status() report the real sandboxed root's actual presence, not a hardcoded default (Connector Hardening)", () => {
+
+    assert.strictEqual(fileIntelligence.isConfigured(TEMP_ROOT), true);
+
+    const status = fileIntelligence.status(TEMP_ROOT);
+    assert.strictEqual(status.id, "fileIntelligence");
+    assert.strictEqual(status.configured, true);
+    assert.strictEqual(status.root, TEMP_ROOT);
+
+    const missingRoot = path.join(TEMP_ROOT, "does-not-exist-xqzfile-status");
+    assert.strictEqual(fileIntelligence.isConfigured(missingRoot), false);
+    assert.match(fileIntelligence.status(missingRoot).note, /No directory at/);
+
+});

@@ -10,13 +10,15 @@
 // answers "what integrations exist and are any of them configured,"
 // for a dashboard/terminal overview.
 //
-// core/integrations/obsidian.js, http.js, and fileIntelligence.js
-// predate the isConfigured()/status() connector convention
-// github.js/discord.js/calendar.js/email.js/cloudStorage.js follow, so
-// their entries below describe status from what's already knowable
-// about them rather than calling a method they don't have -- adding
-// that convention to them retroactively isn't needed for this registry
-// to be accurate, and doing so isn't this milestone's ask.
+// Connector Hardening: obsidian.js/fileIntelligence.js now follow the
+// same isConfigured()/status() convention every other connector already
+// does (added when it turned out to be a real, missing gap -- see each
+// module's own header comment). http.js is the one real exception left:
+// it's the shared outbound-request layer every other connector's
+// status() already calls into for retry/timeout, not a connector with
+// its own credential/directory to check, so its entry below still
+// describes it directly rather than via a method it has no reason to
+// have.
 
 const http = require("./http");
 const github = require("./github");
@@ -26,6 +28,8 @@ const googleOAuth = require("./google/oauth");
 const calendar = require("./calendar");
 const email = require("./email");
 const cloudStorage = require("./cloudStorage");
+const obsidian = require("./obsidian");
+const fileIntelligence = require("./fileIntelligence");
 
 // Phase 36 (Connector Completion): Claude/OpenAI are credential-gated
 // external services exactly like every connector above, but had no
@@ -67,13 +71,15 @@ function list(){
 
     return [
 
-        {
-            id: "obsidian",
-            kind: "filesystem",
-            implemented: true,
-            configured: true, // no credentials needed -- see core/integrations/obsidian.js
-            note: "Reads/writes a local Obsidian vault (OBSIDIAN_VAULT_PATH, defaults to the repo root). No credentials required."
-        },
+        // Connector Hardening: obsidian.js/fileIntelligence.js now report
+        // their own real status() (does the real vault/root directory
+        // actually exist right now) instead of a hardcoded `configured:
+        // true` -- these are local filesystem connectors, not
+        // credentialed ones, so "configured" honestly means "the real
+        // directory is there," not "no setup is ever possible to get
+        // wrong" (a deleted/misconfigured OBSIDIAN_VAULT_PATH is a real,
+        // reportable state).
+        { kind: "filesystem", ...obsidian.status() },
 
         {
             id: "http",
@@ -85,13 +91,7 @@ function list(){
                 : "No hosts allowlisted -- set SERVICE_ALLOWLIST to enable any outbound request."
         },
 
-        {
-            id: "fileIntelligence",
-            kind: "filesystem",
-            implemented: true,
-            configured: true, // no credentials needed -- see core/integrations/fileIntelligence.js
-            note: "Indexes local files under data/workspace/ into memory. No credentials required."
-        },
+        { kind: "filesystem", ...fileIntelligence.status() },
 
         {
             id: "claude",

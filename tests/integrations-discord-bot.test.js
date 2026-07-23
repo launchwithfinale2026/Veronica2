@@ -80,6 +80,12 @@ class FakeClient {
         }
     }
 
+    async emit(event, payload){
+        for(const handler of (this.handlers[event] || [])){
+            await handler(payload);
+        }
+    }
+
 }
 
 function fakeInteraction({ commandName = "status", userTag = "human#0001", userId = "u1", guildId = "g1", reply } = {}){
@@ -217,6 +223,58 @@ test("sendMessage() throws clearly when the bot isn't running, and sends for rea
         assert.strictEqual(sent.content, "hello XQZDB5");
 
         await assert.rejects(() => discordBot.sendMessage(), /channelId and content are required/);
+
+    } finally {
+        discordBot.stop();
+    }
+
+});
+
+
+test("a real gateway 'error' event does not crash the process, and status() reflects it (Connector Hardening -- real bug fix)", async () => {
+
+    process.env.DISCORD_BOT_TOKEN = "fake-bot-token-xqzdb6";
+
+    let fake;
+    await discordBot.start({ clientFactory: () => { fake = new FakeClient(); return fake; } });
+
+    try {
+
+        // Before this fix, a real discord.js Client with no "error"
+        // listener would let Node throw this as an uncaught exception --
+        // this only proves it resolves cleanly (no throw) and is
+        // observable afterward, not that a crash is impossible in
+        // principle (Node's own EventEmitter guarantee is what actually
+        // prevents it once a listener exists).
+        await fake.emit(Events.Error, new Error("simulated gateway error XQZDB6"));
+
+        const status = discordBot.status();
+        assert.strictEqual(status.lastErrorMessage, "simulated gateway error XQZDB6");
+
+    } finally {
+        discordBot.stop();
+    }
+
+});
+
+
+test("gateway disconnect/reconnecting/resume events are tracked in real status() fields", async () => {
+
+    process.env.DISCORD_BOT_TOKEN = "fake-bot-token-xqzdb7";
+
+    let fake;
+    await discordBot.start({ clientFactory: () => { fake = new FakeClient(); return fake; } });
+
+    try {
+
+        await fake.emit(Events.ShardDisconnect);
+        assert.ok(discordBot.status().lastDisconnectedAt);
+
+        await fake.emit(Events.ShardReconnecting);
+        await fake.emit(Events.ShardReconnecting);
+        assert.strictEqual(discordBot.status().reconnectAttempts, 2);
+
+        await fake.emit(Events.ShardResume);
 
     } finally {
         discordBot.stop();

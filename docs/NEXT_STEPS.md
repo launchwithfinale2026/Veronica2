@@ -1,105 +1,97 @@
 # VERONICA — Next Steps
 
-Snapshot as of Phase 59 (Autonomous Capability Builder). 716/716 tests
-passing. **Standing objective**: continue autonomously until there is
-genuinely nothing left that can be built locally without external
-credentials, hardware, OAuth, a legal/business decision, or
-browser-based visual verification.
+Snapshot as of **Project D, part 1 (Connector Hardening)**. 720/720
+tests passing. **The objective reframed again**: Phases 42-59 are
+complete (see `docs/CHANGELOG.md`); Phases 58 (Mission Control
+Dashboard) and 60 (Personal Operating System) were identified as
+genuine external blockers. The new standing instruction is "turn the
+architecture into daily-usable software," organized into lettered
+Projects rather than numbered phases:
 
-**Phases 58 and 60 are genuine stop conditions, not skipped work:**
-
-- **Phase 58 (Mission Control Dashboard)** asks for a ~25-panel
-  command-center visual/UX redesign. Every division/phase built across
-  this entire project already has a working, endpoint-verified
-  dashboard panel -- what's missing is a cohesive visual pass, which
-  requires actually looking at rendered pages in a browser and
-  iterating on layout/typography/interaction. This environment has no
-  browser access. Attempting this blind risks shipping a redesign that
-  looks broken or incoherent without any way to verify it first --
-  exactly the "browser-only visual validation required" stop condition
-  named in the standing instructions.
-- **Phase 60 (Personal Operating System / boot-time resident
-  supervisor)** requires a real macOS LaunchAgent installed on the
-  operator's actual machine, real decisions about background process
-  supervision, and (per the phase's own instruction) must not interfere
-  with sleep/shutdown/restart -- genuinely an operator's machine, an
-  operator's decision, not something buildable or safely testable from
-  inside this environment.
-
-Both are real, named blockers -- see `docs/CHANGELOG.md` for the full
-phase-by-phase history of everything else that WAS completed.
+- **Project A** — Mission Control Dashboard (command-center redesign;
+  browser-blocked for the final visual pass, but structural/data work
+  is not blocked)
+- **Project B** — Resident Personal Operating System (turns out
+  substantially already built -- see below)
+- **Project C** — Device Synchronization
+- **Project D** — Connector Hardening (in progress)
+- **Project E** — Executive UX
+- **Project F** — Self Diagnostics (unified health score)
+- **Project G** — Autonomous Maintenance
+- **Project H** — Package Quality
+- **Project I** — Production Polish
 
 ## Resolved since the last snapshot
 
-- **Autonomous Capability Builder** (Phase 59): `core/capabilities/builder.js`
-  gained a `KNOWN_TOOL_SHAPES` registry -- a tool declared with a
-  recognized shape (`department_health_review` ships today) gets a
-  REAL, generic implementation (real execution telemetry via
-  `core/learning.departmentPerformance()`) instead of an always-throwing
-  skeleton, without fabricating domain-specific business logic for
-  capabilities that don't have any yet. `autonomousBuilder.js`'s
-  default review tool now uses this shape, and a real, previously-
-  invalid `permission: "read"` bug was found and fixed in the same pass
-  (found only once the tool became genuinely callable).
+- **Project D, part 1**: A real crash-risk bug fixed in
+  `core/integrations/discordBot.js` (an unhandled discord.js `"error"`
+  event would have crashed the entire process on a real gateway
+  hiccup -- now wired with real reconnection-visibility fields). Real
+  `status()`/`isConfigured()` added to `core/integrations/obsidian.js`/
+  `core/integrations/fileIntelligence.js` (previously hardcoded
+  `configured: true`), wired into `core/integrations/registry.js`.
 
-## Resolved earlier (Phase 41-57, unchanged from the last snapshot)
+## Audit correction: Project B is mostly already done
 
-- **Knowledge Acquisition Engine** (Phase 57): real, LLM-based
-  structured extraction over indexed files/notes, connected into the
-  knowledge graph.
-- **Personal Intelligence Engine** (Phase 56): evidence-cited
-  inferences with real confidence scoring and correction.
-- **Multi-Model Intelligence** (Phase 55): per-task-type provider
-  routing preferences.
-- **Automation Engine 2.0** (Phase 54): composable workflows.
-- **Continuous Observation Engine + Universal Event Bus** (Phase
-  52-53).
-- **Executive Constitution** (Phase 51).
-- **Department Collaboration** (Phase 50).
-- **Organizational Knowledge Graph expansion** (Phase 49).
-- **Executive Intelligence** (Phase 48).
-- **All six Divisions are production-ready** (Phase 41-46).
-- **The recommendation feedback loop is closed** (Phase 47).
-- **A real, recurring circular-require bug class** was found and fixed
-  four times: any module reachable from a package tool handler must not
-  top-level-require anything in the `core/learning`/`core/intelligence`/
-  `core/brain` chain.
-- **Minor, unrelated finding, not yet fixed**: `dashboard/frontend/index.html`
-  has a pre-existing duplicate `id="system-health"`.
+A full audit (before writing anything) found `core/system/startupManager.js`
+(Phase 21) already provides: a real launch supervisor (spawns the
+dashboard as a child process), automatic recovery with bounded,
+backoff-scaled crash restarts, and real HTTP-based hang detection
+(polls `/api/status`, not just "is the process alive"). `config/com.veronica.agent.plist`
+and `scripts/install-launch-agent.sh`/`uninstall-launch-agent.sh`
+already exist for the one deliberately-manual installation step. What
+Project B's spec asks for that genuinely doesn't exist yet:
+**connector reconnection** (Project D's job, in progress) and
+**startup diagnostics** (a real, combined health report at boot --
+Project F's unified health score, once built, is the natural thing to
+wire into `startupManager.js` here). "Event replay" was considered and
+rejected as manufactured scope: the real underlying state (memory,
+knowledge graph, automation queue) is already durable and reloaded
+correctly on restart; only transient live bus notifications are lost on
+a restart, which is expected and fine for a personal single-user
+system, not a real gap to build fake infrastructure for.
 
-## What remains -- all genuinely blocked on something external
+## In progress / next up (open-ended, not a fixed backlog)
 
-1. **Phase 58 — Mission Control Dashboard.** Blocked on browser access
-   for visual iteration (see above). When available: fix the
-   pre-existing `system-health` duplicate id, build a real "Knowledge
-   Graph Explorer" panel over `/api/knowledge/query`, and do the full
-   ~25-panel command-center visual/UX pass.
-2. **Phase 60 — Personal Operating System.** Blocked on a real
-   LaunchAgent install and operator decisions about background
-   supervision on their actual machine (see above).
-3. **The remaining human actions** (see `docs/NEXT_HUMAN_ACTIONS.md`):
-   `API_TOKEN`, `GITHUB_TOKEN`, `DISCORD_BOT_TOKEN`
-   (+`DISCORD_CLIENT_ID`), Google's two-step configure-then-authorize
-   flow. None of these block further development, only real external
-   connector usage.
-4. **External dependencies still unbuilt by design** (see
-   `docs/EXTERNAL_DEPENDENCIES.md`): banking connections, real broker
-   execution, a real market-data feed, a second real publishing
-   connector beyond Discord -- each requires real third-party
-   credentials/accounts this environment doesn't have and shouldn't
-   fabricate.
-5. **The git-history rewrite question** and **knowledge-graph company
-   isolation** (both Phase 10, still open) -- unchanged; open
-   business/architecture decisions for the operator, not technical
-   gaps.
-6. **More collaboration rules, more routing preferences, more
-   knowledge-acquisition source types** -- every Phase 50/55/57
-   framework was deliberately built to accept more of these later
-   without restructuring; none are blocked, they're just not
-   preemptively invented without a real, named need driving them.
+1. **Project F — Unified Health Score.** No single combined score
+   exists yet: `core/system/health.js` (CPU/RAM/disk/services),
+   `core/system/connectorHealth.js` (transition detection only), and
+   `core/system/selfImprovement.js` (proposals/reports) each report
+   separately. Real, deterministic, explainable point-deduction scoring
+   across all three is the next concrete piece of work.
+2. **Project D, part 2** — extend real retry logic (currently
+   centralized in `core/integrations/http.js`, GET-only via
+   `github.js`'s `requestWithRetry`) to other connectors where safe
+   (idempotent calls only).
+3. **Project B — wire the unified health score into `startupManager.js`**
+   as real startup diagnostics, once Project F exists.
+4. **Project A — dashboard panels genuinely missing**: Memory Timeline,
+   a dedicated Knowledge Graph Explorer (today only a widget inside
+   "Intelligence"), Package Management (today only Capability
+   Marketplace), AI Conversations. Structural/data work only --
+   `system-health` duplicate id fix and the full visual/UX pass still
+   wait on real browser access.
+5. **Project C — Device Synchronization**: real presence/heartbeat/sync
+   already exist (`core/device/`); "handoff" (marking a task/mission for
+   a specific device to pick up) and cross-device notifications
+   (queued, poll-based -- no push infrastructure exists or is being
+   fabricated) are the genuine gaps.
+6. **Project G — Autonomous Maintenance**: no real "clean temp data /
+   archive logs / remove duplicates / repair references" job exists
+   today. Real, SAFE, reversible work only (log rotation/archival);
+   anything riskier (duplicate/dangling-reference detection) should be
+   a REPORT, not an automatic action, matching "run only approval-free
+   maintenance" and "never remove human oversight."
+7. **Projects E, H, I** — executive-response formatting polish, a
+   per-package consistency audit, and general production polish --
+   applied opportunistically alongside the above rather than as
+   separate, dedicated efforts.
 
-With Phases 51-57 and 59 complete, and 58/60 documented as genuine
-external blockers, this closes out the phase list this development arc
-was pursuing. Further work from here should be driven by a real,
-specific need (a new division, a new integration, a bug found in real
-use) rather than continuing to generate speculative phases.
+## Unchanged, still open
+
+- The git-history rewrite question and knowledge-graph company
+  isolation (Phase 10) -- business/architecture decisions for the
+  operator, not technical gaps.
+- Phase 58/60's real external blockers (browser access; a real
+  LaunchAgent install on the operator's actual machine) -- Project B/A
+  work continues around them, not through them.

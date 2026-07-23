@@ -110,3 +110,30 @@ test("indexVault() ignores .obsidian/node_modules/backups directories", () => {
     assert.ok(!notes.some(n => n.includes("node_modules")));
 
 });
+
+
+test("isConfigured()/status() report the real vault directory's actual presence, not a hardcoded default (Connector Hardening)", () => {
+
+    assert.strictEqual(obsidian.isConfigured(), true);
+
+    const status = obsidian.status();
+    assert.strictEqual(status.id, "obsidian");
+    assert.strictEqual(status.configured, true);
+    assert.strictEqual(status.vaultPath, TEMP_VAULT);
+
+    const missingVault = fs.mkdtempSync(path.join(os.tmpdir(), "veronica-missing-vault-"));
+    const previous = process.env.OBSIDIAN_VAULT_PATH;
+    process.env.OBSIDIAN_VAULT_PATH = missingVault;
+
+    try {
+
+        assert.strictEqual(obsidian.isConfigured(), false);
+        assert.strictEqual(obsidian.status().configured, false);
+        assert.match(obsidian.status().note, /No ".obsidian\/" directory/);
+
+    } finally {
+        process.env.OBSIDIAN_VAULT_PATH = previous;
+        fs.rmSync(missingVault, { recursive: true, force: true });
+    }
+
+});

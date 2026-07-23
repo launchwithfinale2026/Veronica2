@@ -3988,3 +3988,46 @@ the fix reaches all the way through the real pipeline, not just the
 unit-level template function.
 
 716 tests (712 -> 716), `npm test` green.
+
+## Operational Completion: Connector Hardening (Project D, part 1)
+
+**Objective reframed:** with Phases 42-59 complete and Phases 58/60
+identified as genuine external blockers, work moved from numbered
+phases to lettered Projects (A-I) aimed at turning this architecture
+into daily-usable software, under the same open-ended stopping
+condition. An audit came first, and corrected an earlier assumption:
+Project B (Resident Personal Operating System) is substantially already
+built (`core/system/startupManager.js`, Phase 21 -- bounded backoff
+crash restarts, real HTTP hang detection; `config/com.veronica.agent.plist`
++ install/uninstall scripts already exist). Only the actual act of
+installing a LaunchAgent on the operator's real machine remains a human
+step, unchanged and deliberately so.
+
+**A real crash-risk bug, found live:**
+`core/integrations/discordBot.js`'s `Client` (a Node `EventEmitter`)
+had zero listener for discord.js's real `"error"` event -- an unhandled
+`"error"` event is always a real, uncaught exception in Node,
+regardless of what emits it. This would have crashed VERONICA's entire
+process on the first real Discord gateway network hiccup. Fixed by
+wiring `Events.Error`/`ShardDisconnect`/`ShardReconnecting`/`ShardResume`
+listeners -- discord.js's own gateway reconnection logic was always
+running underneath; this only makes it observable (new
+`lastDisconnectedAt`/`reconnectAttempts`/`lastErrorMessage` `status()`
+fields) and, critically, stops a real error from taking down the whole
+process.
+
+**Real `status()` for the two connectors that never had one:**
+`core/integrations/obsidian.js`/`core/integrations/fileIntelligence.js`
+are local filesystem connectors -- "configured" now means "the real
+vault/root directory exists right now" (checked fresh, not a hardcoded
+`true`), following the exact `isConfigured()`/`status()` shape
+`github.js`/`discord.js`/`calendar.js`/etc. already established.
+`core/integrations/registry.js`'s `list()` spreads their real `status()`
+now instead of a static literal.
+
+**Tests:** 4 new -- a real simulated gateway error resolving cleanly and
+landing in `status()`; disconnect/reconnect/resume tracked in real
+fields; both filesystem connectors' `status()` proven against a real
+existing directory and a real deliberately-missing one.
+
+720 tests (716 -> 720), `npm test` green.

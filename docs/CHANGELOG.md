@@ -2169,3 +2169,66 @@ call whose generated review tool is actually invoked and returns real
 output, not a thrown skeleton error.
 
 712 -> 716 tests, all passing.
+
+## Operational Completion (Bridge to Daily Use) -- reframed objective
+
+With Phases 42-59 complete (see above) and Phases 58/60 identified as
+genuine external blockers (browser access, a real LaunchAgent install),
+the standing instruction changed again: from "keep building phases" to
+"turn the architecture into daily-usable software." Work is now
+organized into lettered Projects (A-I) rather than numbered phases --
+Mission Control Dashboard, Resident Personal Operating System, Device
+Synchronization, Connector Hardening, Executive UX, Self Diagnostics,
+Autonomous Maintenance, Package Quality, Production Polish -- pursued
+under the same open-ended stopping condition as before.
+
+**A full audit came first**, and it changed the starting assumption on
+two fronts: Project B (Resident Personal Operating System) turned out
+to be substantially already built -- `core/system/startupManager.js`
+(Phase 21) already supervises the dashboard as a child process with
+bounded, backoff-scaled crash restarts AND real HTTP health-check-based
+hang detection, `config/com.veronica.agent.plist` +
+`scripts/install-launch-agent.sh`/`uninstall-launch-agent.sh` already
+exist for the one manual installation step. This corrects the earlier
+"Phase 60 blocked" call -- the CODE was never blocked, only the actual
+act of installing a LaunchAgent onto the operator's real machine is (and
+still is; that step is deliberately left to the operator, unchanged).
+
+## Project D -- Connector Hardening (part 1): a real crash-risk bug, and real status() for local connectors
+
+**A real bug, found live during the audit, not assumed:**
+`core/integrations/discordBot.js`'s `wireEvents()` only ever registered
+listeners for `Events.ClientReady` and `Events.InteractionCreate`. A
+discord.js `Client` is a Node `EventEmitter`, and discord.js emits a
+real `"error"` event for gateway/WebSocket-level failures -- with zero
+listener registered, an unhandled `"error"` event is a real, uncaught
+Node exception. This would have crashed VERONICA's **entire process**
+the first time the Discord gateway had a real network hiccup, not just
+disconnected the bot. Fixed by registering `Events.Error`/
+`Events.ShardDisconnect`/`Events.ShardReconnecting`/`Events.ShardResume`
+listeners -- discord.js's own WebSocketManager already retries the
+gateway connection automatically underneath these events (this isn't
+reimplementing reconnection), the fix makes that automatic reconnection
+observable (new `lastDisconnectedAt`/`reconnectAttempts`/
+`lastErrorMessage` fields on `status()`) and, more importantly, makes
+sure a real error never takes the whole process down again.
+
+**Real `status()`/`isConfigured()` added to the two connectors that
+never had them:** `core/integrations/obsidian.js` and
+`core/integrations/fileIntelligence.js` are local filesystem
+connectors, not credentialed ones -- "configured" now honestly means
+"the real vault/root directory actually exists right now," checked
+fresh every call, not a hardcoded `configured: true` that couldn't
+reflect a deleted or misconfigured `OBSIDIAN_VAULT_PATH`.
+`core/integrations/registry.js`'s `list()` now spreads each connector's
+own real `status()` for these two instead of a hardcoded literal.
+
+**Tests:** `tests/integrations-discord-bot.test.js` gained 2 -- a real
+simulated gateway `"error"` event resolves cleanly (no throw) and is
+observable in `status()`; disconnect/reconnecting/resume events update
+the real new status fields. `tests/obsidian-integration.test.js` and
+`tests/file-intelligence.test.js` each gained 1 -- `status()` reflects
+a real, existing vault/root, and honestly reports `configured: false`
+against a real, deliberately-missing one.
+
+716 -> 720 tests, all passing.

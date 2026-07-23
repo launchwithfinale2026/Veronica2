@@ -37,6 +37,33 @@ const MAX_INDEXABLE_BYTES = 200 * 1024; // 200KB -- a file bigger than this beco
 const MAX_MATCHING_LINES = 5;
 
 
+// Connector Hardening: same reasoning as core/integrations/obsidian.js's
+// own isConfigured()/status() -- a local filesystem connector's
+// "configured" is "does the real sandboxed root actually exist right
+// now," not a credential. Lets this connector appear in Connector
+// Status (core/integrations/registry.js) instead of being invisible.
+function isConfigured(root = DEFAULT_ROOT){
+    return fs.existsSync(root);
+}
+
+
+function status(root = DEFAULT_ROOT){
+
+    const configured = isConfigured(root);
+
+    return {
+        id: "fileIntelligence",
+        implemented: true,
+        configured,
+        root,
+        note: configured
+            ? `Real, sandboxed root found at "${root}".`
+            : `No directory at "${root}" -- nothing to index yet.`
+    };
+
+}
+
+
 function resolveSafePath(root, relativePath){
 
     if(typeof relativePath !== "string" || !relativePath){
@@ -217,4 +244,4 @@ async function acquireFromFile(relativePath, root = DEFAULT_ROOT){
 }
 
 
-module.exports = { listFiles, readFile, indexDirectory, searchFiles, acquireFromFile, DEFAULT_ROOT };
+module.exports = { listFiles, readFile, indexDirectory, searchFiles, acquireFromFile, isConfigured, status, DEFAULT_ROOT };

@@ -58,6 +58,9 @@ const COMMANDS = [
 let client = null;
 let readyAt = null;
 let lastEventAt = null;
+let lastDisconnectedAt = null;
+let reconnectAttempts = 0;
+let lastErrorMessage = null;
 
 
 function isConfigured(){
@@ -91,11 +94,44 @@ async function registerSlashCommands(){
 }
 
 
+// Connector Hardening (real bug found live): `client` is a Node
+// EventEmitter, and discord.js emits a real "error" event for gateway/
+// WebSocket-level failures. With no listener registered, an unhandled
+// "error" event on an EventEmitter is a real, uncaught Node exception --
+// this would have crashed VERONICA's ENTIRE process the first time the
+// Discord gateway connection had a real network hiccup, not just this
+// one connector. discord.js's own WebSocketManager already retries the
+// gateway connection automatically underneath these events -- this
+// isn't reimplementing reconnection, it's making sure the automatic
+// reconnection discord.js already does is observable (real status
+// fields below) and, more importantly, that a real error never takes
+// down the whole process just because nothing was listening for it.
 function wireEvents(realClient){
 
     realClient.once(Events.ClientReady, readyClient => {
         readyAt = new Date().toISOString();
+        lastDisconnectedAt = null;
+        reconnectAttempts = 0;
         log.info("discord-bot", `Logged in as ${readyClient.user.tag}`);
+    });
+
+    realClient.on(Events.Error, error => {
+        lastErrorMessage = error.message;
+        log.error("discord-bot", `Client error: ${error.message}`);
+    });
+
+    realClient.on(Events.ShardDisconnect, () => {
+        lastDisconnectedAt = new Date().toISOString();
+        log.warn("discord-bot", "Gateway connection disconnected -- discord.js will attempt to reconnect automatically.");
+    });
+
+    realClient.on(Events.ShardReconnecting, () => {
+        reconnectAttempts += 1;
+        log.info("discord-bot", `Gateway reconnecting (attempt ${reconnectAttempts})...`);
+    });
+
+    realClient.on(Events.ShardResume, () => {
+        log.info("discord-bot", "Gateway connection resumed.");
     });
 
     // Every incoming slash-command interaction becomes a VERONICA event
@@ -173,6 +209,10 @@ function stop(){
         readyAt = null;
     }
 
+    lastDisconnectedAt = null;
+    reconnectAttempts = 0;
+    lastErrorMessage = null;
+
     return { stopped: true };
 
 }
@@ -206,6 +246,9 @@ function status(){
         guildCount: (client && client.guilds && client.guilds.cache) ? client.guilds.cache.size : 0,
         readyAt,
         lastEventAt,
+        lastDisconnectedAt,
+        reconnectAttempts,
+        lastErrorMessage,
         note
     };
 

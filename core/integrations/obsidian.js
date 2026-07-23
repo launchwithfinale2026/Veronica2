@@ -51,6 +51,37 @@ function requireVault(){
 }
 
 
+// Connector Hardening: this is a local filesystem connector, not a
+// network one -- "configured" honestly means "a real .obsidian/
+// directory actually exists at the resolved path right now," checked
+// fresh every call (no credential to be missing, just a real directory
+// that may or may not be there). Matches the isConfigured()/status()
+// shape every network connector already exposes via
+// core/integrations/registry.js, so this connector can appear there
+// too instead of being invisible to Connector Status.
+function isConfigured(){
+    return fs.existsSync(path.join(vaultPath(), ".obsidian"));
+}
+
+
+function status(){
+
+    const root = vaultPath();
+    const configured = isConfigured();
+
+    return {
+        id: "obsidian",
+        implemented: true,
+        configured,
+        vaultPath: root,
+        note: configured
+            ? `Real vault found at "${root}".`
+            : `No ".obsidian/" directory at "${root}" -- set OBSIDIAN_VAULT_PATH to a real vault.`
+    };
+
+}
+
+
 function resolveSafePath(root, relativePath){
 
     if(typeof relativePath !== "string" || !relativePath){
@@ -212,4 +243,4 @@ async function acquireFromNote(relativePath){
 }
 
 
-module.exports = { vaultPath, listNotes, readNote, writeNote, indexVault, acquireFromNote };
+module.exports = { vaultPath, isConfigured, status, listNotes, readNote, writeNote, indexVault, acquireFromNote };

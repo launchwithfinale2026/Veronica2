@@ -164,7 +164,10 @@ test("registry.overview() reports every connector and matches each one's own sta
         "obsidian", "openai"
     ]);
 
-    // obsidian/fileIntelligence need no credentials -- always configured.
+    // obsidian/fileIntelligence need no credentials -- real,
+    // computed configured status (Connector Hardening): true here
+    // because their real vault/root directories genuinely exist in
+    // this checkout, not a hardcoded default.
     assert.strictEqual(overview.integrations.find(i => i.id === "obsidian").configured, true);
     assert.strictEqual(overview.integrations.find(i => i.id === "fileIntelligence").configured, true);
 
