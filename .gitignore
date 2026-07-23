@@ -26,6 +26,12 @@ core/device/known-devices.json
 # same per-machine, real-data treatment as the two files above.
 core/device/network.json
 
+# Phase 52 (Continuous Observation Engine): real, per-machine observer
+# state (last-seen git commit, last-known connector status) -- same
+# treatment as core/device/network.json above.
+core/system/gitObserverState.json
+core/system/connectorHealthState.json
+
 # Automation engine runtime state (job queue + schedules) -- operational
 # state, not source
 core/automation/state.json

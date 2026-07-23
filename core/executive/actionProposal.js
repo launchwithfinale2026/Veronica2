@@ -20,6 +20,7 @@
 // the approval gate itself; that gate is unconditional either way.
 
 const memory = require("../memory");
+const bus = require("../bus");
 const ExecutivePlanner = require("./planner");
 const ProjectManager = require("./projectManager");
 const BlockerDetector = require("./blockerDetection");
@@ -249,6 +250,11 @@ class ActionProposalEngine {
 
         const updated = memory.update(id, { metadata: { status: "approved", reviewNote: note || null, reviewedAt: new Date().toISOString() } });
 
+        // Phase 52 (Continuous Observation Engine): a real, observable
+        // approval decision -- generated at the one real choke point
+        // every approval already passes through.
+        bus.publish("approval.granted", { id: updated.id, action: updated.metadata.action, reason: updated.metadata.reason });
+
         return this.toRecord(updated);
 
     }
@@ -260,6 +266,8 @@ class ActionProposalEngine {
         this.requirePendingStatus(entry, "rejection");
 
         const updated = memory.update(id, { metadata: { status: "rejected", reviewNote: note || null, reviewedAt: new Date().toISOString() } });
+
+        bus.publish("approval.rejected", { id: updated.id, action: updated.metadata.action, reason: updated.metadata.reason });
 
         return this.toRecord(updated);
 

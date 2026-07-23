@@ -22,6 +22,7 @@
 
 const memory = require("../memory");
 const knowledge = require("../knowledge");
+const bus = require("../bus");
 
 const CAMPAIGN_TAG = "marketing-campaign";
 
@@ -240,6 +241,13 @@ function setPublishingStatus(campaignId, status){
     requireEntry(campaignId);
 
     const updated = memory.update(campaignId, { metadata: { publishingStatus: status } });
+
+    // Phase 52 (Continuous Observation Engine): a real, observable
+    // publishing event -- only for the transition that actually matters
+    // to a briefing reader (a campaign going live), not every status.
+    if(status === "published"){
+        bus.publish("campaign.published", { id: updated.id, name: updated.content, companyId: updated.metadata.companyId });
+    }
 
     return updated.metadata.publishingStatus;
 

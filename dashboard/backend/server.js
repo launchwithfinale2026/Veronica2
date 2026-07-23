@@ -612,7 +612,14 @@ function serveStatic(res, pathname){
 // SSE already covers.
 const STREAMED_EVENTS = [
     "memory.updated", "knowledge.updated", "department.activity", "automation.jobCompleted",
-    "collaboration.message", "collaboration.delegated", "collaboration.reviewed", "collaboration.consensus"
+    "collaboration.message", "collaboration.delegated", "collaboration.reviewed", "collaboration.consensus",
+    // Phase 52 (Continuous Observation Engine): widened event vocabulary
+    // at existing real state-transition choke points, plus two new local
+    // observers (git, connector health) -- see core/system/gitObserver.js/
+    // connectorHealth.js and docs/CHANGELOG.md's Phase 52 entry.
+    "goal.statusChanged", "goal.completed", "approval.granted", "approval.rejected",
+    "capability.installed", "campaign.published", "research.finished",
+    "git.commit", "connector.online", "connector.offline"
 ];
 const SSE_HEARTBEAT_MS = 25000;
 

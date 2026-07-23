@@ -3428,3 +3428,117 @@ an object nobody reads; with it, it's a proven fact about the literal
 text sent to the model.
 
 679 tests (673 -> 679), `npm test` green.
+
+## Continuous Observation Engine + Universal Event Bus (Phase 52-53)
+
+**One audit, two phases, one real gap.** Phase 53 named its own goal
+plainly: "one central event architecture... everything becomes an
+event... remove duplicated notification logic." Before writing
+anything, the question was whether `core/bus/index.js` already was
+that architecture. It is: a real `EventEmitter` singleton, already
+carrying `memory.updated`/`knowledge.updated`/`department.activity`/
+`collaboration.message`/`collaboration.delegated`/`collaboration.reviewed`/
+`collaboration.consensus`/`automation.jobCompleted`/`selfMonitor.issuesFound`,
+already the one and only thing `dashboard/backend/server.js`'s real SSE
+stream (`GET /api/events`) forwards. There was no second notification
+path to remove, no duplicated logic anywhere -- so Phase 53's job
+collapsed entirely into Phase 52's: widen what actually publishes
+through the bus that already exists. Building them as two artificially
+distinct deliverables would have meant inventing daylight between them
+that the real architecture doesn't have.
+
+**Widened the vocabulary at five existing real choke points -- one
+`bus.publish()` line each, no new mechanism per event:**
+
+| Event | Where | Fires when |
+|---|---|---|
+| `goal.statusChanged` | `core/executive/projectManager.js`'s `updateStatus()` | Any project/milestone/task status transition |
+| `goal.completed` | same method | Specifically the transition TO `"completed"` |
+| `approval.granted` | `core/executive/actionProposal.js`'s `approve()` | A pending proposal is approved |
+| `approval.rejected` | same file's `reject()` | A pending proposal is rejected |
+| `capability.installed` | `core/capabilities/installer.js`'s `completeInstall()` | A package finishes install + activation |
+| `campaign.published` | `core/marketing/campaigns.js`'s `setPublishingStatus()` | Specifically the transition TO `"published"` |
+| `research.finished` | `core/research/missions.js`'s `completeMission()` | A research mission is marked complete |
+
+Each of these functions was already the ONE real place that state
+transition happens -- `updateStatus()` is deliberately generic across
+projects/milestones/tasks (see its own header comment), `approve()`/
+`reject()` are the unconditional gate every proposal already passes
+through, etc. -- so adding one `bus.publish()` line inside each is the
+entire change; nothing else in the codebase had to learn about these
+new events to make them real.
+
+**Two genuinely new, real, local observers -- no credentials, no
+network call, nothing that requires a human to configure first:**
+
+- **`core/system/gitObserver.js`** (`checkForNewCommits()`): shells out
+  to the real `git` binary already on this machine (`git rev-parse
+  HEAD`, `git log <lastSha>..HEAD --format=...`) against this actual
+  repository, and publishes one real `git.commit` event per commit
+  found since the last check -- oldest-first, so subscribers see them
+  in the order they actually happened. The first-ever check establishes
+  a baseline (the repo's real current HEAD) rather than replaying the
+  entire pre-existing commit history as "new" -- the same "an honest
+  unset/baseline default beats a fabricated one" principle
+  `core/device/deviceManager.js`'s `ensureFile()` and
+  `core/profile/personalContextEngine.js`'s `DEFAULT_PROFILE` already
+  established, applied to observation instead of static data. Fails
+  closed (returns `{ checked: false, reason }`, never throws) when git
+  isn't on PATH or the directory isn't a repository -- same posture
+  `core/automation/jobs.js`'s `github-poll`/`google-poll` already take
+  for "not configured yet."
+- **`core/system/connectorHealth.js`** (`checkConnectorHealth()`): NOT
+  a new health-check mechanism -- `core/integrations/registry.js`'s
+  `list()` already computes every connector's real, current
+  `configured` boolean on every call (Phase 23/36). This only notices
+  when that real value FLIPS between two checks and publishes
+  `connector.online`/`connector.offline` for the transition. The first
+  check for any given connector only records its baseline (no
+  transition to report), same principle as the git observer above.
+
+Both persist real, per-machine state
+(`core/system/gitObserverState.json`, `core/system/connectorHealthState.json`,
+gitignored -- added to `.gitignore` alongside `core/device/network.json`,
+same "real per-machine data, not source" treatment) and run as real
+automation jobs (`git-observer`, `connector-health`, both scheduled
+every 5 minutes in `core/automation/jobs.js`'s `registerBuiltInJobs()`,
+matching `github-poll`'s own "fail closed inside the job body" wiring
+style).
+
+**A real dependency-injection need, found while writing real tests, not
+assumed up front:** testing the git observer against THIS repository's
+own commit history would have been actively wrong -- either fabricating
+commits in the real, shared VERONICA repo, or never being able to
+observe a genuinely new one without polluting it. Both new observer
+functions take an optional `{ cwd, stateFile }` (git observer) /
+`{ stateFile }` (connector health) override, defaulting to this real
+repo/machine's real paths -- the exact same override convention
+`core/executive/actionProposal.js`'s Phase 50 `departments` parameter
+already established for an identical reason (a fresh internal
+reconstruction would otherwise silently bypass anything a test mocked
+externally). Tests exercise a real, disposable `git init`-ed temp
+repository and a real, disposable seeded state file -- never this
+actual repository's history or this machine's real connector record.
+
+**Dashboard:** all 10 new event names
+(`goal.statusChanged`/`goal.completed`/`approval.granted`/
+`approval.rejected`/`capability.installed`/`campaign.published`/
+`research.finished`/`git.commit`/`connector.online`/`connector.offline`)
+added to `dashboard/backend/server.js`'s `STREAMED_EVENTS` SSE
+whitelist -- the exact same forwarding code path
+`memory.updated`/`department.activity` already prove works end-to-end
+(`tests/dashboard.test.js`'s own SSE tests), so no new streaming test
+was needed to trust these forward correctly too.
+
+**Tests:** `tests/continuous-observation.test.js` (7 tests) -- a real,
+temporary bus subscription (`captureEvents()`) around each of the 5
+widened choke points using real `ExecutivePlanner`/`ProjectManager`/
+`ActionProposalEngine`/`CompanyManager`/campaign/mission calls (no
+mocks); the git observer against a real `git init`-ed temp repo
+covering baseline / no-new-commits / one real new commit (asserting the
+real commit subject line survives end to end) / a real non-git
+directory failing closed; the connector observer against a real seeded
+"previous status" proving a genuine transition fires for whichever real
+connector's actual current status differs from the seed.
+
+686 tests (679 -> 686), `npm test` green.

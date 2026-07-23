@@ -16,6 +16,7 @@
 
 const memory = require("../memory");
 const knowledge = require("../knowledge");
+const bus = require("../bus");
 const ExecutivePlanner = require("./planner");
 const GoalDecomposer = require("./decomposer");
 
@@ -87,6 +88,17 @@ class ProjectManager {
                 history: [...(entry.metadata.history || []), historyEntry]
             }
         });
+
+        // Phase 52 (Continuous Observation Engine): every real status
+        // transition on a project/milestone/task is a real, observable
+        // event -- generated here, at the one real choke point every
+        // status change already passes through, not polled for
+        // separately.
+        bus.publish("goal.statusChanged", { id: updated.id, title: updated.content, from: current, to: status });
+
+        if(status === "completed"){
+            bus.publish("goal.completed", { id: updated.id, title: updated.content });
+        }
 
         return {
             id: updated.id,

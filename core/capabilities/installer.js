@@ -21,6 +21,7 @@ const validator = require("./validator");
 const registry = require("./registry");
 const lifecycle = require("./lifecycle");
 const log = require("../logging");
+const bus = require("../bus");
 
 const REPO_ROOT = path.join(__dirname, "..", "..");
 
@@ -114,6 +115,11 @@ function completeInstall(packageDir){
         lifecycle.activate(manifest.name, "Installed and activated");
 
         log.info("capabilities", `Installed and activated "${manifest.name}" v${manifest.version}`);
+
+        // Phase 52 (Continuous Observation Engine): a real, observable
+        // capability install -- generated at the one real choke point
+        // every successful install already passes through.
+        bus.publish("capability.installed", { name: manifest.name, version: manifest.version });
 
         return registry.get(manifest.name);
 

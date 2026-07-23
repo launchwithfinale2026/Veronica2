@@ -60,6 +60,13 @@ const GITHUB_POLL_INTERVAL_MS = 15 * 60 * 1000;
 // Drive's own rate limits comfortably tolerate this cadence.
 const GOOGLE_POLL_INTERVAL_MS = 15 * 60 * 1000;
 
+// Phase 52 (Continuous Observation Engine): both are cheap, purely
+// local checks (a `git rev-parse`, a re-read of already-computed
+// connector status) -- frequent enough to feel "continuous" without
+// meaningfully adding to the automation engine's own tick overhead.
+const GIT_OBSERVER_INTERVAL_MS = 5 * 60 * 1000;
+const CONNECTOR_HEALTH_INTERVAL_MS = 5 * 60 * 1000;
+
 
 function registerBuiltInJobs(engine){
 
@@ -101,6 +108,12 @@ function registerBuiltInJobs(engine){
     // Google isn't authorized yet.
     engine.registerJob("google-poll", () => require("../integrations/google/poll").pollAll());
 
+    // Phase 52 (Continuous Observation Engine): both fail closed inside
+    // their own module (no git repo / registry read error just means a
+    // no-op check), same posture as github-poll/google-poll above.
+    engine.registerJob("git-observer", () => require("../system/gitObserver").checkForNewCommits());
+    engine.registerJob("connector-health", () => require("../system/connectorHealth").checkConnectorHealth());
+
     registerPackageJobs(engine);
 
     engine.schedule("consolidate", CONSOLIDATE_INTERVAL_MS);
@@ -111,6 +124,8 @@ function registerBuiltInJobs(engine){
     engine.schedule("daily-review", DAILY_REVIEW_INTERVAL_MS);
     engine.schedule("github-poll", GITHUB_POLL_INTERVAL_MS);
     engine.schedule("google-poll", GOOGLE_POLL_INTERVAL_MS);
+    engine.schedule("git-observer", GIT_OBSERVER_INTERVAL_MS);
+    engine.schedule("connector-health", CONNECTOR_HEALTH_INTERVAL_MS);
 
 }
 

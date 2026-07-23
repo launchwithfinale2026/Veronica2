@@ -1773,3 +1773,84 @@ real, non-mocked `think()` call with only the LLM response mocked.
 Plus 1 new dashboard test for the GET/POST routes.
 
 673 -> 679 tests, all passing.
+
+## Phase 52-53 -- Continuous Observation Engine + Universal Event Bus
+
+**Audit first, and it collapsed two phases into one real deliverable.**
+Phase 53 asked for a "Universal Event Bus" -- one central architecture
+where "everything becomes an event." `core/bus/index.js` (a real
+`EventEmitter` singleton) already IS that: `memory.updated`,
+`knowledge.updated`, `department.activity`, `collaboration.*`, and
+`automation.jobCompleted` already flow through it to the dashboard's
+real SSE stream, and every subscriber already goes through the same
+`publish()`/`on()` pair -- there is no duplicated notification logic to
+remove, because there was never a second bus. Phase 52's "Continuous
+Observation Engine" and Phase 53's "Universal Event Bus" turned out to
+be the SAME real gap: widen what publishes through the bus that already
+exists, not build a second architecture next to it. Both phases are
+recorded here together because building them as two separate,
+artificially distinct deliverables would have meant inventing a reason
+they're different when they aren't.
+
+**Widened the vocabulary at 5 existing real choke points** (each a
+single `bus.publish()` added where a real, already-happening state
+transition occurs, not a new mechanism per event):
+
+- `core/executive/projectManager.js`'s `updateStatus()`:
+  `goal.statusChanged` on every transition, `goal.completed` specifically
+  when the transition is to `"completed"`.
+- `core/executive/actionProposal.js`'s `approve()`/`reject()`:
+  `approval.granted`/`approval.rejected`.
+- `core/capabilities/installer.js`'s `completeInstall()`:
+  `capability.installed`.
+- `core/marketing/campaigns.js`'s `setPublishingStatus()`:
+  `campaign.published`, only for the transition to `"published"`.
+- `core/research/missions.js`'s `completeMission()`: `research.finished`.
+
+**Two new, real, local observers -- no credentials, no network call:**
+
+- `core/system/gitObserver.js`: `checkForNewCommits()` runs real `git`
+  commands (`rev-parse HEAD`, `log <lastSha>..HEAD`) against this
+  actual repository, publishing one real `git.commit` event per commit
+  found since the last check, oldest-first. The FIRST ever check
+  establishes a baseline (this repo's real current HEAD) without
+  fabricating "new" events for pre-existing history -- same "don't
+  invent a past that wasn't under observation" principle
+  `core/device/deviceManager.js`'s own bootstrap already follows. Fails
+  closed (never throws) if git isn't available or the cwd isn't a repo.
+- `core/system/connectorHealth.js`: `checkConnectorHealth()` is NOT a
+  new health check -- `core/integrations/registry.js`'s `list()`
+  already computes each connector's real `configured` status on every
+  call. This only notices when that real status FLIPS between two
+  checks and publishes `connector.online`/`connector.offline` for the
+  transition.
+
+Both persist real, per-machine state (`gitObserverState.json`,
+`connectorHealthState.json`, gitignored, same treatment as
+`core/device/network.json`) and are registered as real automation jobs
+(`git-observer`, `connector-health`, 5-minute cadence,
+`core/automation/jobs.js`).
+
+**Testability, found needed while writing real tests, not assumed:**
+both new observers take an optional `cwd`/`stateFile` override (same
+dependency-injection convention `core/executive/actionProposal.js`'s
+Phase 50 `departments` override established) so tests exercise a real,
+disposable temp git repository and a real, seeded state file --
+never this actual repository's own commit history or this machine's
+real connector-health record.
+
+**Dashboard:** all 10 new event names added to
+`dashboard/backend/server.js`'s `STREAMED_EVENTS` SSE whitelist -- the
+exact same forwarding mechanism `memory.updated`/`department.activity`
+already prove works, not a new stream.
+
+**Tests:** `tests/continuous-observation.test.js` (7 tests) -- each of
+the 5 widened choke points asserted via a real, temporary bus
+subscription (`captureEvents()`); the git observer against a real
+`git init`-ed temp repo (baseline, no-new-commits, one real new commit,
+and a real non-git-directory failing closed); the connector observer
+against a real seeded "previous status" proving a genuine transition
+fires for whichever real connector's actual current status differs
+from it.
+
+679 -> 686 tests, all passing.

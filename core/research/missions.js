@@ -37,6 +37,7 @@
 
 const memory = require("../memory");
 const knowledge = require("../knowledge");
+const bus = require("../bus");
 
 const MISSION_TAG = "research-mission";
 
@@ -273,6 +274,11 @@ function completeMission(missionId){
     requireEntry(missionId);
 
     const updated = memory.update(missionId, { metadata: { status: "completed" } });
+
+    // Phase 52 (Continuous Observation Engine): a real, observable
+    // research completion -- generated at the one real choke point
+    // every mission completion already passes through.
+    bus.publish("research.finished", { id: updated.id, objective: updated.content, companyId: updated.metadata.companyId });
 
     return updated.metadata.status;
 
