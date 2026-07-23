@@ -78,28 +78,11 @@ function directorySize(dir){
 }
 
 
-// A minimal, dependency-free semver-ish comparison -- "1.10.0" > "1.9.0"
-// (plain string comparison would get this backwards). Returns >0 if a
-// is newer, <0 if b is newer, 0 if equal.
-function compareVersions(a, b){
-
-    const partsA = String(a).split(".").map(Number);
-    const partsB = String(b).split(".").map(Number);
-
-    for(let i = 0; i < Math.max(partsA.length, partsB.length); i++){
-
-        const numA = partsA[i] || 0;
-        const numB = partsB[i] || 0;
-
-        if(numA !== numB){
-            return numA - numB;
-        }
-
-    }
-
-    return 0;
-
-}
+// Phase 33: moved to manifest.js (validator.js needs it too, for
+// dependency version constraints) -- re-exported here unchanged so
+// every existing caller/test of marketplace.compareVersions() keeps
+// working exactly as before.
+const { compareVersions } = manifestModule;
 
 
 // Every package directory under packages/ whose manifest.json declares

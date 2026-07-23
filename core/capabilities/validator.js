@@ -78,10 +78,23 @@ function validate(manifest, packageDir){
 
     }
 
+    // Phase 33: a dependency can be a plain name (any installed version
+    // satisfies it) or {name, minVersion} for a real version floor --
+    // both shapes normalize the same way, so this is the one place that
+    // needs to know the difference.
     for(const dependency of manifest.dependencies){
 
-        if(!registry.isInstalled(dependency)){
-            errors.push(`Dependency "${dependency}" is not installed`);
+        const { name, minVersion } = manifestModule.normalizeDependency(dependency);
+
+        const installed = registry.get(name);
+
+        if(!installed){
+            errors.push(`Dependency "${name}" is not installed`);
+            continue;
+        }
+
+        if(minVersion && installed.version !== "core" && manifestModule.compareVersions(installed.version, minVersion) < 0){
+            errors.push(`Dependency "${name}" requires >= v${minVersion}, but v${installed.version} is installed`);
         }
 
     }

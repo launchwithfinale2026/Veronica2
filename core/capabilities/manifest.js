@@ -61,6 +61,50 @@ function normalize(manifest){
 }
 
 
+// Phase 33 (Core Stabilization -- "improve dependency validation").
+// A minimal, dependency-free semver-ish comparison -- "1.10.0" > "1.9.0"
+// (plain string comparison would get this backwards). Returns >0 if a
+// is newer, <0 if b is newer, 0 if equal. Moved here (from
+// marketplace.js, which re-exports it for backward compatibility) since
+// validator.js also needs it for dependency version constraints, and
+// this is the shared "version string" module both depend on.
+function compareVersions(a, b){
+
+    const partsA = String(a).split(".").map(Number);
+    const partsB = String(b).split(".").map(Number);
+
+    for(let i = 0; i < Math.max(partsA.length, partsB.length); i++){
+
+        const numA = partsA[i] || 0;
+        const numB = partsB[i] || 0;
+
+        if(numA !== numB){
+            return numA - numB;
+        }
+
+    }
+
+    return 0;
+
+}
+
+
+// A manifest.dependencies entry is either a plain capability name
+// (string -- "any installed version satisfies this"), or
+// {name, minVersion} for a real version floor. Both shapes normalize to
+// the same {name, minVersion} object so validator.js only has to handle
+// one.
+function normalizeDependency(dependency){
+
+    if(typeof dependency === "string"){
+        return { name: dependency, minVersion: null };
+    }
+
+    return { name: dependency.name, minVersion: dependency.minVersion || null };
+
+}
+
+
 function shapeErrors(manifest){
 
     const errors = [];
@@ -84,4 +128,4 @@ function shapeErrors(manifest){
 }
 
 
-module.exports = { loadManifest, normalize, shapeErrors, manifestPathFor, REQUIRED_FIELDS };
+module.exports = { loadManifest, normalize, shapeErrors, manifestPathFor, REQUIRED_FIELDS, compareVersions, normalizeDependency };

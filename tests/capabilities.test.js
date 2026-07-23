@@ -217,6 +217,49 @@ test("validator.validate() catches a missing agent prompt file and a missing dep
 });
 
 
+test("validator.validate() enforces a real dependency version floor (Phase 33), and still accepts a plain name-only dependency", () => {
+
+    registry.register({ name: "test-cap-xqzver1", version: "1.0.0", description: "test" });
+
+    const tooOld = manifestModule.normalize({
+        name: "test-cap-xqzver2", version: "1.0.0", description: "test",
+        dependencies: [{ name: "test-cap-xqzver1", minVersion: "2.0.0" }]
+    });
+
+    const tooOldResult = validator.validate(tooOld, EXAMPLE_PACKAGE_DIR);
+    assert.strictEqual(tooOldResult.valid, false);
+    assert.ok(tooOldResult.errors.some(e => e.includes("requires >= v2.0.0") && e.includes("v1.0.0 is installed")));
+
+    const satisfied = manifestModule.normalize({
+        name: "test-cap-xqzver3", version: "1.0.0", description: "test",
+        dependencies: [{ name: "test-cap-xqzver1", minVersion: "1.0.0" }]
+    });
+
+    assert.strictEqual(validator.validate(satisfied, EXAMPLE_PACKAGE_DIR).valid, true);
+
+    // A plain string dependency (no version constraint) still works
+    // exactly as before this phase.
+    const plainName = manifestModule.normalize({
+        name: "test-cap-xqzver4", version: "1.0.0", description: "test",
+        dependencies: ["test-cap-xqzver1"]
+    });
+
+    assert.strictEqual(validator.validate(plainName, EXAMPLE_PACKAGE_DIR).valid, true);
+
+    // A core built-in ("version: core") never fails a version check --
+    // there's no meaningful semver comparison against it.
+    const dependsOnCore = manifestModule.normalize({
+        name: "test-cap-xqzver5", version: "1.0.0", description: "test",
+        dependencies: [{ name: "memory", minVersion: "99.0.0" }]
+    });
+
+    assert.strictEqual(validator.validate(dependsOnCore, EXAMPLE_PACKAGE_DIR).valid, true);
+
+    registry.remove("test-cap-xqzver1");
+
+});
+
+
 test("lifecycle.transition() enforces legal state transitions only", () => {
 
     registry.register({ name: "test-cap-xqzcap6", version: "0.1.0", description: "test" });
