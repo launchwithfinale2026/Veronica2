@@ -225,6 +225,24 @@ test("the real \"marketing\" package genuinely reports \"active\", not \"Install
 });
 
 
+test("the real \"sales\" package genuinely reports \"active\", not \"Installed – Awaiting Integration\" (Phase 42 Sales Division)", () => {
+
+    // Same signal as marketing above -- sales.pipeline.review was given
+    // a real implementation (packages/sales/tools/sales.pipeline.review.js
+    // -- calls core/sales/analytics.js for real) as part of Sales
+    // Division production-readiness.
+    const report = health.report().find(r => r.name === "sales");
+
+    assert.ok(report);
+    assert.strictEqual(report.operationalStatus, "active");
+    assert.strictEqual(report.operationalStatusLabel, "Active");
+    assert.deepStrictEqual(report.skeletonTools, []);
+    assert.strictEqual(report.agentsLoaded, report.agentsDeclared);
+    assert.strictEqual(report.toolsLoaded, report.toolsDeclared);
+
+});
+
+
 test("report() excludes core capabilities entirely", () => {
 
     const report = health.report();

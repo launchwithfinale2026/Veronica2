@@ -34,8 +34,15 @@
     "tools": [
         {
             "id": "sales.pipeline.review",
-            "description": "Summarize a described sales pipeline (skeleton -- not yet implemented).",
-            "permission": "read"
+            "description": "Real pipeline review via core/sales/analytics.js: win/loss history, deterministic weighted-pipeline forecast, and lead count for a company. No external API needed.",
+            "permission": "read_memory",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "companyId": { "type": "string" }
+                },
+                "required": ["companyId"]
+            }
         }
     ],
     "dependencies": [],

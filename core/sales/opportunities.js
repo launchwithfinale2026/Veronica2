@@ -246,6 +246,26 @@ function completeFollowUp(opportunityId, followUpId){
 }
 
 
+// Persists a real generated proposal draft (see
+// core/sales/proposalGenerator.js) onto the opportunity it was drafted
+// for -- same "the real artifact lives on the entity it belongs to"
+// pattern core/marketing/campaigns.js's updateContentItem() already
+// established for a content item's draft.
+function setProposalDraft(opportunityId, proposalDraft){
+
+    if(!proposalDraft){
+        throw new Error("A proposal draft is required");
+    }
+
+    requireEntry(opportunityId);
+
+    const updated = memory.update(opportunityId, { metadata: { proposalDraft } });
+
+    return updated.metadata.proposalDraft;
+
+}
+
+
 function recordLessonLearned(opportunityId, lesson){
 
     if(!lesson){
@@ -315,6 +335,7 @@ module.exports = {
     addContact,
     scheduleFollowUp,
     completeFollowUp,
+    setProposalDraft,
     recordLessonLearned,
     forecast
 };

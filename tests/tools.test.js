@@ -348,6 +348,34 @@ test("marketing.campaign.plan tool runs end to end through the real Tool Registr
 
 });
 
+test("sales.pipeline.review tool runs end to end through the real Tool Registry (Phase 42 -- no longer a skeleton, and no longer a circular-require landmine)", async () => {
+
+    // This is also the regression test for a real circular-require bug
+    // found live: core/tools/index.js's loadTools() call is what first
+    // pulls this tool handler in, and this tool handler's dependency
+    // chain (core/sales/analytics.js -> core/learning -> ... ->
+    // core/brain/providers/claude.js) used to require core/tools/index.js
+    // right back, at module load time, landing on an incompletely
+    // initialized module. Going through the REAL registry (`tools`,
+    // not requiring core/sales/analytics.js directly) is what actually
+    // exercises that path -- see core/sales/analytics.js's own comment.
+    const CompanyManager = require("../core/executive/companyManager");
+
+    const company = new CompanyManager().createCompany({ name: "Tool Test Sales Co XQZTOOL2" });
+
+    const review = await tools.run(
+        "sales.pipeline.review",
+        { companyId: company.id },
+        { role: "agent" }
+    );
+
+    assert.strictEqual(review.leadCount, 0);
+    assert.strictEqual(review.winLoss.totalClosed, 0);
+    assert.ok(review.pipeline);
+    assert.ok("executionHealth" in review);
+
+});
+
 test("DepartmentManager.useTool() runs tools with department_manager permissions", async () => {
 
     const DepartmentManager = require("../core/departments/base");

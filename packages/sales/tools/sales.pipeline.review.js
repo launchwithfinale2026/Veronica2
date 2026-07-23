@@ -1,11 +1,16 @@
-// Generated SKELETON tool handler (see core/capabilities/builder.js) --
-// this throws on purpose. Replace the body below with sales.pipeline.review's real
-// behavior before installing this package for real use.
+// Real implementation (Phase 42 Sales Division production-readiness) --
+// a genuine pipeline review via core/sales/analytics.js: win/loss
+// history, the deterministic weighted-pipeline forecast, and real lead
+// count for the company. No external API needed.
+
+const analytics = require("../../../core/sales/analytics");
 
 module.exports = {
 
-    "sales.pipeline.review": async () => {
-        throw new Error("Tool \"sales.pipeline.review\" is a generated skeleton -- implement its real behavior in this file before use.");
+    "sales.pipeline.review": async ({ companyId } = {}) => {
+
+        return analytics.salesOverview(companyId);
+
     }
 
 };
