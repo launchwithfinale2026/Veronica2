@@ -37,6 +37,7 @@ const capabilitiesPlanner = require("../../core/capabilities/planner");
 const systemReport = require("../../core/system/report");
 const capabilitiesMarketplace = require("../../core/capabilities/marketplace");
 const capabilitiesBuilder = require("../../core/capabilities/builder");
+const capabilitiesHealth = require("../../core/capabilities/health");
 const autonomousBuilder = require("../../core/capabilities/autonomousBuilder");
 const ResearchEngine = require("../../core/research/engine");
 const SelfImprovementEngine = require("../../core/system/selfImprovement");
@@ -325,6 +326,16 @@ const ROUTES = {
         const q = searchParams.get("q");
         return q ? capabilitiesMarketplace.search(q) : [];
     },
+
+    // Phase 41 (Capability Operations): real per-package operational
+    // health -- agents/tools actually loaded vs declared, missing
+    // dependencies, and whether any tool is still a
+    // core/capabilities/builder.js-generated skeleton rather than a
+    // real implementation ("Installed – Awaiting Integration" rather
+    // than pretending an unimplemented tool functions). Distinct from
+    // /api/capabilities/marketplace's install/version/update metadata --
+    // this is "is it actually working," not "is it installed."
+    "GET /api/capabilities/health": () => capabilitiesHealth.report(),
 
     "GET /api/research/history": (searchParams) => researchEngine.history(searchParams.get("topic") || undefined),
 

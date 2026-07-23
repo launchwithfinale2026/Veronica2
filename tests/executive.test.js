@@ -75,6 +75,29 @@ test("plan() falls back to ares when no department keyword matches", () => {
 
 });
 
+test("plan() can be explicitly assigned to a real package-declared department, with a real package agent as owner (Phase 41 part 2)", () => {
+
+    // core/executive/planner.js used to build this.departments/this.agents
+    // ONLY from the static registry/*.json files -- a goal could never be
+    // assigned (explicitly or by keyword match) to a real, installed
+    // package department like "trading-dept", and resolveOwners() could
+    // never find a package agent. Same class of gap
+    // core/context/engine.js had (Phase 41 part 1's CHANGELOG entry),
+    // fixed the same way. This machine has six real, active production
+    // packages (Phase 35/41) -- trading-dept is one of them.
+    const planner = new ExecutivePlanner();
+
+    const project = planner.plan({
+        title: "Real package department assignment XQZ12",
+        department: "trading-dept"
+    });
+
+    assert.strictEqual(project.department, "trading-dept");
+    assert.ok(project.owners.length > 0);
+    assert.ok(["MarketAnalyst", "StrategyAnalyst", "TradingRiskAnalyst"].includes(project.owners[0]));
+
+});
+
 test("estimateEffort() honors an explicit estimatedHours and derives a size", () => {
 
     const planner = new ExecutivePlanner();

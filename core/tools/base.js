@@ -7,13 +7,19 @@ const learningLog = require("../learning/log");
 
 class Tool {
 
-    constructor({ id, description, permission, inputSchema, handler }){
+    constructor({ id, description, permission, inputSchema, handler, packageSource }){
 
         this.id = id;
         this.description = description;
         this.permission = permission;
         this.inputSchema = inputSchema || { type: "object", properties: {} };
         this.handler = handler;
+        // Mirrors Agent's own packageSource field (core/agents/base.js) --
+        // null for a built-in tool, the owning package's name for one
+        // loaded from an installed capability package. Lets
+        // core/capabilities/health.js attribute a live tool back to its
+        // package without re-deriving it from paths.
+        this.packageSource = packageSource || null;
 
     }
 

@@ -75,7 +75,7 @@ function loadTools(){
             return [];
         }
 
-        return [new Tool({ ...toolConfig, handler })];
+        return [new Tool({ ...toolConfig, handler, packageSource: packageName })];
 
     });
 

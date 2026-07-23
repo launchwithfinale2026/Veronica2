@@ -371,6 +371,19 @@ projects are stored as ordinary memory entries, not a second store. Built
 - Dependencies (`goal.dependencies`, an array of project ids) are validated
   against the current roadmap at `plan()` time — an unknown id throws
   rather than silently being dropped or stored unchecked.
+- `loadDepartments()`/`loadAgents()` originally read ONLY the static
+  `registry/departments.json`/`registry/agents.json` files — Phase 41
+  part 2 extended both to also merge in package-declared departments/
+  agents via `core/capabilities/activation.js`'s
+  `packageDepartmentConfigs()`/`packageAgentConfigs()`, the same single
+  source of truth `core/departments/loader.js`/`core/agents/loader.js`
+  already use. Before this fix, a goal could never be assigned (by
+  keyword match OR explicit `goal.department`) to a real, installed
+  package department (e.g. `"trading-dept"`) — `assignDepartment()`
+  would throw "Unknown department" on an explicit assignment, and
+  `resolveOwners()` could never find a package agent. See Phase 41 part
+  1's `docs/CHANGELOG.md` entry for the sibling bug this matches
+  (`core/context/engine.js` had the exact same gap).
 - Exposed the same way every other subsystem is: three tools
   (`executive.plan` — `manage_agents`, `executive.roadmap` /
   `executive.deadlines` — `read_memory`) registered in

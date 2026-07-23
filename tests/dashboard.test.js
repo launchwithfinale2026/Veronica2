@@ -294,6 +294,23 @@ test("GET /api/tools returns the real registered tools", async () => {
 
 });
 
+test("GET /api/capabilities/health reports real per-package operational status (Phase 41)", async () => {
+
+    const res = await fetch(`${baseUrl}/api/capabilities/health`);
+    const body = await res.json();
+
+    // The six real, active production packages (Phase 35/41) all have
+    // only generated-skeleton tools right now -- see
+    // core/capabilities/health.js and tests/capabilities-health.test.js
+    // for the underlying logic this endpoint just exposes.
+    const tradingResearch = body.find(entry => entry.name === "trading-research");
+    assert.ok(tradingResearch);
+    assert.strictEqual(tradingResearch.operationalStatus, "installed_awaiting_integration");
+    assert.strictEqual(tradingResearch.operationalStatusLabel, "Installed – Awaiting Integration");
+    assert.ok(tradingResearch.agentsLoaded > 0);
+
+});
+
 test("GET /api/memory without a filter returns the real stored memories", async () => {
 
     const res = await fetch(`${baseUrl}/api/memory`);

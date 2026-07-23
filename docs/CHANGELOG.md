@@ -1022,3 +1022,68 @@ test restructuring). All passing.
 No architectural redesign -- every fix reuses the exact pattern already
 established for its class of problem (lazy path resolution, a single
 source-of-truth manifest shape, snapshot/restore test isolation).
+
+## Phase 41 (part 2) -- Bug 4, Capability Health Reporting, Capability Operations Dashboard View
+
+Continuing the 9-point integration checklist audit from part 1 (Capability
+Registry/Executive Core/Organization Manager/Agent Registry/Tool
+Registry/Organization Overview/Executive Dashboard were all confirmed
+already correctly wired once the three part-1 bugs were fixed -- verified
+directly against the running `OrganizationOverview`/dashboard endpoints,
+not assumed). Two items remained genuinely open: a fourth real bug found
+during that audit, and the "Installed – Awaiting Integration" status
+concept, which didn't exist anywhere yet.
+
+**Bug 4 -- `core/executive/planner.js`'s `ExecutivePlanner` had the exact
+same class of gap as Bug 3** (`core/context/engine.js`, part 1):
+`loadDepartments()`/`loadAgents()` read ONLY the static
+`registry/departments.json`/`registry/agents.json` files, never
+package-declared ones. Concretely: `assignDepartment()` would throw
+`"Unknown department"` on an explicit `goal.department: "trading-dept"`,
+keyword-match auto-assignment could never select a package department,
+and `resolveOwners()` could never return a package agent as an owner --
+meaning Executive Planning (checklist item 9) never actually knew the six
+real divisions existed. Fixed the same way as Bug 3: merge in
+`core/capabilities/activation.js`'s `packageDepartmentConfigs()`/
+`packageAgentConfigs()`, the same source of truth every other consumer
+already uses. Regression test added to `tests/executive.test.js` (explicit
+assignment to the real `trading-dept`, real package agent as owner).
+
+**"Installed – Awaiting Integration" (checklist item 8), built for
+real:** new `core/capabilities/health.js` computes each installed
+package's real operational status -- not `registry.status` (which only
+means "correctly wired into the loaders," already guaranteed by Phase
+25/33/41-part-1), but whether its declared agents/tools actually loaded,
+whether any declared dependency is missing, and whether any of its tools
+is still a `core/capabilities/builder.js`-generated skeleton. Detected by
+reading the tool handler's own source for `builder.js`'s
+`SKELETON_MARKER` constant (now exported, shared by both the generator
+and the detector, rather than a duplicated string) -- not by calling the
+handler, since a real tool could have side effects and this needs to stay
+a passive check. `core/tools/base.js`'s `Tool` gained a `packageSource`
+field (mirroring `Agent`'s existing one) so a live tool can be attributed
+back to its owning package.
+
+Four operational statuses, all REPORTING-only (never overwrites
+`registry.status`): `"active"` (fully real), `"installed_awaiting_integration"`
+(wired and running, but at least one tool is still a skeleton --
+currently all six real Phase 35 packages, honestly, since none of their
+tools have real implementations yet), `"degraded"` (a declared agent/tool
+failed to load, or a dependency is missing), or the raw `registry.status`
+verbatim for anything not active (`"installed"`, `"disabled"`).
+
+Wired into the dashboard: `GET /api/capabilities/health`, and a new
+"Capability Operations" panel (`dashboard/frontend/index.html`/`app.js`)
+listing every installed package's real status, agents/tools
+loaded-vs-declared, any skeleton tools, and any missing dependencies --
+distinct from the existing Capability Marketplace panel (install/version/
+update metadata, not "does it actually work").
+
+6 new tests (`tests/capabilities-health.test.js`: active/skeleton/degraded-
+agent/degraded-dependency/inactive/core-exclusion, each built from a real
+temp package, not mocked) + 1 dashboard endpoint test + 1 planner
+regression test. 492 -> 500 tests, all passing.
+
+No architectural redesign -- `health.js` is a pure read/report layer over
+existing loaders and the existing registry; nothing about how a package
+actually gets installed, activated, or loaded changed.

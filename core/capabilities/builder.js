@@ -30,6 +30,14 @@ const validator = require("./validator");
 
 const NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
 
+// The exact substring every generated skeleton tool's thrown error
+// message contains -- exported so core/capabilities/health.js can
+// detect "this tool is still a skeleton" by reading the handler
+// function's own source (Function.prototype.toString()) rather than
+// hardcoding a second copy of this string, or actually invoking a
+// possibly side-effecting handler just to see if it throws.
+const SKELETON_MARKER = "is a generated skeleton -- implement its real behavior";
+
 
 function requireValidName(name){
 
@@ -71,7 +79,7 @@ function toolHandlerTemplate(toolId){
 module.exports = {
 
     ${JSON.stringify(toolId)}: async () => {
-        throw new Error(${JSON.stringify(`Tool "${toolId}" is a generated skeleton -- implement its real behavior in this file before use.`)});
+        throw new Error(${JSON.stringify(`Tool "${toolId}" ${SKELETON_MARKER} in this file before use.`)});
     }
 
 };
@@ -328,4 +336,4 @@ function buildAndInstall(options){
 }
 
 
-module.exports = { buildPackage, buildAndInstall, requireValidName };
+module.exports = { buildPackage, buildAndInstall, requireValidName, SKELETON_MARKER };

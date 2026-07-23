@@ -650,6 +650,42 @@ async function loadCapabilityMarketplace(){
 }
 
 
+function formatCapabilityHealthEntry(entry){
+
+    const parts = [
+        `${entry.name} v${entry.version}`,
+        `— ${entry.operationalStatusLabel}`,
+        `— agents ${entry.agentsLoaded}/${entry.agentsDeclared}`,
+        `— tools ${entry.toolsLoaded}/${entry.toolsDeclared}`
+    ];
+
+    if(entry.skeletonTools.length){
+        parts.push(`— skeleton tools: ${entry.skeletonTools.join(", ")}`);
+    }
+
+    if(entry.missingDependencies.length){
+        parts.push(`— missing dependencies: ${entry.missingDependencies.join(", ")}`);
+    }
+
+    return parts.join(" ");
+
+}
+
+
+async function loadCapabilityHealth(){
+
+    const health = await fetchJSON("/api/capabilities/health");
+
+    renderList(
+        "capability-health",
+        health,
+        "No installed packages to report on.",
+        formatCapabilityHealthEntry
+    );
+
+}
+
+
 function setupCapabilitySearchForm(){
 
     const form = document.getElementById("capability-search-form");
@@ -775,6 +811,7 @@ async function loadDashboard(){
             loadCapabilities(),
             loadSystemReport(),
             loadCapabilityMarketplace(),
+            loadCapabilityHealth(),
             loadSemanticSearchStatus(),
             loadCompanies(),
             loadResearchHistory(),

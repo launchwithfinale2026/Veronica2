@@ -23,6 +23,17 @@ const path = require("path");
 const memory = require("../memory");
 const knowledge = require("../knowledge");
 
+// Phase 25 added package-declared departments/agents; this planner's
+// own loadDepartments()/loadAgents() only ever read the static
+// registry/*.json files and never knew package ones existed --
+// meaning a goal could never be auto-assigned (or even explicitly
+// assigned) to a real department like "trading-dept"/"marketing-dept",
+// and resolveOwners() could never find a package agent as an owner.
+// Same class of gap as core/context/engine.js had (Phase 41 part 1) --
+// fixed the same way, pulling from the same single source of truth
+// core/departments/loader.js/core/agents/loader.js already use.
+const activation = require("../capabilities/activation");
+
 const DEPARTMENTS_REGISTRY = path.join(__dirname, "../../registry/departments.json");
 const AGENTS_REGISTRY = path.join(__dirname, "../../registry/agents.json");
 
@@ -84,18 +95,28 @@ class ExecutivePlanner {
 
     loadDepartments(){
 
-        return JSON.parse(
+        const baseDepartments = JSON.parse(
             fs.readFileSync(DEPARTMENTS_REGISTRY, "utf8")
         ).departments;
+
+        const packageDepartments = activation.packageDepartmentConfigs()
+            .map(({ departmentConfig }) => departmentConfig);
+
+        return [...baseDepartments, ...packageDepartments];
 
     }
 
 
     loadAgents(){
 
-        return JSON.parse(
+        const baseAgents = JSON.parse(
             fs.readFileSync(AGENTS_REGISTRY, "utf8")
         ).agents;
+
+        const packageAgents = activation.packageAgentConfigs()
+            .map(({ agentConfig }) => agentConfig);
+
+        return [...baseAgents, ...packageAgents];
 
     }
 
