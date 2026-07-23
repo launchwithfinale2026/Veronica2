@@ -1087,3 +1087,97 @@ regression test. 492 -> 500 tests, all passing.
 No architectural redesign -- `health.js` is a pure read/report layer over
 existing loaders and the existing registry; nothing about how a package
 actually gets installed, activated, or loaded changed.
+
+## Phase 41 (Marketing Division) -- parts 1-5
+
+With the integration checklist closed, work moved to the operator's next
+objective: make the Marketing Division production-ready. Audited the
+existing architecture first (company data model, daily briefing/review,
+campaign concepts, approval pipeline, learning/analytics, brand/voice --
+a dedicated research pass) before writing anything, per standing
+instruction to reuse rather than duplicate. Findings: the company model,
+daily cycle engines, and approval pipeline were all real and reusable;
+campaigns and brand/voice were genuinely greenfield; the marketing
+package itself was still 100% skeleton (Phase 35).
+
+**Part 1 -- Company Brain + Campaign Engine.** `companyManager.js`
+gained `brandProfile` (mission/vision/values/brand/voice/products/
+services/goals/audience/competitors/assets/operatingRules) as company
+metadata, the same shallow-merge-on-update pattern every other company
+field already uses. Made `metadata.history` a real, live decision log
+via `recordDecision()` -- it existed as a field since Phase 2 but nothing
+ever appended to it. Added `clientRelationships()` and `companyBrain()`,
+the single aggregated view the spec asks for, built entirely from
+existing concepts plus the one genuinely new addition: campaigns. New
+`core/marketing/campaigns.js` -- real campaigns as memory entries (same
+pattern as everything else), with the full field set the spec asks for
+(Objective/Audience/Platforms/Timeline/Content Schedule/Assets/Approval
+Status/Publishing Status/Performance Metrics/Lessons Learned) --
+`scheduleContent()`/`calendar()` together ARE the Campaign Planner/
+Calendar.
+
+**Part 2 -- real Content Generator + Publishing Queue.** New
+`core/marketing/contentGenerator.js`: genuine content drafting routed
+through `core/intelligence.think()` (the same reasoning path every
+other agent call uses, following `core/learning/engine.js`'s own
+established pattern), incorporating a company's real brand voice once
+set. Not fabricated -- Claude is already the configured provider in this
+environment. `actionProposal.js` gained `publish_content` as a new
+external action, reusing `ActionProposalEngine` wholesale (no parallel
+approval system). Execution honestly only works for platforms with a
+real connector (Discord, today) -- any other platform throws a clear
+"no publishing connector configured" error rather than fabricating a
+post.
+
+**Part 3 -- real Analytics Engine + real tool + complete agent
+hierarchy.** New `core/marketing/analytics.js`: campaign-domain metrics
+(whatever was actually recorded -- no ad platform connector exists to
+auto-pull this) plus real execution telemetry, reusing
+`core/learning`'s existing department-agnostic aggregation for free.
+`packages/marketing`'s one skeleton tool (`marketing.campaign.plan`)
+was given a real implementation (creates a real campaign; fixed its
+permission from an invented `"read"` string to the real
+`"write_memory"` vocabulary). Every agent's placeholder prompt was
+replaced with a real one, and three agents were added to complete the
+operator's specified hierarchy (Executive Core -> MarketingDirector ->
+CampaignManager -> ContentStrategist -> BrandManager ->
+PublishingManager -> MarketingAnalyticsAgent): MarketingDirector,
+BrandManager, PublishingManager. Result: `core/capabilities/health.js`
+now reports marketing as genuinely `"active"`, not `"Installed –
+Awaiting Integration"` -- the first of the six Phase 35 packages to
+cross that line for real.
+
+**Part 4 -- Department Health + Campaign Health in the morning
+briefing.** `dailyBriefing.js` gained the two Executive Daily Operations
+sections Phase 37 didn't cover: `departmentHealth()` (reuses
+`OrganizationOverview.departmentHealth()` wholesale) and
+`campaignHealth()` (genuinely new -- a thin per-company rollup over
+`campaigns.js`'s real state: pending-approval count, approved-but-not-
+published count, campaigns nearing their deadline while still
+unpublished).
+
+**Part 5 -- dashboard surfacing.** Wired the whole arc into the
+dashboard: `GET/POST /api/companies/:id/brand-profile`, `.../decisions`,
+`.../brain`; `GET /api/marketing/campaigns`/`calendar`/`analytics`,
+full campaign lifecycle POST routes; `POST
+/api/executive/proposals/external` (the one `ActionProposalEngine`
+method that didn't have a facade wrapper yet -- generic, not marketing-
+specific, so the Publishing Queue and any future external action type
+get a dashboard entry point for free). A new "Marketing Division"
+frontend panel (Brand Profile, campaign planning, calendar, Company
+Brain) follows every existing form/result/renderList convention.
+Verified end to end against a live running server, not just the test
+suite -- no browser available in this environment to click through the
+actual UI (see `docs/NEXT_STEPS.md`), but every element id referenced
+by the new frontend JS was confirmed present in the served HTML, and
+the underlying API calls were verified directly over real HTTP.
+
+500 -> 526 tests across all five parts, all passing throughout, one
+commit per part.
+
+No architectural redesign anywhere in this arc -- every new piece
+(Campaign Engine, Content Generator, Analytics, dashboard routes)
+follows an existing pattern from elsewhere in the codebase rather than
+inventing a new one; the only genuinely new store is campaigns
+themselves, and even that is an ordinary memory entry, not a new file
+or schema.

@@ -2580,3 +2580,109 @@ real `loadAgents()`/`loadDepartments()` output) rather than mocks,
 consistent with this project's standing preference throughout its
 history for exercising real collaborating objects over stubbing them
 out.
+
+## Marketing Division (`core/marketing/`, Phase 41)
+
+**Decision:** the first Phase 35 production package to move from
+skeleton to genuinely production-ready, built as the template for the
+other five. Before writing anything, a dedicated audit pass established
+what already existed (the company data model, the daily briefing/review
+engines, the approval pipeline, `core/learning`'s execution telemetry)
+versus what was genuinely greenfield (campaigns, brand/voice) -- see
+`docs/CHANGELOG.md`'s Phase 41 (Marketing Division) entry for the full
+audit findings and the part-by-part build log. This section is the
+durable architectural record; that changelog entry is the narrative one.
+
+- **Company Brain** (`core/executive/companyManager.js`): a `brandProfile`
+  object (mission/vision/values/brand/voice/products/services/goals/
+  audience/competitors/assets/operatingRules) added to a company's
+  existing `metadata`, the same shallow-merge-on-update pattern every
+  other company field there already uses -- not a new store.
+  `companyBrain(companyId)` is the single aggregated view the spec
+  asked for, built entirely from pre-existing concepts
+  (departments/projects/team/finances were already derivable,
+  relationships already lived in the knowledge graph) plus the one
+  genuinely new field: campaigns. `metadata.history` existed since this
+  file's very first version but nothing had ever appended to it --
+  `recordDecision()` is what makes it a real, live decision log.
+- **Campaign Engine** (`core/marketing/campaigns.js`): campaigns are
+  ordinary memory entries (type `"businesses"`, tagged
+  `company:<id>` + `"marketing-campaign"`) -- the exact pattern
+  `companyManager.js` already established for company-scoped state, not
+  a new parallel store. Deliberately does NOT `require()`
+  `companyManager.js` at module load time (that file's own
+  `companyBrain()` lazy-requires this one, to list a company's
+  campaigns) -- `requireCompanyExists()` lazy-requires it instead, at
+  call time, avoiding a load-time cycle. The Campaign Planner/Calendar
+  IS `scheduleContent()`/`calendar()`: content items live on a
+  campaign's own `contentSchedule` array; `calendar()` just flattens
+  every campaign's schedule into one sorted, annotated view -- not a
+  separate scheduling engine.
+- **Content Generator** (`core/marketing/contentGenerator.js`): routed
+  through `core/intelligence.think()`, the same reasoning path every
+  other agent call already uses, following the exact pattern
+  `core/learning/engine.js`'s `synthesizeRecommendations()` established
+  (a fixed synthetic agent identity, a task-shaped mission,
+  `useTools: false`). Not a raw `core/brain` call, and genuinely
+  functional (not fabricated) -- Claude is already the configured
+  provider in this environment.
+- **Publishing Queue** (`core/executive/actionProposal.js`'s
+  `publish_content` action): reuses `ActionProposalEngine` wholesale --
+  no parallel approval system exists or was built. Execution is
+  deliberately honest about what can actually publish: only Discord has
+  a real connector (`core/integrations/discord.js`) today, so
+  `performExternalAction()`'s case really posts there and marks the
+  campaign/content item published; any other platform a campaign
+  declares throws a clear "no publishing connector configured" error
+  rather than fabricating a successful post. This is the same "only
+  actions a connector can ACTUALLY perform are listed here" rule
+  `actionProposal.js`'s own header comment already states for
+  `create_github_issue`/`post_discord_message`.
+- **Analytics Engine** (`core/marketing/analytics.js`): two genuinely
+  different kinds of "analytics." Execution telemetry (did the
+  department/agent/tool actually run successfully) is already tracked
+  generically by `core/learning`, department-agnostic -- this module
+  just reads it (`executionHealth()`), zero new tracking code.
+  Campaign-domain metrics (impressions/clicks/conversions) are
+  genuinely new business data with no existing system tracking it --
+  `campaignPerformance()` aggregates whatever was actually recorded via
+  `campaigns.js`'s `recordMetrics()`; there is no ad platform connector
+  in this codebase to pull this automatically (see
+  `docs/EXTERNAL_DEPENDENCIES.md`).
+- **Executive Daily Operations** (`core/executive/dailyBriefing.js`):
+  gained `departmentHealth()` (reuses
+  `OrganizationOverview.departmentHealth()` wholesale -- constructing
+  real department instances here follows the same accepted tradeoff
+  Phase 40's `core/system/selfKnowledge.js` already made: fresh
+  instances per call, not a live cache) and `campaignHealth()`
+  (genuinely new -- a thin per-company rollup over campaigns.js's
+  already-persisted state, closing the two Executive Daily Operations
+  sections Phase 37's briefing didn't cover).
+- **Agent hierarchy** (`packages/marketing/`): the operator's specified
+  chain -- Executive Core -> MarketingDirector -> CampaignManager ->
+  ContentStrategist -> BrandManager -> PublishingManager ->
+  MarketingAnalyticsAgent -- realized as real system prompts (no more
+  Phase 27 skeleton placeholders) plus three new agents
+  (MarketingDirector/BrandManager/PublishingManager) added to complete
+  it. There is no new inter-agent messaging protocol -- tasks still flow
+  through the existing Mission Engine/department dispatch/Approval
+  Pipeline exactly as they do for every other department; the prompts
+  describe each role's place in the chain and which existing mechanism
+  to use, not a new execution model.
+- **A package's manifest edits require a registry re-sync**: editing an
+  already-installed package's `manifest.json` on disk does NOT
+  automatically update what `core/capabilities/registry.js` persisted at
+  install time (`activation.js`'s `packageAgentConfigs()`/
+  `packageToolConfigs()` read the REGISTRY's stored manifest copy, not a
+  live re-read of the file) -- the same repair technique from Phase 41
+  part 1's department-field bug (re-`loadManifest()` the real on-disk
+  file, overwrite the registry's copy) had to be applied again here
+  when adding the three new agents to `packages/marketing/manifest.json`.
+  This is a real, sharp edge of the current design worth remembering
+  for any future manifest edit to an already-installed package.
+
+500 -> 526 tests across five parts (one commit per part, `npm test`
+green before each). No architectural redesign anywhere in this arc --
+every new piece follows an existing pattern from elsewhere in the
+codebase; the only genuinely new store is campaigns themselves, and
+even that is an ordinary memory entry.

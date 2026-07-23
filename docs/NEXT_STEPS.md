@@ -1,95 +1,97 @@
 # VERONICA — Next Steps
 
-Snapshot as of Phase 41 part 2 (9-point integration checklist closed).
-500/500 tests passing. See `docs/CHANGELOG.md` for what each phase
-actually built, and `docs/NEXT_HUMAN_ACTIONS.md`/
-`docs/EXTERNAL_DEPENDENCIES.md` for what still needs a human.
+Snapshot as of Phase 41 part 5 (Marketing Division production-readiness,
+dashboard surfacing complete). 526/526 tests passing. See
+`docs/CHANGELOG.md` for what each phase actually built, and
+`docs/NEXT_HUMAN_ACTIONS.md`/`docs/EXTERNAL_DEPENDENCIES.md` for what
+still needs a human.
 
 ## Resolved since the last snapshot
 
 - **The six pending production-package proposals (Phase 35) were
-  approved and are now genuinely, permanently active**: 25 live agents
-  (9 built-in + 16 package), 15 live departments (9 built-in + 6
-  package), all real -- not skeleton/pending anymore.
-- **The operator's 9-point integration checklist is closed.** Capability
-  Registry/Executive Core activation/Organization Manager (Organization
-  Overview)/Agent Registry/Tool Registry/Organization Overview
-  visibility/Executive Dashboard surfacing were all audited directly
-  against the live running system (not assumed) and confirmed already
-  correctly wired by Phase 25/32/33 -- they only *looked* broken because
-  of the four bugs below. The two items that were genuinely missing are
-  now built: "Installed – Awaiting Integration" status
-  (`core/capabilities/health.js` + a new dashboard "Capability
-  Operations" panel) and full Executive Planning participation (Bug 4).
-- Getting the six packages genuinely active/integrated (not a temp test
-  package) surfaced and fixed four real bugs no prior test caught:
-  a relative-`packageDir` `require()` bug in `installer.js`,
-  `manifest.js`'s `normalize()` silently dropping the
-  `department`/`automations` fields Phase 25 added,
-  `core/context/engine.js` and `core/executive/planner.js` each having
-  their own second, package-unaware department/agent loader (so every
-  `think()` call's context AND every `plan()`'s department
-  assignment/owner resolution silently didn't know the six real
-  divisions existed). See Phase 41 parts 1 and 2 in `docs/CHANGELOG.md`
-  for the full detail on each.
-- The prior snapshot's item 3 ("approve or reject the six real pending
-  production-package proposals") is done for the packages; the six
-  architecture-debt/upgrade items in `core/system/selfImprovement.js`
-  are still open, still the operator's call.
+  approved and are now genuinely, permanently active**: 28 live agents
+  (9 built-in + 19 package -- 16 from the six Phase 35 packages, +3
+  from Marketing's completed hierarchy), 15 live departments (9 built-in
+  + 6 package).
+- **The operator's 9-point integration checklist is closed** (Capability
+  Registry/Executive Core/Organization Overview/Agent+Tool Registry/
+  Dashboard were all already correctly wired by Phase 25/32/33 -- they
+  only looked broken because of four real bugs, all fixed; "Installed –
+  Awaiting Integration" status and full Executive Planning participation
+  were the two genuinely missing pieces, both now built).
+- **The Marketing Division is production-ready** (Phase 41 parts 1-5):
+  a real Company Brain + Brand Profile (`companyManager.js`), a real
+  Campaign Engine with Planner/Calendar (`core/marketing/campaigns.js`),
+  a real Content Generator using the actual Claude connection
+  (`core/marketing/contentGenerator.js`), a real, approval-gated
+  Publishing Queue (`actionProposal.js`'s `publish_content`, honest
+  about only Discord actually working today), a real Analytics Engine
+  (`core/marketing/analytics.js`), Department/Campaign Health in the
+  morning briefing, a complete real agent hierarchy (Executive Core ->
+  MarketingDirector -> CampaignManager -> ContentStrategist ->
+  BrandManager -> PublishingManager -> MarketingAnalyticsAgent, every
+  prompt real, no more skeletons), and full dashboard surfacing
+  (backend routes + a new frontend panel). The marketing package is now
+  the first of the six Phase 35 packages to report `"active"` in
+  `core/capabilities/health.js`, not "Installed – Awaiting Integration".
+- The remaining five Phase 35 packages (business-operations, sales,
+  research-department, finance, trading-research) are still genuinely
+  "Installed – Awaiting Integration" -- their tools are still generated
+  skeletons. Marketing was the operator's explicit next objective; the
+  same production-readiness pass (real tool implementations, real agent
+  prompts) is the natural template for each of the other five, not yet
+  started.
 
-## In progress -- Marketing Division production-readiness
+## Recommended Phase 42+
 
-The operator's standing instruction, after the integration checklist,
-is full Marketing Division production-readiness: Brand Profile, Brand
-Guidelines/Voice Rules, Campaign Engine/Planner/Calendar, Content
-Generator, Approval Queue, Publishing Queue, Analytics Engine, Learning
-Engine; a permanent per-company "Company Brain"; Executive Daily
-Operations (morning briefing / evening review); an evolved agent
-collaboration hierarchy (Executive Core -> Marketing Director ->
-Campaign Manager -> Content Strategist -> Brand Manager -> Publishing
-Manager -> Analytics Manager); further Capability Marketplace/Dashboard
-improvements. None of that is built yet -- the integration checklist
-above was the necessary prerequisite (the marketing package has to be
-genuinely, correctly active and wired through every consumer before a
-production-readiness pass on top of it means anything), and is now done
-and green.
-
-## Recommended Phase 41+
-
-1. **Close the recommendation feedback loop.** Phase 38's
+1. **Apply the Marketing Division's production-readiness template to
+   the other five Phase 35 packages** (business-operations, sales,
+   research-department, finance, trading-research) -- same pattern:
+   real tool implementations replacing generated skeletons, real agent
+   system prompts, a domain engine analogous to
+   `core/marketing/campaigns.js` where the domain calls for one (e.g. a
+   real deal/pipeline model for sales, a real ledger/report engine for
+   finance). Each is its own genuine scope, not a single mechanical
+   pass -- pick one at a time.
+2. **Close the recommendation feedback loop.** Phase 38's
    `adaptiveInsights.js` computes real acceptance rates and repeated-
    recommendation counts but doesn't feed them back into
    `core/executive/executiveRecommendations.js`'s own generation logic.
    The natural next step: weight or suppress recommendations of a kind
    that's been rejected repeatedly, and surface highly-repeated ones
    more prominently -- both explainable off data that already exists.
-2. **A dedicated visual/browser-tested dashboard pass.** Every dashboard
+3. **A dedicated visual/browser-tested dashboard pass.** Every dashboard
    change across this entire project has been verified at the
    endpoint/content level only -- no browser is available in this
-   environment. The command palette, search, and Executive Summary
-   panel (Phase 34) are functionally real but never visually confirmed.
-3. **The six architecture-debt/upgrade items** flagged in
+   environment. The command palette, search, Executive Summary panel
+   (Phase 34), and now the Marketing Division panel (Phase 41) are
+   functionally real but never visually confirmed.
+4. **The six architecture-debt/upgrade items** flagged in
    `core/system/selfImprovement.js` -- genuinely the operator's call,
    not something to decide autonomously.
-4. **Extend the autonomous capability builder's tool generation.**
-   Right now every generated tool is a throwing skeleton; a natural
-   Phase 41+ increment is generating a REAL implementation for simple,
-   well-known tool shapes (e.g., a tool that just calls an existing
-   connector method) rather than always a placeholder -- carefully,
-   without ever fabricating capability that doesn't work.
-5. **GitHub webhook receiver** (push-based instead of polling) -- needs
+5. **Extend the autonomous capability builder's tool generation.**
+   Right now every NEWLY generated tool is a throwing skeleton; a
+   natural next increment is generating a REAL implementation for
+   simple, well-known tool shapes (e.g., a tool that just calls an
+   existing connector method) rather than always a placeholder --
+   carefully, without ever fabricating capability that doesn't work.
+6. **GitHub webhook receiver** (push-based instead of polling) -- needs
    a publicly reachable HTTPS endpoint, which `DASHBOARD_HOST`'s
    `127.0.0.1` default doesn't provide.
-6. **Gmail sending / Calendar event creation / Drive upload** --
+7. **Gmail sending / Calendar event creation / Drive upload** --
    deliberately unbuilt (Phase 19 was explicitly read-only for Google);
    each would need its own new `ActionProposalEngine` external action.
-7. **The remaining human actions** (see `docs/NEXT_HUMAN_ACTIONS.md`):
+8. **A real publishing connector beyond Discord** -- Twitter/X, email,
+   Instagram, etc. Each needs its own new `ActionProposalEngine`
+   external action and a real credential, same pattern
+   `publish_content`'s Discord case already establishes.
+9. **The remaining human actions** (see `docs/NEXT_HUMAN_ACTIONS.md`):
    `API_TOKEN`, `GITHUB_TOKEN`, `DISCORD_BOT_TOKEN`
    (+`DISCORD_CLIENT_ID`), Google's two-step configure-then-authorize
    flow, and the LaunchAgent install (`scripts/install-launch-agent.sh`).
    None of these block further *development* -- every connector works
    correctly whether or not its credential is set.
-8. **The git-history rewrite question** and **knowledge-graph company
+10. **The git-history rewrite question** and **knowledge-graph company
    isolation** (both Phase 10, still open) -- unchanged across every
    phase since, still open business/architecture decisions for the
    operator.
