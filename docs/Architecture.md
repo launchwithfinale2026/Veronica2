@@ -2998,3 +2998,38 @@ hazard for any future domain module.
 616 -> 641 tests across three parts (one commit per part, `npm test`
 green before each). No architectural redesign -- the only genuinely new
 stores are SOPs, KPIs, and meetings.
+
+## Organizational Learning -- the recommendation feedback loop (Phase 47)
+
+**Decision:** with all six Divisions production-ready, work shifted to
+organization-wide capabilities. First: close the one gap
+`core/learning/adaptiveInsights.js`'s own Phase 38 header comment
+explicitly flagged as real future work rather than doing it silently --
+"feeding this data back into HOW future recommendations get generated."
+
+- `core/executive/executiveRecommendations.js`'s `generate()` gained
+  `applyAdaptiveInsights()`, which annotates every recommendation with
+  two real signals already computed by `adaptiveInsights.js`: its
+  kind's real acceptance rate (from every past `ActionProposalEngine`
+  proposal's own status transition) and its real recurrence count
+  (how many past recommendation runs flagged this exact kind+subject).
+  Genuinely recurring issues sort to the front.
+- **Deliberately does not hide anything**: a recommendation with a low
+  historical acceptance rate is still returned, annotated honestly --
+  silently suppressing it would hide a real, current issue from the
+  operator, which is the opposite of this system's "explainable"
+  principle. The feedback loop changes what the operator SEES about a
+  recommendation (its real track record), not whether they see it.
+- `adaptiveInsights.js` itself is unchanged (still a pure reporting
+  layer) -- the feedback loop lives entirely in how
+  `executiveRecommendations.js` consumes that reporting, keeping the
+  two files' responsibilities exactly as separated as Phase 38 already
+  established.
+- Both files lazily require each other where needed (`executiveRecommendations.js`
+  requires `adaptiveInsights.js` inside `applyAdaptiveInsights()`;
+  `adaptiveInsights.js` already lazily required
+  `executiveRecommendations.js` back, for its static `TAG`) -- a safe,
+  symmetrical lazy pair, not a top-level cycle.
+
+644 tests (641 -> 644), `npm test` green. No architectural redesign --
+the only new code is the annotation/sort step itself.

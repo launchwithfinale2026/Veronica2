@@ -1490,3 +1490,36 @@ engines, real tools, real agent prompts, and real dashboard surfacing
 -- reusing existing architecture throughout (the ledger, the research
 engine, blocker detection, weekly reporting, the approval pipeline)
 rather than duplicating any of it.
+
+## Phase 47 -- Organizational Learning: close the recommendation feedback loop
+
+With all six Divisions production-ready, work shifted from "make one
+department real" to organization-wide capabilities. First: close the
+one gap `core/learning/adaptiveInsights.js`'s own Phase 38 header
+comment explicitly named as real future work -- "feeding this data back
+into HOW future recommendations get generated."
+
+`core/executive/executiveRecommendations.js`'s `generate()` now calls a
+new `applyAdaptiveInsights()` that annotates every recommendation with
+two real, already-persisted signals: its kind's real acceptance rate
+(from every past `ActionProposalEngine` proposal's own status
+transition) and how many times this exact kind+subject has recurred
+across past runs. Genuinely recurring issues are resurfaced more
+prominently (sorted to the front). Deliberately does NOT silently drop
+or hide a low-acceptance recommendation -- that would hide a real,
+current issue from the operator, the opposite of "explainable"; the
+annotation is honest and visible, acting on it stays the operator's
+call.
+
+Most of Phase 47's other asks (record successes/failures/lessons,
+generate improvements) were already real before this change:
+campaigns'/opportunities' `lessonsLearned`, `core/learning/log.js`'s
+per-call telemetry, `core/learning/engine.js`'s LLM-synthesized
+recommendations, `core/system/selfImprovement.js`'s debt tracking. This
+closes the one genuine, clearly-scoped gap those didn't already cover.
+
+Tested entirely against real, persisted state -- a real approved
+proposal, three real recommendation runs -- no mocked adaptive-insights
+data.
+
+641 -> 644 tests, all passing.
