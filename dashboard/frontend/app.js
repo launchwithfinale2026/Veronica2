@@ -462,6 +462,14 @@ async function loadLearningRecommendations(){
 }
 
 
+async function loadAdaptiveInsights(){
+
+    const insights = await fetchJSON("/api/learning/adaptive-insights");
+    document.getElementById("adaptive-insights").textContent = JSON.stringify(insights, null, 2);
+
+}
+
+
 async function loadAutomationStatus(){
 
     const status = await fetchJSON("/api/automation/status");
@@ -758,6 +766,7 @@ async function loadDashboard(){
             loadLearningDepartments(),
             loadLearningTools(),
             loadLearningRecommendations(),
+            loadAdaptiveInsights(),
             loadAutomationStatus(),
             loadAutomationSchedules(),
             loadAutomationHistory(),

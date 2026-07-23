@@ -275,6 +275,8 @@ const ROUTES = {
 
     "GET /api/learning/recommendations": () => learning.recommendationHistory(),
 
+    "GET /api/learning/adaptive-insights": () => learning.adaptiveInsights(),
+
     "GET /api/automation/status": () => automation.status(),
 
     "GET /api/automation/history": () => automation.history(),

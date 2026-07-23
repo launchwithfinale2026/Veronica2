@@ -2,6 +2,7 @@
 // core/executive/index.js.
 
 const LearningEngine = require("./engine");
+const adaptiveInsights = require("./adaptiveInsights");
 
 const engine = new LearningEngine();
 
@@ -17,6 +18,11 @@ module.exports = {
 
     recommend: () => engine.recommend(),
 
-    recommendationHistory: (limit) => engine.recommendationHistory(limit)
+    recommendationHistory: (limit) => engine.recommendationHistory(limit),
+
+    // Phase 38 -- adaptive insights: accepted/rejected recommendations,
+    // repeated behaviors, automation success, package tool usage. See
+    // core/learning/adaptiveInsights.js.
+    adaptiveInsights: () => adaptiveInsights.generate()
 
 };
