@@ -2935,3 +2935,66 @@ placing real capital.
 green before each). No architectural redesign -- the only genuinely new
 stores are portfolios, strategies, watchlists, and the paper trade
 journal.
+
+## Business Operations Division (`core/operations/`, Phase 46) -- completes the Phase 41-46 arc
+
+**Decision:** the sixth and final Phase 35 package moved from skeleton
+to production-ready. The most important architectural decision here
+was recognizing what NOT to build: Blocker Management
+(`core/executive/blockerDetection.js`) and Weekly Operating Reviews
+(`core/executive/weeklyReport.js`) were both already real, comprehensive
+Phase 11 systems -- the spec's asks for them were satisfied by reuse,
+not reimplementation.
+
+- **SOP library IS Workflow documentation** (`core/operations/sops.js`):
+  one real entity, not two stores describing the same thing from two
+  angles. `updateSteps()` revises the document in place with a real
+  version counter -- unlike every other division's append-only history
+  arrays (a lead's interactions, an opportunity's stage history), an
+  SOP is a single evolving document, not a growing log, so it gets a
+  genuinely different persistence pattern.
+- **KPI direction matters** (`core/operations/kpis.js`): a KPI is either
+  higher-is-better (revenue) or lower-is-better (churn, defect rate) --
+  defaulting to one direction, as would be tempting for simplicity,
+  would silently mis-grade roughly half of all real KPIs.
+  `kpiStatus()`'s `onTrack: null` before any actual is recorded is a
+  deliberate honesty signal, not a default that happens to look like
+  one.
+- **Department Scorecards + Process Analysis, composed from existing
+  systems** (`core/operations/scorecard.js`): `departmentScorecard()`
+  reuses `OrganizationOverview.departmentHealth()` (real agent count/
+  project counts/execution success rate, Phase 32) and
+  `BlockerDetector.detect()` (real deadlocked projects, Phase 11)
+  wholesale -- this module's only genuinely new contribution is real
+  KPIs and real SOP counts layered on top. `analyzeProcess()` similarly
+  composes a real SOP with its department's real execution health
+  (reused from `core/learning`, zero new tracking) and related KPIs.
+  Every cross-subsystem require in this file is lazy from the very
+  first draft -- by Phase 46, the circular-require pattern (any module
+  reachable from a package tool handler must not top-level-require
+  anything in the `core/learning`/`core/intelligence`/`core/brain`
+  chain) had recurred four times (Sales, proactively Marketing,
+  Research's `missions.js` AND `engine.js` itself) and was designed
+  around from the start rather than discovered live a fifth time.
+- **Operations Status** (`core/executive/dailyBriefing.js`): system-
+  wide, like `researchStatus()`/`tradingStatus()` -- total SOPs/KPIs,
+  real off-track KPI count, real open action-item count. Weekly
+  Operating Reviews remain their own separate, already-scheduled
+  artifact -- deliberately not duplicated into this daily rollup.
+
+**This completes the entire Phase 41-46 arc.** All six Phase 35
+production packages (marketing, sales, finance, research-department,
+trading-research, business-operations) are now genuinely `"active"` in
+`core/capabilities/health.js`, confirmed by an exhaustive test asserting
+all six directly. Every division followed the same discipline: audit
+existing architecture first, reuse whatever was already real (the
+ledger, the research engine, blocker detection, weekly reporting, the
+approval pipeline), and build only the genuine gap. The one recurring
+architectural lesson across all six -- the circular-require bug class
+between package tool handlers and the `core/learning`/
+`core/intelligence`/`core/brain` chain -- is now a known, documented
+hazard for any future domain module.
+
+616 -> 641 tests across three parts (one commit per part, `npm test`
+green before each). No architectural redesign -- the only genuinely new
+stores are SOPs, KPIs, and meetings.

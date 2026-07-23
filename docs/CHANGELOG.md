@@ -1429,3 +1429,64 @@ that line. Only business-operations remains.
 commit per part. No architectural redesign -- the only genuinely new
 stores are portfolios, strategies, watchlists, and the paper trade
 journal.
+
+## Phase 46 (Business Operations Division) -- parts 1-3, completes all six Phase 35 packages
+
+The sixth and final Phase 35 package. Audited existing architecture
+first and found two of the spec's asks already fully real: Blocker
+Management (`core/executive/blockerDetection.js`, Phase 11) and Weekly
+Operating Reviews (`core/executive/weeklyReport.js`, Phase 11) -- both
+reused directly rather than duplicated.
+
+**Part 1 -- real SOP/Workflow Library + KPI Tracking + Meeting
+Summaries.** New `core/operations/sops.js`: "SOP library" and "Workflow
+documentation" are the same real entity (an SOP IS a documented
+workflow), not two stores. `updateSteps()` revises the document in
+place with a real version counter -- an SOP is a single evolving
+document, unlike other divisions' append-only history logs. New
+`core/operations/kpis.js`: real `direction` field
+(higher_is_better/lower_is_better) -- defaulting to one direction
+would silently mis-grade half of all real KPIs. `kpiStatus()` honestly
+reports a null `onTrack` before any actual value has been recorded.
+New `core/operations/meetings.js`: structured action items
+(text/owner/done), distinct from `companyManager.js`'s
+`logCommunication()` (free-text + channel only, no place for
+attendees/decisions/trackable items).
+
+**Part 2 -- Department Scorecards + Process Analysis + real tool.** New
+`core/operations/scorecard.js`: composes EXISTING systems rather than
+duplicating them. `departmentScorecard()` reuses
+`OrganizationOverview.departmentHealth()` and
+`BlockerDetector.detect()` wholesale, adding only the two genuinely new
+pieces (real KPIs, real SOP count). `analyzeProcess()` combines a real
+SOP with its department's real execution health (reused from
+`core/learning`) and related KPIs. Every cross-subsystem require here
+is lazy, written that way from the start -- the fourth time this
+codebase has needed the same circular-require workaround.
+`packages/business-operations`'s skeleton tool given a real
+implementation, permission fixed to `"read_memory"`, every agent prompt
+replaced with a real one.
+
+**Result: all six Phase 35 production packages are now genuinely
+`"active"`** in `core/capabilities/health.js` -- marketing, sales,
+finance, research-department, trading-research, business-operations.
+None remain skeleton-tooled. Added an exhaustive test asserting this
+directly, and fixed a now-doubly-stale assertion in
+`tests/dashboard.test.js` (previously updated to point at
+business-operations as the "still awaiting" example -- now updated to
+reflect that none remain).
+
+**Part 3 -- Operations Status + dashboard surfacing.** `dailyBriefing.js`
+gained `operationsStatus()` (system-wide: total SOPs/KPIs, off-track
+KPI count, open action-item count). Full dashboard wiring -- SOP/KPI/
+meeting lifecycle, process analysis, department scorecard -- and a new
+frontend panel.
+
+616 -> 641 tests across three parts, all passing throughout, one
+commit per part. This closes the entire Phase 41-46 arc: six Phase 35
+packages that were "installed but skeleton" are now six genuinely
+production-ready organizational divisions, each with real domain
+engines, real tools, real agent prompts, and real dashboard surfacing
+-- reusing existing architecture throughout (the ledger, the research
+engine, blocker detection, weekly reporting, the approval pipeline)
+rather than duplicating any of it.
