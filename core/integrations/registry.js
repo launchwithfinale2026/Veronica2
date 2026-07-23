@@ -27,6 +27,18 @@ const calendar = require("./calendar");
 const email = require("./email");
 const cloudStorage = require("./cloudStorage");
 
+// Phase 36 (Connector Completion): Claude/OpenAI are credential-gated
+// external services exactly like every connector above, but had no
+// entry in this registry -- credentialManager already tracks their
+// configuration (see its own CONNECTORS map), so this reuses that
+// directly rather than constructing a real BrainProvider just to read
+// status (which would print its own real startup logs and initialize a
+// real API client as a side effect of a status check -- core/brain
+// would also need a lazy require here to avoid a real circular-require
+// loop back through core/tools/handlers/integrations.js, which requires
+// this exact file).
+const credentialManager = require("./credentialManager");
+
 
 // Phase 23 (Integration Framework): "sync history" for the connectors
 // that poll (github, gmail/calendar/drive under the "google" entry) --
@@ -79,6 +91,26 @@ function list(){
             implemented: true,
             configured: true, // no credentials needed -- see core/integrations/fileIntelligence.js
             note: "Indexes local files under data/workspace/ into memory. No credentials required."
+        },
+
+        {
+            id: "claude",
+            kind: "llm",
+            implemented: true,
+            configured: credentialManager.isConfigured("claude"),
+            note: credentialManager.isConfigured("claude")
+                ? "Configured -- primary reasoning provider (core/brain)."
+                : "Not configured -- set ANTHROPIC_API_KEY to enable."
+        },
+
+        {
+            id: "openai",
+            kind: "llm",
+            implemented: true,
+            configured: credentialManager.isConfigured("openai"),
+            note: credentialManager.isConfigured("openai")
+                ? "Configured -- semantic memory embeddings + fallback reasoning provider."
+                : "Not configured -- set OPENAI_API_KEY to enable (keyword memory search still works without it)."
         },
 
         { ...github.status(), lastSync: lastSyncFor(["github"]) },

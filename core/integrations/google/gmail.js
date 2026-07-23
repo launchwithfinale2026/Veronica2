@@ -19,7 +19,10 @@ async function call(pathname, options = {}){
 
     const accessToken = await oauth.getAccessToken();
 
-    const response = await http.request(`${API_ROOT}${pathname}`, {
+    // Phase 36 ("retry safely"): every Gmail call in this file is a GET
+    // (this connector is read-only), so this always gets bounded retries
+    // against a transient failure.
+    const response = await http.requestWithRetry(`${API_ROOT}${pathname}`, {
         ...options,
         headers: {
             Authorization: `Bearer ${accessToken}`,

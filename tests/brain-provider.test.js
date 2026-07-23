@@ -30,6 +30,27 @@ test("generate() falls back through the chain until one provider succeeds", asyn
     assert.strictEqual(result.provider, "local");
 });
 
+test("status() reports which providers are really configured and which is active (Phase 36 -- report status)", () => {
+
+    const bp = new BrainProvider();
+
+    bp.providers = {
+        claude: { generate: async () => ({}) },
+        local: { generate: async () => ({}) }
+        // openai deliberately absent -- as if its API key were missing,
+        // same as the real constructor's try/catch skip.
+    };
+    bp.active = "claude";
+
+    const status = bp.status();
+
+    assert.deepStrictEqual(status.find(p => p.name === "claude"), { name: "claude", configured: true, active: true });
+    assert.deepStrictEqual(status.find(p => p.name === "openai"), { name: "openai", configured: false, active: false });
+    assert.deepStrictEqual(status.find(p => p.name === "local"), { name: "local", configured: true, active: false });
+
+});
+
+
 test("generate() throws the last error when every provider fails", async () => {
     const bp = new BrainProvider();
 

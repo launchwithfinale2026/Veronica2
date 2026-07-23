@@ -154,22 +154,28 @@ test("registry.overview() reports every connector and matches each one's own sta
 
     const overview = registry.overview();
 
-    assert.strictEqual(overview.total, 10);
+    assert.strictEqual(overview.total, 12);
     assert.strictEqual(overview.integrations.length, overview.total);
 
     const ids = overview.integrations.map(i => i.id).sort();
     assert.deepStrictEqual(ids, [
-        "calendar", "cloudStorage", "discord", "discordBot", "email",
-        "fileIntelligence", "github", "google", "http", "obsidian"
+        "calendar", "claude", "cloudStorage", "discord", "discordBot",
+        "email", "fileIntelligence", "github", "google", "http",
+        "obsidian", "openai"
     ]);
 
     // obsidian/fileIntelligence need no credentials -- always configured.
     assert.strictEqual(overview.integrations.find(i => i.id === "obsidian").configured, true);
     assert.strictEqual(overview.integrations.find(i => i.id === "fileIntelligence").configured, true);
 
-    // github/discord/discordBot/google/calendar/email/cloudStorage are
-    // unconfigured by default in this test's clean env.
-    for(const id of ["github", "discord", "discordBot", "google", "calendar", "email", "cloudStorage"]){
+    // github/discord/discordBot/google/calendar/email/cloudStorage/openai
+    // are unconfigured by default in this test's clean env. "claude" is
+    // NOT in this list -- ANTHROPIC_API_KEY is set in this project's own
+    // real .env (every department/agent call needs it to function at
+    // all), so it's genuinely configured even in an otherwise-clean test
+    // environment; asserting it's false here would be asserting
+    // something untrue about this real machine's actual configuration.
+    for(const id of ["github", "discord", "discordBot", "google", "calendar", "email", "cloudStorage", "openai"]){
         assert.strictEqual(overview.integrations.find(i => i.id === id).configured, false);
     }
 

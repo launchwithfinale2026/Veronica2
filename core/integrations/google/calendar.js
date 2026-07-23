@@ -21,7 +21,8 @@ async function call(pathname){
 
     const accessToken = await oauth.getAccessToken();
 
-    const response = await http.request(`${API_ROOT}${pathname}`, {
+    // Phase 36 ("retry safely"): this connector is entirely GET/read-only.
+    const response = await http.requestWithRetry(`${API_ROOT}${pathname}`, {
         headers: { Authorization: `Bearer ${accessToken}` }
     });
 

@@ -130,4 +130,85 @@ async function request(url, { method = "GET", body, headers = {} } = {}){
 }
 
 
-module.exports = { request, allowlist };
+// Phase 36 (Connector Completion -- "retry safely"). A transient
+// failure (a network blip, a 503, a rate limit) shouldn't turn into a
+// permanent connector failure or a skipped polling cycle -- but
+// retrying is only safe by default for GET, which HTTP itself defines
+// as idempotent. A POST/PUT/PATCH/DELETE is NOT retried unless the
+// caller explicitly opts in (`retryNonIdempotent: true`), since this
+// module has no way to know whether a prior attempt's response was
+// simply lost after the write already succeeded server-side (e.g.
+// retrying an already-created GitHub issue could create a duplicate).
+// Every connector built on request() (github.js, the google/ connectors)
+// gets this for free by switching their own shared call() helper to use
+// this instead -- the retry logic lives in exactly one place, not
+// reimplemented per connector.
+const DEFAULT_MAX_RETRIES = 3;
+const DEFAULT_BACKOFF_BASE_MS = 500;
+const RETRYABLE_STATUS_CODES = [429, 500, 502, 503, 504];
+
+
+function sleep(ms){
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+
+async function requestWithRetry(url, options = {}, { maxRetries = DEFAULT_MAX_RETRIES, backoffBaseMs = DEFAULT_BACKOFF_BASE_MS, retryNonIdempotent = false } = {}){
+
+    const method = (options.method || "GET").toUpperCase();
+    const canRetry = method === "GET" || retryNonIdempotent;
+    const attempts = canRetry ? maxRetries : 0;
+
+    for(let attempt = 0; attempt <= attempts; attempt++){
+
+        const isLastAttempt = attempt === attempts;
+
+        try {
+
+            // Calls through module.exports.request (not the bare local
+            // `request` binding) specifically so every existing test's
+            // established mocking convention -- reassigning
+            // `http.request = fakeFn` for the duration of one test (see
+            // github.js/discord.js/google/*'s own test files) -- still
+            // intercepts calls made via requestWithRetry(), the same as
+            // it already intercepts direct request() calls.
+            const response = await module.exports.request(url, options);
+
+            if(canRetry && RETRYABLE_STATUS_CODES.includes(response.status)){
+
+                // On the last allowed attempt, a still-retryable status is
+                // a real, final failure -- throwing here (rather than
+                // returning the failed response) is caught by this same
+                // try's catch block immediately below, where
+                // isLastAttempt is true, so it rethrows and propagates
+                // out. Returning the response instead would have silently
+                // handed a 503 back to the caller as if it were a normal
+                // result -- exactly the "silent failure" this phase's own
+                // ask is about avoiding.
+                if(isLastAttempt){
+                    throw new Error(`Retryable status ${response.status} from ${url}`);
+                }
+
+                await sleep(backoffBaseMs * (2 ** attempt));
+                continue;
+
+            }
+
+            return response;
+
+        } catch(error){
+
+            if(!canRetry || isLastAttempt){
+                throw error;
+            }
+
+            await sleep(backoffBaseMs * (2 ** attempt));
+
+        }
+
+    }
+
+}
+
+
+module.exports = { request, allowlist, requestWithRetry };

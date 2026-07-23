@@ -157,6 +157,23 @@ class BrainProvider {
     }
 
 
+    // Phase 36 (Connector Completion -- "report status"): Claude/OpenAI
+    // didn't have a way to report their own real state before this --
+    // which providers actually initialized (a missing API key means a
+    // provider is simply absent from this.providers, per the constructor
+    // above), which one is currently active, and the real fallback order
+    // this class already uses when the active one fails.
+    status(){
+
+        return Object.keys(PROVIDER_CLASSES).map(name => ({
+            name,
+            configured: Boolean(this.providers[name]),
+            active: name === this.active
+        }));
+
+    }
+
+
 }
 
 

@@ -42,7 +42,12 @@ async function call(pathname, options = {}){
 
     requireConfigured();
 
-    const response = await http.request(`${API_ROOT}${pathname}`, {
+    // Phase 36 ("retry safely"): GET calls (every read method) get
+    // bounded retries against a transient failure (rate limit, a 5xx) --
+    // createIssue's POST is unaffected (requestWithRetry only retries
+    // non-GET when explicitly opted in, which this call site doesn't do),
+    // so a write is never silently retried and potentially duplicated.
+    const response = await http.requestWithRetry(`${API_ROOT}${pathname}`, {
         ...options,
         headers: {
             Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
