@@ -151,8 +151,13 @@ test("GET /api/status reports online with real agent/department counts", async (
 
     assert.strictEqual(res.status, 200);
     assert.strictEqual(body.status, "ONLINE");
-    assert.strictEqual(body.agents, 9);
-    assert.strictEqual(body.departments, 9);
+    // 9 built-in agents/departments + 16 agents/6 departments from the
+    // six real, active production capability packages (Phase 35,
+    // approved and installed for real -- see docs/CHANGELOG.md's
+    // "Phase 41" entry). Not a fixed constant anymore: this machine's
+    // real roster now legitimately depends on what's installed.
+    assert.strictEqual(body.agents, 25);
+    assert.strictEqual(body.departments, 15);
     assert.ok(typeof body.uptimeSeconds === "number");
 
 });
@@ -177,7 +182,9 @@ test("GET /api/agents/network returns every agent with its real knowledge-graph 
     const body = await res.json();
 
     assert.strictEqual(res.status, 200);
-    assert.strictEqual(body.length, 9);
+    // 9 built-in + 16 from the real, active production capability
+    // packages (Phase 35/41).
+    assert.strictEqual(body.length, 25);
     assert.ok(body.every(agent => "name" in agent && "department" in agent && Array.isArray(agent.connections)));
 
 });
@@ -244,12 +251,12 @@ test("checkApiAuth rejects a wrong-length token without throwing", async () => {
 
 });
 
-test("GET /api/agents returns the real 9-agent roster", async () => {
+test("GET /api/agents returns the real agent roster (9 built-in + package agents from installed capabilities)", async () => {
 
     const res = await fetch(`${baseUrl}/api/agents`);
     const body = await res.json();
 
-    assert.strictEqual(body.length, 9);
+    assert.strictEqual(body.length, 25);
     assert.ok(body.some(a => a.name === "METIS"));
 
 });
@@ -259,7 +266,9 @@ test("GET /api/departments returns statusReport() shaped entries", async () => {
     const res = await fetch(`${baseUrl}/api/departments`);
     const body = await res.json();
 
-    assert.strictEqual(body.length, 9);
+    // 9 built-in + 6 from the real, active production capability
+    // packages (Phase 35/41).
+    assert.strictEqual(body.length, 15);
     assert.ok(body.every(d => d.id && d.status && Array.isArray(d.agents)));
 
 });

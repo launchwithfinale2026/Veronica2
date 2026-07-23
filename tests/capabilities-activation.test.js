@@ -38,10 +38,29 @@ function makeTempPackage(){
 
 test("with zero active packages, activation.* helpers return empty arrays (no behavior change)", () => {
 
-    assert.deepStrictEqual(activation.packageAgentConfigs(), []);
-    assert.deepStrictEqual(activation.packageToolConfigs(), []);
-    assert.deepStrictEqual(activation.packageDepartmentConfigs(), []);
-    assert.deepStrictEqual(activation.packageAutomationConfigs(), []);
+    // This machine now has six real, active production capability
+    // packages installed (Phase 35/41, approved by the operator) --
+    // "zero active packages" is no longer this environment's natural
+    // baseline, so this test creates that condition for itself
+    // (snapshotting and temporarily clearing the registry), rather than
+    // assuming it. The outer file-level backup/restore (test.before()/
+    // test.after() above) still restores the REAL six packages once
+    // this whole file finishes -- this inner snapshot only affects this
+    // one assertion.
+    const snapshot = registry.snapshot();
+
+    try {
+
+        registry.restore({ capabilities: registry.list().filter(entry => entry.core) });
+
+        assert.deepStrictEqual(activation.packageAgentConfigs(), []);
+        assert.deepStrictEqual(activation.packageToolConfigs(), []);
+        assert.deepStrictEqual(activation.packageDepartmentConfigs(), []);
+        assert.deepStrictEqual(activation.packageAutomationConfigs(), []);
+
+    } finally {
+        registry.restore(snapshot);
+    }
 
 });
 

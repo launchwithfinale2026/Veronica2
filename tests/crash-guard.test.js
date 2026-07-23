@@ -12,6 +12,14 @@ test.before(() => {
     if(LOG_EXISTED_BEFORE){
         fs.copyFileSync(LOG_PATH, LOG_BACKUP);
     }
+    // Truncate to empty for this file's run only (restored from the real
+    // backup in test.after() below). readErrors(1000) below asserts an
+    // exact before/after diff of 1 -- errors.log has organically grown
+    // past 1000 real lines over the life of this project, so
+    // slice(-1000) silently caps both reads at 1000 and the diff-by-1
+    // assumption breaks. Starting from empty makes the count
+    // deterministic regardless of how large the real log has grown.
+    fs.writeFileSync(LOG_PATH, "");
 });
 
 test.after(() => {

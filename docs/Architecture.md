@@ -638,8 +638,14 @@ call." Built 2026-07-21 (Intelligence Layer milestone, Phase 5 of 18).
   original memories+knowledge: **active goals** (top 5 roadmap projects by
   priority), **recent project activity** (top 3 by `updated`, a distinct
   slice from "active goals" — "what's important" vs. "what just
-  happened"), **department roster** (id/name/domain/status, all 9, always
-  included — cheap, small, no reason to gate it on a query), **device
+  happened"), **department roster** (id/name/domain/status, always
+  included — cheap, small, no reason to gate it on a query; originally
+  the 9 built-ins only, extended in Phase 41 to also include
+  package-declared departments via `core/capabilities/activation.js`'s
+  `packageDepartmentConfigs()` — see Phase 41 part 1 in
+  `docs/CHANGELOG.md`, this engine had its own second, package-unaware
+  department loader that silently omitted all six real production
+  divisions from every reasoning call's context until fixed), **device
   identity** (`core/device`), and an **optional company scope**
   (`options.companyId`, trimmed to id/name/industry/status/departments —
   full company detail would blow past what a prompt needs). Company scope

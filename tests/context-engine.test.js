@@ -56,7 +56,10 @@ test("retrieve() always includes departments, device identity, activeGoals, and 
 
     const result = await engine.retrieve();
 
-    assert.strictEqual(result.departments.length, 9);
+    // 9 built-in + 6 from the real, active production capability
+    // packages (Phase 35/41) -- see tests/dashboard.test.js's own
+    // comment on this same real machine-state change.
+    assert.strictEqual(result.departments.length, 15);
     assert.ok(result.departments.every(d => d.id && d.name && d.domain));
     assert.ok(result.device && result.device.id);
     assert.ok(Array.isArray(result.activeGoals));

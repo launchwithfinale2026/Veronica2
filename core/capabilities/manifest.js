@@ -55,6 +55,19 @@ function normalize(manifest){
         tools: manifest.tools || [],
         dependencies: manifest.dependencies || [],
         permissions: manifest.permissions || [],
+        // Phase 25 added optional `department` ({id, name, domain}) and
+        // `automations` ([{name, intervalMs}]) fields that
+        // core/capabilities/activation.js reads back off the STORED
+        // manifest (packageDepartmentConfigs()/packageAutomationConfigs())
+        // -- this whitelist predates that and was never updated, so every
+        // real package's department/automations silently vanished at
+        // install time (present in the package's own manifest.json on
+        // disk, but stripped before being persisted to the registry).
+        // Found live: every one of the six Phase 35/41 production
+        // packages that declares a department ended up with zero
+        // departments actually created.
+        department: manifest.department || null,
+        automations: manifest.automations || [],
         approvalRequired: Boolean(manifest.approvalRequired)
     };
 

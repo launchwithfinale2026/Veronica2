@@ -930,3 +930,95 @@ guarding the specific path.
   if this tool sees heavy use.
 - **Recommended next phase:** see the final architecture review's Phase
   41+ roadmap.
+
+## Phase 41 (part 1) -- Real Package Activation: Approval + Three Live Bugs
+
+The operator approved all six pending Phase 35 production capability
+packages (`business-operations`, `marketing`, `sales`,
+`research-department`, `finance`, `trading-research`). Approving and
+actually installing them for real -- not a temp-directory test package,
+the first time this exact end-to-end path had ever carried real,
+permanent state -- surfaced three genuine bugs that no prior test had
+caught, because every prior test either used an absolute `mkdtempSync()`
+path or hand-built a registry entry directly, bypassing the exact code
+paths below.
+
+**Bug 1 -- relative `packageDir` broke `require()` in `installer.js`'s
+`healthCheck()`.** `fs.existsSync()`/`fs.readFileSync()` resolve a
+relative path against `process.cwd()`; `require()` does not -- a bare
+`"packages/finance"` (no `./` prefix) is a node_modules specifier to
+`require()`, not a cwd-relative path. Fixed with a `resolvePackageDir()`
+helper applied at all three real entry points
+(`completeInstall()`/`install()`/`upgrade()`), plus a regression test
+using a real relative path (not `mkdtempSync()`'s always-absolute one).
+
+**Bug 2 -- `core/capabilities/manifest.js`'s `normalize()` silently
+dropped `department` and `automations`.** Phase 25 added those two
+optional manifest fields (read back by
+`core/capabilities/activation.js`'s `packageDepartmentConfigs()`/
+`packageAutomationConfigs()`), but `manifest.js`'s field whitelist
+(written in Phase 20, before either field existed) was never updated to
+pass them through. Every real package's department declaration was
+stripped before being persisted to the registry -- so all six packages
+were "active" but contributed **zero** departments, invisibly. Fixed by
+adding both fields to `normalize()`'s output, plus a one-time repair
+(re-reading each already-installed package's real on-disk `manifest.json`
+through the fixed `normalize()` and writing the corrected manifest back
+into `core/capabilities/state.json`) so the six packages already
+installed didn't have to be uninstalled and reinstalled to pick up the
+fix.
+
+**Bug 3 -- `core/context/engine.js` had its own, second, independent
+department loader** that only read the static `registry/departments.json`
+and never knew package departments existed at all -- meaning every
+`think()` call's context (this engine feeds every reasoning call,
+per its own file comment) silently omitted the six real divisions.
+Fixed by having it also pull from
+`core/capabilities/activation.js`'s `packageDepartmentConfigs()`, the
+same single source of truth `core/departments/loader.js` already uses,
+without adopting that loader's full `DepartmentManager` instantiation
+(this engine only needs the lightweight `{id, name, domain, status}`
+summary it already returned for built-ins).
+
+**Result:** 25 live agents (9 built-in + 16 package), 15 live
+departments (9 built-in + 6 package) -- both genuinely wired through
+every consumer (`core/agents/loader.js`, `core/tools/loader.js`,
+`core/departments/loader.js`, `core/context/engine.js`, the dashboard's
+`/api/status`/`/api/agents`/`/api/departments`).
+
+**Test suite baseline updated to match real machine state, not
+fabricated:** every test that hardcoded "9 agents"/"9 departments" as a
+closed assumption (`tests/dashboard.test.js` x2,
+`tests/departments.test.js`, `tests/system-self-knowledge.test.js`,
+`tests/context-engine.test.js`) now asserts 25/15 with a comment
+explaining why; `tests/tools.test.js`'s exhaustive tool-id list became a
+subset-plus-unexplained-extras check (a fixed closed list is
+incompatible with a machine that has real, dynamically installed
+packages); `tests/capabilities-activation.test.js`'s "zero active
+packages" test now creates that condition for itself via
+`registry.snapshot()`/`restore()` instead of assuming it's the
+environment's natural baseline; `tests/capabilities-planner-extended.test.js`
+updated to reflect that `planner.js`'s `isCapabilityPresent()` now
+correctly matches "market intelligence" against the real
+`trading-research` package's description (a real, correct behavior
+change, not a regression -- confirmed by direct diagnostic before
+editing any assertion).
+
+**Also fixed, unrelated:** `tests/crash-guard.test.js` (x3) and
+`tests/logging.test.js`'s error-log tests asserted an exact
+before/after diff using `readErrors(1000)` -- `core/logging/index.js`'s
+`readErrors(limit)` caps its result at `limit` regardless of true total,
+so once `errors.log` organically grew past 1000 real lines (which it
+now has, after months of real sessions), the diff-by-N assumption broke
+for reasons having nothing to do with the code under test. Fixed by
+truncating the file to empty in `test.before()` (already backed up,
+already restored in `test.after()` -- the same pattern this project uses
+everywhere else) so the count is deterministic regardless of the real
+log's historical size.
+
+488 -> 492 tests (1 new regression test for Bug 1; net +3 from planner
+test restructuring). All passing.
+
+No architectural redesign -- every fix reuses the exact pattern already
+established for its class of problem (lazy path resolution, a single
+source-of-truth manifest shape, snapshot/restore test isolation).

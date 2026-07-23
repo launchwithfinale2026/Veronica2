@@ -1,24 +1,46 @@
 # VERONICA — Next Steps
 
-Snapshot as of the end of Phases 33-40 (Core Stabilization, Production
-Dashboard, Production Capability Packages, Connector Completion,
-Executive Assistant, Learning Engine, Autonomous Capability Builder,
-Personal Operating System). 491/491 tests passing. See
-`docs/CHANGELOG.md` for what each phase actually built, and
-`docs/NEXT_HUMAN_ACTIONS.md`/`docs/EXTERNAL_DEPENDENCIES.md` for what
-still needs a human (credentials, OAuth consent, the LaunchAgent
-install, and now six real pending capability-install approvals from
-Phase 35).
+Snapshot as of Phase 41 part 1 (Real Package Activation). 492/492 tests
+passing. See `docs/CHANGELOG.md` for what each phase actually built,
+and `docs/NEXT_HUMAN_ACTIONS.md`/`docs/EXTERNAL_DEPENDENCIES.md` for
+what still needs a human.
 
 ## Resolved since the last snapshot
 
-The single highest-value item from the prior `NEXT_STEPS.md` --
-"wire installed capability packages into the live agent/tool/department
-loaders" -- was fully closed in Phase 25, then hardened in Phase 33
-(loader resilience, package-department logging, dependency version
-constraints). "VERONICA, create a trading division" is now a genuinely
-complete loop end to end (Phase 39's autonomous builder), gated on real
-human approval at the one point that matters.
+- **The six pending production-package proposals (Phase 35) were
+  approved and are now genuinely, permanently active**: 25 live agents
+  (9 built-in + 16 package), 15 live departments (9 built-in + 6
+  package), all real -- not skeleton/pending anymore.
+- Approving them for real (not a temp test package) surfaced and fixed
+  three genuine bugs no prior test caught: a relative-`packageDir`
+  `require()` bug in `installer.js`, `manifest.js`'s `normalize()`
+  silently dropping the `department`/`automations` fields Phase 25
+  added (so all six packages were "active" but contributed zero
+  departments until fixed), and `core/context/engine.js` having its own
+  second, package-unaware department loader (so every `think()` call's
+  context silently omitted the six real divisions). See Phase 41 part 1
+  in `docs/CHANGELOG.md` for the full detail on each.
+- The prior snapshot's item 3 ("approve or reject the six real pending
+  production-package proposals") is done for the packages; the six
+  architecture-debt/upgrade items in `core/system/selfImprovement.js`
+  are still open, still the operator's call.
+
+## In progress -- Phase 41 part 2 (integration + Marketing Division)
+
+The operator's standing instruction is to fully integrate the six
+approved packages as first-class organizational divisions (Capability
+Registry, Executive Core activation, Organization Manager, Agent/Tool
+Registry, Organization Overview, Executive Dashboard, "Installed --
+Awaiting Integration" status for any capability lacking a real
+connector, and verified participation in Mission Engine/Executive
+Planning/Approval Pipeline/Memory System/Capability Manager), then move
+on to full Marketing Division production-readiness (Brand Profile,
+Campaign Engine, Company Brain, Executive Daily Operations, evolved
+agent collaboration hierarchy, Capability Marketplace/Dashboard
+improvements). None of that is built yet -- part 1 above was the
+necessary prerequisite (the packages have to be genuinely, correctly
+active before they can be verified against that checklist), and is now
+done and green.
 
 ## Recommended Phase 41+
 
@@ -34,10 +56,9 @@ human approval at the one point that matters.
    endpoint/content level only -- no browser is available in this
    environment. The command palette, search, and Executive Summary
    panel (Phase 34) are functionally real but never visually confirmed.
-3. **Approve or reject the six real pending production-package
-   proposals** (Phase 35) and the six architecture-debt/upgrade items
-   flagged in `core/system/selfImprovement.js` -- genuinely the
-   operator's call, not something to decide autonomously.
+3. **The six architecture-debt/upgrade items** flagged in
+   `core/system/selfImprovement.js` -- genuinely the operator's call,
+   not something to decide autonomously.
 4. **Extend the autonomous capability builder's tool generation.**
    Right now every generated tool is a throwing skeleton; a natural
    Phase 41+ increment is generating a REAL implementation for simple,

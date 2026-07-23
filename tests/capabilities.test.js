@@ -412,6 +412,51 @@ test("installer.install() creates a pending ActionProposal for an approvalRequir
 });
 
 
+test("installer.install()/completeInstall() work identically for a RELATIVE packageDir, not just an absolute one (real bug, found live)", async () => {
+
+    // The exact real bug: a relative packageDir (what a caller
+    // naturally types, e.g. "packages/finance") worked fine for
+    // loadManifest()/validate() (fs.existsSync() resolves relative to
+    // cwd), but healthCheck()'s require() calls on that SAME relative
+    // string were treated as bare node_modules specifiers, not
+    // cwd-relative paths -- "Cannot find module." It also wasn't caught
+    // by the approval-flow test above because that test used an
+    // ABSOLUTE mkdtempSync() path throughout. Found for real the first
+    // time a Phase 35 package's full approve -> executeExternal ->
+    // completeInstall path actually ran end to end, well after the
+    // relative string had already been persisted into a proposal's
+    // payload.
+    const absoluteDir = fs.mkdtempSync(path.join(os.tmpdir(), "veronica-relative-package-xqzcap11-"));
+    fs.mkdirSync(path.join(absoluteDir, "tools"));
+    fs.writeFileSync(path.join(absoluteDir, "tools", "test.xqzcap11.js"), `module.exports = { "test.xqzcap11": async () => ({ ok: true }) };`);
+    fs.writeFileSync(path.join(absoluteDir, "manifest.json"), JSON.stringify({
+        name: "test-cap-xqzcap11",
+        version: "1.0.0",
+        description: "relative-path regression test package",
+        tools: [{ id: "test.xqzcap11" }]
+    }));
+
+    // A real relative path, exactly the shape "packages/finance" has
+    // from the repo root -- not a "./"-prefixed one, which require()
+    // already handles correctly; this is specifically the bare,
+    // no-prefix relative form that broke.
+    const relativeDir = path.relative(process.cwd(), absoluteDir);
+    assert.ok(!path.isAbsolute(relativeDir), "test setup sanity check -- this must be a real relative path");
+
+    const capability = installer.completeInstall(relativeDir);
+
+    assert.strictEqual(capability.name, "test-cap-xqzcap11");
+    assert.strictEqual(capability.status, "active");
+    // The registry's own `source` field must ALSO end up absolute --
+    // core/capabilities/activation.js path.join()s it for dynamic
+    // loading later, which would suffer the exact same bug otherwise.
+    assert.ok(path.isAbsolute(registry.get("test-cap-xqzcap11").source));
+
+    registry.remove("test-cap-xqzcap11");
+
+});
+
+
 test("installer's health check catches a real syntax error in a package's own tool handler, and rolls back", () => {
 
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "veronica-broken-package-xqzcap9-"));

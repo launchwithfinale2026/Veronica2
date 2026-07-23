@@ -12,6 +12,12 @@ test.before(() => {
     if(LOG_EXISTED_BEFORE){
         fs.copyFileSync(LOG_PATH, LOG_BACKUP);
     }
+    // Truncate to empty for this file's run only (restored from the real
+    // backup in test.after() below) -- see tests/crash-guard.test.js's
+    // identical comment: readErrors(1000)'s before/after diff-by-N
+    // assumption breaks once the real log has grown past 1000 lines,
+    // which it now has.
+    fs.writeFileSync(LOG_PATH, "");
 });
 
 test.after(() => {

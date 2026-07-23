@@ -204,12 +204,14 @@ test("statusReport() reflects id, domain, agents, and status", () => {
 
 });
 
-test("loader wires all 9 registry departments to their matching agent", () => {
+test("loader wires all 9 registry departments to their matching agent (plus real package departments from installed capabilities)", () => {
 
     const agents = loadAgents();
     const departments = loadDepartments(agents);
 
-    assert.strictEqual(departments.length, 9);
+    // 9 built-in + 6 from the real, active production capability
+    // packages (Phase 35/41).
+    assert.strictEqual(departments.length, 15);
 
     const athena = departments.find(d => d.id === "athena");
     assert.strictEqual(athena.agents.length, 1);

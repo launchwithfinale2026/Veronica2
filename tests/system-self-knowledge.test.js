@@ -48,7 +48,9 @@ test("selfKnowledge.understand() builds its own fresh, real departments/agents r
 
     const result = selfKnowledge.understand();
 
-    assert.strictEqual(result.organizationTree.departments.length, 9); // the real base department roster
+    // 9 built-in + 6 from the real, active production capability
+    // packages (Phase 35/41).
+    assert.strictEqual(result.organizationTree.departments.length, 15);
     assert.ok(result.memoriesOverview.total >= 0);
 
 });

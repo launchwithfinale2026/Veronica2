@@ -25,11 +25,32 @@ const DEPARTMENTS_REGISTRY = path.join(__dirname, "../../registry/departments.js
 const LIST_LIMIT = 5;
 
 
+// Deliberately its own lightweight {id, name, domain, status} summary,
+// not core/departments/loader.js's full DepartmentManager instantiation
+// (this engine only needs a roster for context, not live manager
+// objects) -- but it must still include package-declared departments
+// (Phase 25/41), not just the static built-in registry, or every
+// reasoning call's context silently omits real divisions like
+// trading-dept/marketing-dept/etc. Found live: this was reading ONLY
+// registry/departments.json, so package departments never appeared in
+// any think() call's context even after Phase 41 made them real.
 function loadDepartments(){
 
-    return JSON.parse(fs.readFileSync(DEPARTMENTS_REGISTRY, "utf8"))
+    const activation = require("../capabilities/activation");
+
+    const baseDepartments = JSON.parse(fs.readFileSync(DEPARTMENTS_REGISTRY, "utf8"))
         .departments
         .map(dept => ({ id: dept.id, name: dept.name, domain: dept.domain, status: dept.status }));
+
+    const packageDepartments = activation.packageDepartmentConfigs()
+        .map(({ departmentConfig }) => ({
+            id: departmentConfig.id,
+            name: departmentConfig.name,
+            domain: departmentConfig.domain,
+            status: "active"
+        }));
+
+    return [...baseDepartments, ...packageDepartments];
 
 }
 

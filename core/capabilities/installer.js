@@ -14,11 +14,38 @@
 // top-level require between core/executive and core/capabilities (same
 // convention core/automation/jobs.js already established).
 
+const path = require("path");
+
 const manifestModule = require("./manifest");
 const validator = require("./validator");
 const registry = require("./registry");
 const lifecycle = require("./lifecycle");
 const log = require("../logging");
+
+const REPO_ROOT = path.join(__dirname, "..", "..");
+
+// A real bug, found live (not in a test) the first time a Phase 35
+// package's full approve -> executeExternal -> completeInstall path
+// actually ran end to end: a relative packageDir (e.g. "packages/finance",
+// exactly what a caller naturally types) works fine for
+// manifestModule.loadManifest()/validator.validate() (both use
+// fs.existsSync()/fs.readFileSync(), which resolve a relative path
+// against process.cwd()) -- but healthCheck() below calls require() on
+// the SAME relative string, and Node's require() treats a bare
+// "packages/finance/agents/x.js" (no "./" prefix) as a NODE_MODULES
+// package specifier, not a cwd-relative path, so it fails with
+// "Cannot find module." Worse, an approvalRequired package's relative
+// packageDir gets persisted verbatim into the proposal's payload (and,
+// once installed, into registry.js's own `source` field, which
+// core/capabilities/activation.js later path.join()s for dynamic
+// loading) -- so the bug wouldn't surface until whenever the proposal
+// was actually approved, potentially long after the relative string was
+// typed. Resolving to an absolute path here, once, at both real entry
+// points, closes it for every caller and every already-persisted
+// proposal, not just new ones.
+function resolvePackageDir(packageDir){
+    return path.isAbsolute(packageDir) ? packageDir : path.resolve(REPO_ROOT, packageDir);
+}
 
 
 // A real health check, not a rubber stamp: actually require()s every
@@ -55,6 +82,8 @@ function healthCheck(manifest, packageDir){
 // health-check, activate; roll back to the pre-install snapshot on any
 // failure rather than leaving a half-installed capability behind.
 function completeInstall(packageDir){
+
+    packageDir = resolvePackageDir(packageDir);
 
     const manifest = manifestModule.loadManifest(packageDir);
     const { valid, errors } = validator.validate(manifest, packageDir);
@@ -106,6 +135,8 @@ function completeInstall(packageDir){
 // phase's "no autonomous self-modification without approval" ask.
 function install(packageDir){
 
+    packageDir = resolvePackageDir(packageDir);
+
     const manifest = manifestModule.loadManifest(packageDir);
 
     if(manifest.approvalRequired){
@@ -146,6 +177,8 @@ function uninstall(name){
 // BEFORE removal, so a bad upgrade leaves the old version installed and
 // active, never half-upgraded.
 function upgrade(name, packageDir){
+
+    packageDir = resolvePackageDir(packageDir);
 
     const existing = registry.requireCapability(name);
 
