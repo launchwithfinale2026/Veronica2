@@ -83,6 +83,34 @@ function packageDepartmentConfigs(){
 }
 
 
+// Project A (Mission Control Dashboard) / Project M (Capability
+// Evolution): "make the dashboard modular so capability packages can
+// inject their own panels automatically." Optional: a package's
+// manifest may declare `dashboard: { title, widgets: [{ label,
+// endpoint, filterKey?, filterValue? }] }` -- purely descriptive data,
+// no package-owned code runs here. `endpoint` must be a real, existing,
+// unauthenticated GET route (the same ones a human-built panel would
+// call); `filterKey`/`filterValue` let a package pick out just its own
+// row from a shared, already-existing endpoint (e.g.
+// `/api/learning/departments`) rather than needing a brand new
+// per-package route. The six hand-built Division panels
+// (Marketing/Sales/Finance/Research/Trading/Business Operations)
+// deliberately do NOT declare one -- they already have real, richer,
+// hand-built dashboard integration; this is for packages that don't
+// (starting with anything the Autonomous Capability Builder generates,
+// see core/capabilities/autonomousBuilder.js).
+function packageDashboardConfigs(){
+
+    return activePackages()
+        .filter(pkg => pkg.manifest.dashboard)
+        .map(pkg => ({
+            dashboardConfig: pkg.manifest.dashboard,
+            packageName: pkg.name
+        }));
+
+}
+
+
 // Optional: a package's manifest may declare `automations`
 // ([{name, intervalMs}]), each with a handler file at
 // <packageDir>/automations/<name>.js exporting a function keyed by that
@@ -118,5 +146,6 @@ module.exports = {
     packageToolConfigs,
     packageDepartmentConfigs,
     packageAutomationConfigs,
+    packageDashboardConfigs,
     namespaceTagFor
 };

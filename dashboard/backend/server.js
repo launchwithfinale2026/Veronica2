@@ -40,6 +40,7 @@ const systemReport = require("../../core/system/report");
 const capabilitiesMarketplace = require("../../core/capabilities/marketplace");
 const capabilitiesBuilder = require("../../core/capabilities/builder");
 const capabilitiesHealth = require("../../core/capabilities/health");
+const capabilitiesActivation = require("../../core/capabilities/activation");
 const autonomousBuilder = require("../../core/capabilities/autonomousBuilder");
 const marketingCampaigns = require("../../core/marketing/campaigns");
 const marketingContentGenerator = require("../../core/marketing/contentGenerator");
@@ -431,6 +432,14 @@ const ROUTES = {
     // /api/capabilities/marketplace's install/version/update metadata --
     // this is "is it actually working," not "is it installed."
     "GET /api/capabilities/health": () => capabilitiesHealth.report(),
+
+    // Project A (Mission Control Dashboard) / Project M (Capability
+    // Evolution): every active package's declared dashboard panel
+    // (optional -- see core/capabilities/activation.js's own
+    // packageDashboardConfigs() comment). The frontend generically
+    // renders whatever this returns; no per-package frontend code is
+    // needed for a package that declares one.
+    "GET /api/capabilities/dashboard-panels": () => capabilitiesActivation.packageDashboardConfigs(),
 
     // Phase 41 (Marketing Division). Real, per-company campaign
     // list/calendar/analytics -- see core/marketing/campaigns.js and

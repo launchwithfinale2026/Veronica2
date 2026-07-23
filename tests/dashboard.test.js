@@ -631,6 +631,22 @@ test("GET /api/capabilities/health reports real per-package operational status (
 
 });
 
+
+test("GET /api/capabilities/dashboard-panels returns an array, empty for the six hand-built Divisions which deliberately don't declare one (Project A/M)", async () => {
+
+    const res = await fetch(`${baseUrl}/api/capabilities/dashboard-panels`);
+    assert.strictEqual(res.status, 200);
+
+    const body = await res.json();
+    assert.ok(Array.isArray(body));
+
+    // The six real production Divisions have real, richer, hand-built
+    // dashboard integration already -- none of them declare a generic
+    // manifest `dashboard` field, so none should appear here.
+    assert.ok(!body.some(p => ["marketing", "sales", "finance", "research-department", "trading-research", "business-operations"].includes(p.packageName)));
+
+});
+
 test("Marketing Division: create a company, set its brand profile, plan a real campaign, and read it back through every real endpoint (Phase 41)", async () => {
 
     process.env.API_TOKEN = "test-api-secret";

@@ -79,6 +79,18 @@ test("derivePackageSpec() declares its default review tool with a real, recogniz
 });
 
 
+test("derivePackageSpec() declares a real dashboard panel pointing at real department-health telemetry, filtered to this package's own department (Project A/M)", () => {
+
+    const analysis = require("../core/capabilities/planner").analyzeRequest("Build a recruiting department");
+    const spec = autonomousBuilder.derivePackageSpec("Build a recruiting department", analysis);
+
+    assert.strictEqual(spec.dashboard.title, "Build A Recruiting Department");
+    assert.strictEqual(spec.dashboard.widgets[0].endpoint, "/api/learning/departments");
+    assert.strictEqual(spec.dashboard.widgets[0].filterValue, spec.department.id);
+
+});
+
+
 test("buildCapability() requires a real objective", () => {
     assert.throws(() => autonomousBuilder.buildCapability(), /objective is required/);
 });
@@ -155,6 +167,48 @@ test("buildCapability()'s generated review tool is genuinely callable end to end
         const output = toolModule[toolId]();
 
         assert.ok(output.department === `${result.generated.name}-dept` || output.message);
+
+    } finally {
+        fs.rmSync(result.generated.packageDir, { recursive: true, force: true });
+    }
+
+});
+
+
+test("buildCapability()'s generated manifest.json includes a real dashboard field, and an active package surfaces it via packageDashboardConfigs() (Project A/M)", () => {
+
+    const objective = "Handle xqzautobuild5 outreach tasks";
+
+    const result = autonomousBuilder.buildCapability(objective);
+
+    try {
+
+        const manifest = JSON.parse(fs.readFileSync(path.join(result.generated.packageDir, "manifest.json"), "utf8"));
+        assert.ok(manifest.dashboard);
+        assert.strictEqual(manifest.dashboard.widgets[0].endpoint, "/api/learning/departments");
+
+        // Simulates real activation (the same real pending-proposal ->
+        // approve -> install path this package would actually go
+        // through) just enough to prove packageDashboardConfigs() reads
+        // the manifest this pipeline actually wrote, not a different
+        // shape.
+        const registry = require("../core/capabilities/registry");
+        const activation = require("../core/capabilities/activation");
+
+        registry.register({ ...manifest, status: "installed", source: result.generated.packageDir, manifest });
+        registry.setStatus(manifest.name, "active");
+
+        try {
+
+            const configs = activation.packageDashboardConfigs();
+            const found = configs.find(c => c.packageName === manifest.name);
+
+            assert.ok(found, "expected the real, generated dashboard config to surface");
+            assert.strictEqual(found.dashboardConfig.title, manifest.dashboard.title);
+
+        } finally {
+            registry.remove(manifest.name);
+        }
 
     } finally {
         fs.rmSync(result.generated.packageDir, { recursive: true, force: true });

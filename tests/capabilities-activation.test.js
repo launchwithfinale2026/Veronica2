@@ -57,6 +57,7 @@ test("with zero active packages, activation.* helpers return empty arrays (no be
         assert.deepStrictEqual(activation.packageToolConfigs(), []);
         assert.deepStrictEqual(activation.packageDepartmentConfigs(), []);
         assert.deepStrictEqual(activation.packageAutomationConfigs(), []);
+        assert.deepStrictEqual(activation.packageDashboardConfigs(), []);
 
     } finally {
         registry.restore(snapshot);
@@ -272,6 +273,39 @@ test("loadDepartments() includes a real, active package department using the sta
     assert.ok(fs.readFileSync(found.logFile, "utf8").includes("xqzact5"));
 
     registry.remove("test-activation-dept-xqzact5");
+
+});
+
+
+test("packageDashboardConfigs() surfaces a real, active package's declared dashboard panel (Project A/M)", () => {
+
+    const manifest = {
+        name: "test-activation-dashboard-xqzact6",
+        version: "1.0.0",
+        description: "test",
+        dashboard: {
+            title: "XQZACT6 Test Division",
+            widgets: [
+                { label: "Department Health", endpoint: "/api/learning/departments", filterKey: "department", filterValue: "xqzact6-dept" }
+            ]
+        }
+    };
+
+    registry.register({ ...manifest, status: "installed", source: makeTempPackage(), manifest });
+    registry.setStatus("test-activation-dashboard-xqzact6", "active");
+
+    try {
+
+        const configs = activation.packageDashboardConfigs();
+        const found = configs.find(c => c.packageName === "test-activation-dashboard-xqzact6");
+
+        assert.ok(found, "expected the package's declared dashboard config to surface");
+        assert.strictEqual(found.dashboardConfig.title, "XQZACT6 Test Division");
+        assert.strictEqual(found.dashboardConfig.widgets[0].endpoint, "/api/learning/departments");
+
+    } finally {
+        registry.remove("test-activation-dashboard-xqzact6");
+    }
 
 });
 

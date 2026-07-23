@@ -114,6 +114,45 @@ test("buildPackage() still generates the honest throwing skeleton for an unrecog
 });
 
 
+test("buildPackage() writes an optional real dashboard field into the generated manifest.json (Project A/M)", () => {
+
+    const outputRoot = tmpPackagesRoot();
+
+    const result = builder.buildPackage({
+        name: "xqzbld6-dept",
+        description: "test",
+        dashboard: {
+            title: "XQZBLD6 Dashboard",
+            widgets: [{ label: "Health", endpoint: "/api/learning/departments", filterKey: "department", filterValue: "xqzbld6-dept" }]
+        },
+        outputRoot
+    });
+
+    assert.deepStrictEqual(result.manifest.dashboard, {
+        title: "XQZBLD6 Dashboard",
+        widgets: [{ label: "Health", endpoint: "/api/learning/departments", filterKey: "department", filterValue: "xqzbld6-dept" }]
+    });
+
+    const onDisk = JSON.parse(fs.readFileSync(path.join(result.packageDir, "manifest.json"), "utf8"));
+    assert.deepStrictEqual(onDisk.dashboard, result.manifest.dashboard);
+
+});
+
+
+test("buildPackage() omits the dashboard field entirely when none is given -- no fabricated default panel", () => {
+
+    const outputRoot = tmpPackagesRoot();
+
+    const result = builder.buildPackage({ name: "xqzbld7-nodash", description: "test", outputRoot });
+
+    assert.strictEqual(result.manifest.dashboard, undefined);
+
+    const onDisk = JSON.parse(fs.readFileSync(path.join(result.packageDir, "manifest.json"), "utf8"));
+    assert.strictEqual(onDisk.dashboard, undefined);
+
+});
+
+
 test("buildPackage() refuses a duplicate directory, and requires a description", () => {
 
     const outputRoot = tmpPackagesRoot();

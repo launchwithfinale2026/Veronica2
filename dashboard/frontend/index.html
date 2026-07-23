@@ -1225,6 +1225,13 @@
 
   </section>
 
+  <!-- Project A / Project M: real panels for active packages that
+       declare a manifest "dashboard" field are injected here at load
+       time -- see setupDynamicPackagePanels() in app.js. Empty for the
+       six hand-built Divisions, which have their own real panels
+       above and deliberately don't declare a generic one. -->
+  <div id="dynamic-package-panels"></div>
+
 </main>
 
 <script src="app.js"></script>

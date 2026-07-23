@@ -282,7 +282,7 @@ installer.install("${path.join("packages", name)}");
 // for that) -- generation and installation are separate, single-
 // responsibility steps, same reasoning installer.js's own
 // completeInstall()/install() split follows.
-function buildPackage({ name, description, agents = [], tools = [], department = null, dependencies = [], permissions = [], approvalRequired = false, outputRoot } = {}){
+function buildPackage({ name, description, agents = [], tools = [], department = null, dependencies = [], permissions = [], approvalRequired = false, dashboard = null, outputRoot } = {}){
 
     requireValidName(name);
 
@@ -347,6 +347,10 @@ function buildPackage({ name, description, agents = [], tools = [], department =
         name, description, version: "0.1.0",
         agents, tools, dependencies, permissions,
         ...(department ? { department } : {}),
+        // Project A/M: optional, purely descriptive -- see
+        // core/capabilities/activation.js's packageDashboardConfigs()
+        // for the real contract this must follow.
+        ...(dashboard ? { dashboard } : {}),
         approvalRequired
     };
 

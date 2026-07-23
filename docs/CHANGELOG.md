@@ -2423,3 +2423,58 @@ and the same-entity trivial case. Plus 1 new dashboard test exercising
 all three routes together against a real, freshly-created entity pair.
 
 741 -> 745 tests, all passing.
+
+## Project A + Project M -- modular dashboard panels, auto-injected by packages
+
+**Audit first:** `core/capabilities/activation.js` already had
+`packageAgentConfigs()`/`packageToolConfigs()`/`packageDepartmentConfigs()`/
+`packageAutomationConfigs()` -- one function per thing a package can
+optionally declare in its manifest, each just describing what SHOULD
+load (the actual construction stays in each loader). No
+`packageDashboardConfigs()` equivalent existed, and no manifest anywhere
+declared a `dashboard` key. Separately, `core/capabilities/autonomousBuilder.js`'s
+otherwise-complete analyze -> generate -> validate -> approve -> install
+lifecycle (Phase 39/59) never produced any dashboard integration at all
+for a package it built -- "creates dashboard modules" was a real,
+concrete gap in that lifecycle, not a vague aspiration.
+
+**Added `packageDashboardConfigs()`**, following the exact same
+optional, purely-descriptive pattern as its siblings: a package may
+declare `dashboard: { title, widgets: [{ label, endpoint, filterKey?,
+filterValue? }] }` in its manifest. `endpoint` must be a real, already-
+existing, unauthenticated GET route; `filterKey`/`filterValue` let a
+package pick out just its own row from a shared endpoint (e.g.
+`/api/learning/departments`) instead of needing a brand-new per-package
+route. The six hand-built Divisions deliberately do NOT declare one --
+they already have real, richer, hand-written dashboard integration;
+this mechanism is for packages that don't.
+
+**A real, generic frontend renderer**, not per-package frontend code:
+`setupDynamicPackagePanels()` fetches the new
+`GET /api/capabilities/dashboard-panels`, and for each declared panel,
+builds a real `<section>`/widget-group DOM structure and fetches each
+widget's own endpoint -- entirely data-driven. A future capability this
+engine builds gets a real, working dashboard panel the moment it's
+approved and installed, with zero hand-written frontend code.
+
+**Closes the loop on Phase 59:** `core/capabilities/autonomousBuilder.js`'s
+`derivePackageSpec()` now declares a real `dashboard` field for every
+package it generates, reusing the already-real, unauthenticated
+`GET /api/learning/departments` endpoint (the SAME real execution
+telemetry its own generated `${name}.review` tool reports, Phase 59),
+filtered to the new package's own department id --
+`core/capabilities/builder.js`'s `buildPackage()` writes it into the
+generated `manifest.json` when provided, omits it entirely when not
+(no fabricated default panel for a package that didn't ask for one).
+
+**Tests:** `tests/capabilities-activation.test.js` gained 1 (a real,
+registered active package's declared config surfaces correctly) plus
+the empty-array case extended to cover it. `tests/capabilities-builder.test.js`
+gained 2 (the field written correctly when given, omitted entirely when
+not). `tests/capabilities-autonomous-builder.test.js` gained 2 (the
+generated spec's real dashboard field, and a full, real end-to-end
+`buildCapability()` -> real manifest.json on disk -> real
+`registry.register()`/`setStatus("active")` -> `packageDashboardConfigs()`
+round trip). Plus 1 new dashboard test.
+
+745 -> 751 tests, all passing.

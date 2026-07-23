@@ -116,6 +116,26 @@ function derivePackageSpec(objective, analysis){
 
         permissions: analysis.permissions.length ? analysis.permissions : ["read"],
 
+        // Project A (Mission Control Dashboard) / Project M (Capability
+        // Evolution): "creates dashboard modules" -- closes the one
+        // real gap in the otherwise-complete analyze -> generate ->
+        // test -> approve -> install lifecycle (Phase 39/59): a package
+        // this engine builds now gets a REAL, working dashboard panel
+        // automatically (core/capabilities/activation.js's
+        // packageDashboardConfigs() + the frontend's generic renderer),
+        // without any hand-written per-package frontend code. Reuses
+        // the already-real, unauthenticated GET /api/learning/departments
+        // endpoint -- the same real execution telemetry the generated
+        // `${name}.review` tool itself reports -- filtered to this
+        // package's own department id, rather than inventing a new
+        // per-package route.
+        dashboard: {
+            title: titleCase(name),
+            widgets: [
+                { label: "Department Health", endpoint: "/api/learning/departments", filterKey: "department", filterValue: departmentId }
+            ]
+        },
+
         // Structural guarantee, not a default a caller could override --
         // see this file's own header comment.
         approvalRequired: true

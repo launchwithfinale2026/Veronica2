@@ -3899,6 +3899,61 @@ async function loadSystemHealth(){
 }
 
 
+// Project A (Mission Control Dashboard) / Project M (Capability
+// Evolution): renders whatever core/capabilities/activation.js's
+// packageDashboardConfigs() returns -- no per-package frontend code is
+// written for any of these; a future autonomously-built capability
+// (core/capabilities/autonomousBuilder.js) gets a real, working panel
+// automatically just by declaring one in its manifest.
+async function setupDynamicPackagePanels(){
+
+    const container = document.getElementById("dynamic-package-panels");
+
+    let panels;
+
+    try {
+        panels = await fetchJSON("/api/capabilities/dashboard-panels");
+    } catch(error){
+        return; // no dynamic panels is a completely normal, valid state
+    }
+
+    for(const { dashboardConfig, packageName } of panels){
+
+        const section = el("section", { className: "panel" });
+        section.appendChild(el("h2", { textContent: `${dashboardConfig.title} (auto-generated)` }));
+
+        for(const widget of (dashboardConfig.widgets || [])){
+
+            const group = el("div", { className: "widget-group" });
+            group.appendChild(el("h3", { textContent: widget.label }));
+
+            const widgetContainer = el("div", { className: "widget code-block" });
+            group.appendChild(widgetContainer);
+            section.appendChild(group);
+
+            try {
+
+                let data = await fetchJSON(widget.endpoint);
+
+                if(Array.isArray(data) && widget.filterKey && widget.filterValue){
+                    data = data.filter(entry => entry[widget.filterKey] === widget.filterValue);
+                }
+
+                widgetContainer.textContent = JSON.stringify(data, null, 2);
+
+            } catch(error){
+                widgetContainer.textContent = `Error: ${error.message}`;
+            }
+
+        }
+
+        container.appendChild(section);
+
+    }
+
+}
+
+
 function setupKnowledgeGraphExplorer(){
 
     document.getElementById("graph-by-type-form").addEventListener("submit", async event => {
@@ -4346,6 +4401,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupPersonalIntelligenceForms();
     setupAcquisitionForms();
     setupKnowledgeGraphExplorer();
+    setupDynamicPackagePanels();
     setupSemanticSearchForm();
     setupReindexEmbeddingsForm();
     setupCompanyLookupForm();
