@@ -376,6 +376,26 @@ test("sales.pipeline.review tool runs end to end through the real Tool Registry 
 
 });
 
+test("finance.report.generate tool runs end to end through the real Tool Registry (Phase 43 -- no longer a skeleton)", async () => {
+
+    const CompanyManager = require("../core/executive/companyManager");
+
+    const company = new CompanyManager().createCompany({ name: "Tool Test Finance Co XQZTOOL3" });
+
+    const report = await tools.run(
+        "finance.report.generate",
+        { companyId: company.id },
+        { role: "agent" }
+    );
+
+    assert.ok(report.kpis);
+    assert.strictEqual(report.kpis.financialSummary.revenue, 0);
+    assert.deepStrictEqual(report.cashFlow, []);
+    assert.ok(report.forecast);
+    assert.deepStrictEqual(report.budgets, []);
+
+});
+
 test("DepartmentManager.useTool() runs tools with department_manager permissions", async () => {
 
     const DepartmentManager = require("../core/departments/base");

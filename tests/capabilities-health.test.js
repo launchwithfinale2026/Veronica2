@@ -243,6 +243,25 @@ test("the real \"sales\" package genuinely reports \"active\", not \"Installed â
 });
 
 
+test("the real \"finance\" package genuinely reports \"active\", not \"Installed â€“ Awaiting Integration\" (Phase 43 Finance Division)", () => {
+
+    // Same signal as marketing/sales above -- finance.report.generate
+    // was given a real implementation (packages/finance/tools/
+    // finance.report.generate.js -- calls core/finance/reports.js and
+    // core/finance/budgets.js for real) as part of Finance Division
+    // production-readiness.
+    const report = health.report().find(r => r.name === "finance");
+
+    assert.ok(report);
+    assert.strictEqual(report.operationalStatus, "active");
+    assert.strictEqual(report.operationalStatusLabel, "Active");
+    assert.deepStrictEqual(report.skeletonTools, []);
+    assert.strictEqual(report.agentsLoaded, report.agentsDeclared);
+    assert.strictEqual(report.toolsLoaded, report.toolsDeclared);
+
+});
+
+
 test("report() excludes core capabilities entirely", () => {
 
     const report = health.report();

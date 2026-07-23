@@ -31,8 +31,15 @@
     "tools": [
         {
             "id": "finance.report.generate",
-            "description": "Generate a financial summary report (skeleton -- not yet implemented).",
-            "permission": "read"
+            "description": "Real financial report via core/finance/reports.js: KPIs (financial summary, MRR/ARR, accounts receivable, runway), historical cash flow, a deterministic forecast, and budget-vs-actual status. No banking connection needed.",
+            "permission": "read_memory",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "companyId": { "type": "string" }
+                },
+                "required": ["companyId"]
+            }
         }
     ],
     "dependencies": [],
