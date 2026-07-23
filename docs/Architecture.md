@@ -2764,3 +2764,59 @@ green before each). No architectural redesign -- every new piece
 follows an existing pattern from Marketing or elsewhere in the
 codebase; the only genuinely new stores are leads and opportunities
 themselves, both ordinary memory entries.
+
+## Finance Division (`core/finance/`, Phase 43)
+
+**Decision:** the third Phase 35 package moved from skeleton to
+production-ready. The most important architectural decision here was
+what NOT to build: `core/executive/companyManager.js`'s
+`recordFinance()`/`financialSummary()` already IS a real ledger (Phase
+2) -- ledger/revenue/expense tracking was never actually missing, it
+just hadn't been surfaced as a "Finance Division." Every new module here
+builds on top of that ledger rather than duplicating a transaction
+store, exactly the operator's own instruction.
+
+- **Budget Planning** (`core/finance/budgets.js`): required one small,
+  additive extension to the existing ledger --
+  `recordFinance()` gained an optional `category` field (defaults to
+  `null`, backward-compatible with every existing caller) so
+  `budgetStatus()` could compare a budget's limit against real expense
+  entries filtered by category and a real calendar-month period
+  (`"YYYY-MM"`, matched by string prefix -- no fuzzy date-range logic).
+- **Invoice model** (`core/finance/invoices.js`): "overdue" is DERIVED
+  at read time from a real due date on a `"sent"` invoice, never a
+  stored flag -- a persisted overdue status would go stale the moment a
+  day passed without VERONICA touching the invoice; computing it fresh
+  on every read means it's always accurate. `accountsReceivable()` sums
+  genuinely outstanding sent-but-unpaid invoices.
+- **Subscription tracking** (`core/finance/subscriptions.js`): what
+  makes real MRR/ARR possible -- recurring revenue is a genuinely
+  different concept from `recordFinance()`'s one-time point-in-time
+  transactions, so it gets its own real entity rather than being
+  inferred from ledger entries.
+- **Cash-flow, Runway, Forecasting, Financial KPIs**
+  (`core/finance/reports.js`): all deterministic and explainable,
+  matching this codebase's standing rule-based-where-explainable
+  principle. `runway()`'s most important design decision: when the
+  recent average net is non-negative, it reports a real `"profitable"`
+  status with a null `runwayMonths` -- runway is a question that
+  genuinely doesn't apply to every company at every moment, and forcing
+  a number there (e.g. `Infinity`, or `0`) would be a fabrication.
+  `forecast()` is a real linear extrapolation of the recent net trend,
+  not a model's guess -- explainable arithmetic an operator can verify
+  by hand.
+- **No banking connection anywhere** -- explicitly out of scope per the
+  operator's instruction (see `docs/EXTERNAL_DEPENDENCIES.md`). Every
+  number in this division traces back to something actually recorded in
+  VERONICA (a real `recordFinance()` call, a real invoice marked sent,
+  a real active subscription), never fetched from an external bank API.
+- **Finance Health** (`core/executive/dailyBriefing.js`): same
+  per-company rollup pattern `campaignHealth()`/`salesHealth()`
+  established -- cash on hand, runway status, over-budget count,
+  overdue invoice count, omitting companies with no finance activity at
+  all.
+
+566 -> 576 tests across three parts (one commit per part, `npm test`
+green before each). No architectural redesign -- the only genuinely new
+stores are budgets, invoices, and subscriptions; the ledger itself was
+reused, not rebuilt.

@@ -1249,3 +1249,59 @@ after marketing.
 542 -> 552 tests across all three parts, all passing throughout, one
 commit per part. No architectural redesign -- every new piece follows
 an existing pattern from Marketing or elsewhere in the codebase.
+
+## Phase 43 (Finance Division) -- parts 1-3
+
+The operator's third package, per the standing Phase 42+ roadmap.
+Deliberately does NOT build a new ledger --
+`core/executive/companyManager.js`'s `recordFinance()`/
+`financialSummary()` already IS the real ledger (Phase 2, "bookkeeping"
+was never actually missing); this phase reuses it directly and builds
+what's genuinely new on top. No banking connection anywhere -- the
+operator's explicit instruction -- every number traces back to what's
+actually been recorded in VERONICA.
+
+**Part 1 -- real Budgets + Invoices + Subscriptions.**
+`recordFinance()` gained an optional `category` field (additive,
+backward-compatible) specifically so Budget Planning could compare real
+spend per category against a limit. New `core/finance/budgets.js`:
+`budgetStatus()` compares a budget's limit against real expense entries
+already in the ledger, filtered by category and a real calendar-month
+period -- not a parallel expense store. New `core/finance/invoices.js`:
+the Invoice model, with "overdue" derived at read time from a real due
+date on a "sent" invoice (never a stored flag that could go stale), and
+`accountsReceivable()` summing genuinely outstanding sent-but-unpaid
+invoices. New `core/finance/subscriptions.js`: Subscription tracking --
+what makes real MRR/ARR possible, since recurring revenue is a
+genuinely different concept from a one-time ledger transaction.
+
+**Part 2 -- Cash-flow, Runway, Forecasting, KPIs + real tool.** New
+`core/finance/reports.js`: `cashFlow()` (real monthly revenue/expense/
+net grouped from the actual ledger), `runway()` (cash-on-hand divided
+by recent average burn -- reports a real `"profitable"` status with a
+null `runwayMonths` rather than a fabricated number when the recent
+trend genuinely isn't burning cash), `forecast()` (a real, deterministic
+linear extrapolation of the recent net trend -- explainable arithmetic,
+not ML/LLM), and `kpis()` (combines the real ledger summary, real
+MRR/ARR, real accounts receivable, and real runway in one call).
+`packages/finance`'s one skeleton tool (`finance.report.generate`) given
+a real implementation, its permission fixed from an invented `"read"`
+string to the real `"read_memory"` vocabulary, and every agent prompt
+replaced with a real one (Bookkeeper, FinancialAnalyst,
+ComplianceOfficer).
+
+**Part 3 -- Finance Health + dashboard surfacing.** `dailyBriefing.js`
+gained `financeHealth()` (same per-company rollup pattern: cash on
+hand, runway status, over-budget count, overdue invoice count). Full
+dashboard wiring -- budgets/invoices/subscriptions lifecycle routes, a
+new "Finance Division" frontend panel -- verified end to end against a
+live running server.
+
+Result: `core/capabilities/health.js` now reports finance as genuinely
+`"active"` -- the third of six Phase 35 packages to cross that line.
+
+566 -> 576 tests across all three parts, all passing throughout, one
+commit per part. No architectural redesign -- every new piece follows
+an existing pattern from Marketing/Sales or elsewhere in the codebase;
+the only genuinely new stores are budgets, invoices, and subscriptions
+themselves.
