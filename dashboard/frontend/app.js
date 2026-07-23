@@ -836,7 +836,8 @@ async function loadDashboard(){
             loadMissionHistory(),
             loadOrganizationOverview(),
             loadExecutiveSummary(),
-            loadSystemHealth()
+            loadSystemHealth(),
+            loadMaintenanceReport()
         ]);
 
     } catch(error){
@@ -3893,6 +3894,27 @@ async function loadSystemHealth(){
     }
 
     container.textContent = lines.join("\n");
+
+}
+
+
+async function loadMaintenanceReport(){
+
+    try {
+
+        const report = await fetchJSON("/api/system/consistency-report");
+        const container = document.getElementById("maintenance-report");
+
+        const lines = [
+            ...report.duplicatedCapabilityTools.map(d => `Duplicated tool "${d.toolId}": declared by ${d.declaredBy.join(", ")}`),
+            ...report.brokenCapabilities.map(name => `Broken capability: "${name}"`)
+        ];
+
+        container.textContent = lines.length ? lines.join("\n") : "No maintenance findings -- nothing duplicated or broken right now.";
+
+    } catch(error){
+        document.getElementById("maintenance-report").textContent = `Error: ${error.message}`;
+    }
 
 }
 

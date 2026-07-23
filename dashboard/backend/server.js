@@ -68,6 +68,7 @@ const SelfImprovementEngine = require("../../core/system/selfImprovement");
 const OrganizationOverview = require("../../core/executive/organizationOverview");
 const systemHealth = require("../../core/system/health");
 const healthScore = require("../../core/system/healthScore");
+const maintenance = require("../../core/system/maintenance");
 const universalSearch = require("../../core/system/search");
 const executiveSummary = require("../../core/executive/executiveSummary");
 const PersonalContextEngine = require("../../core/profile/personalContextEngine");
@@ -744,6 +745,25 @@ function createServer(){
             // (marketplace.js) -- see core/system/healthScore.js.
             if(parsed.pathname === "/api/system/health-score" && req.method === "GET"){
                 return sendJSON(res, 200, await healthScore.score());
+            }
+
+            // Project G (Autonomous Maintenance): report-only, reuses
+            // real selfImprovement/marketplace checks -- never fixes
+            // anything itself. See core/system/maintenance.js.
+            if(parsed.pathname === "/api/system/consistency-report" && req.method === "GET"){
+                return sendJSON(res, 200, maintenance.consistencyReport());
+            }
+
+            if(parsed.pathname === "/api/system/maintenance/run-log-archival" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                return sendJSON(res, 200, maintenance.runLogArchival());
+
             }
 
             // Universal search across memory/knowledge/capabilities in

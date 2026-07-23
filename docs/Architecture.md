@@ -4119,3 +4119,79 @@ is never blocked by the async diagnostics call. Plus 1 new dashboard
 test.
 
 731 tests (720 -> 731), `npm test` green.
+
+## Project G -- Autonomous Maintenance
+
+**Audit first, and the need was already real, not hypothetical.** A
+grep for "clean temp data"/"archive logs"/"remove duplicates"/"repair
+references" across `core/` returned zero real hits. Meanwhile this
+exact machine's own `core/logging/errors.log` had already grown past
+600KB purely from this session's own test runs -- an unbounded,
+append-only file with no rotation was a real, present gap, not a
+speculative one invented to have something to build.
+
+**The load-bearing design decision: archive, never delete.** Project
+G's own instructions were explicit -- "run only approval-free
+maintenance," "never remove human oversight." A maintenance action that
+DELETES real data can never honestly be "approval-free," no matter how
+confident the logic looks, because deletion is irreversible and log
+data is exactly the kind of forensic trail you'd want intact after
+something goes wrong. `core/system/maintenance.js`'s
+`archiveLogIfLarge()` therefore only ever RENAMES a log file once it
+crosses a real size threshold, into a timestamped path under a sibling
+`archive/` directory -- the content is fully preserved, byte for byte,
+just moved out of the live file's way. The next `fs.appendFileSync()`
+call (already the exact mechanism `core/learning/log.js`/
+`core/logging/index.js` use) recreates a fresh file at the original
+path automatically, with zero special recovery logic needed anywhere
+else in the codebase.
+
+**Everything riskier than that stays a REPORT, deliberately not
+executed.** "Remove duplicates" and "repair references" are the kind of
+maintenance action that COULD destroy or alter real data if it guessed
+wrong about what counts as a genuine duplicate or a genuinely broken
+reference. Rather than build a new, unproven detection mechanism for
+either, `consistencyReport()` reuses two already-real, already-tested
+checks wholesale: `core/system/selfImprovement.js`'s
+`duplicatedCapabilities()` (Phase 30 -- a tool id declared by more than
+one installed package, a real and exact overlap, not a fuzzy guess) and
+`core/capabilities/marketplace.js`'s `categorize().broken` (packages
+genuinely in error status). Neither of these was invented for this
+project; they already existed as real, human-facing PROPOSALS (never
+auto-executed) in the Self-Improvement engine -- this project just gives
+them a second, maintenance-focused home, not a duplicate implementation.
+
+**Wired into:** a new `log-maintenance` automation job (daily cadence --
+a log only grows large enough to matter over days, matching
+`consolidate`/`learning-recommend`'s own cadence reasoning),
+`GET /api/system/consistency-report` (read-only), a gated
+`POST /api/system/maintenance/run-log-archival`, and a "Maintenance"
+widget added to the existing System panel (extending it, not creating a
+parallel one).
+
+**A real, deliberate test-safety decision.** The dashboard-level test
+suite does NOT exercise the log-archival POST route with real
+authentication -- doing so would rename this actual test run's own
+shared, real `executions.log`/`errors.log` files, the same files other
+test files' own backup/restore hooks depend on existing at their
+expected paths throughout the run. The underlying `archiveLogIfLarge()`/
+`runLogArchival()` logic is instead thoroughly tested directly, against
+real temporary files (never the shared ones) for the boundary/rename
+behavior, and against the REAL `executions.log`/`errors.log` paths in
+one isolated test that backs them up first and restores them in a
+`finally` block -- the same discipline every other test in this suite
+already applies to shared real state, just applied here to a test that
+deliberately triggers a real destructive-adjacent (rename) operation on
+purpose.
+
+**Tests:** `tests/system-maintenance.test.js` (5 tests) -- a real no-op
+for a genuinely missing log file and one still under threshold; a real
+file proven RENAMED (not copied -- the original path no longer exists
+afterward) once over threshold, with its exact content intact at the
+new path; the real `executions.log`/`errors.log` paths exercised
+directly (backed up/restored) proving a fresh write recreates the file
+cleanly immediately after archival, with no manual recovery step; and
+`consistencyReport()`'s real, reused shape. Plus 1 new dashboard test
+for the read-only report route.
+
+737 tests (731 -> 737), `npm test` green.

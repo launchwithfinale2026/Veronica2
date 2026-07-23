@@ -400,6 +400,23 @@ test("GET /api/system/health-score returns the real, unified 0-100 health score 
 });
 
 
+// Deliberately does NOT exercise POST .../run-log-archival with real
+// auth here -- it would actually rename this test run's real, shared
+// executions.log/errors.log files (already thoroughly covered, real
+// temp files, in tests/system-maintenance.test.js). This test verifies
+// the real, safe, read-only report route only.
+test("GET /api/system/consistency-report returns the real, report-only maintenance findings (Project G)", async () => {
+
+    const res = await fetch(`${baseUrl}/api/system/consistency-report`);
+    assert.strictEqual(res.status, 200);
+
+    const body = await res.json();
+    assert.ok(Array.isArray(body.duplicatedCapabilityTools));
+    assert.ok(Array.isArray(body.brokenCapabilities));
+
+});
+
+
 // Phase 57 (Knowledge Acquisition Engine): pure history read, no LLM
 // call -- safe to exercise over the real running server. The gated
 // POST .../acquire-file/.../acquire-note routes are already covered
@@ -1561,6 +1578,7 @@ const ALL_POST_ROUTES = [
     "/api/brain/routing-preferences/set",
     "/api/brain/routing-preferences/clear",
     "/api/personal-intelligence/dismiss",
+    "/api/system/maintenance/run-log-archival",
     "/api/knowledge/acquire-file",
     "/api/knowledge/acquire-note",
     "/api/marketing/campaigns",

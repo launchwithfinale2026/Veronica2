@@ -2295,3 +2295,52 @@ diagnostics without blocking the actual child-process spawn. Plus 1 new
 dashboard test for the GET route.
 
 720 -> 731 tests, all passing.
+
+## Project G -- Autonomous Maintenance
+
+**Audit first:** no real "clean temp data / archive logs / remove
+duplicates / repair references" job existed anywhere -- confirmed by
+grepping for those terms across `core/`. This machine's own real
+`core/logging/errors.log` had already grown past 600KB during this
+session's own test runs, a genuine, present case for rotation, not a
+hypothetical one.
+
+**The one real action that's safe to run automatically: log archival,
+never deletion.** `core/system/maintenance.js`'s `archiveLogIfLarge()`
+renames (never deletes) a log file once it crosses a real size
+threshold (5MB default) into a timestamped path under a sibling
+`archive/` directory -- the data is preserved, just out of the live
+file's way, and the next append recreates a fresh file at the original
+path with no restart or manual recovery needed. `runLogArchival()`
+applies this to the two real, ever-growing logs this codebase actually
+writes to: `core/learning/executions.log` and `core/logging/errors.log`.
+
+**Everything riskier stays a REPORT, never an automatic action, per
+this project's own explicit "run only approval-free maintenance" /
+"never remove human oversight" instructions.** `consistencyReport()`
+does NOT invent a new detection mechanism for duplicates or dangling
+references -- it reuses `core/system/selfImprovement.js`'s already-real
+`duplicatedCapabilities()` and `core/capabilities/marketplace.js`'s
+already-real `categorize().broken` wholesale. VERONICA surfaces what
+might need cleanup; she doesn't decide to clean it up herself.
+
+**Wired into:** a new `log-maintenance` automation job (daily cadence,
+`core/automation/jobs.js`), `GET /api/system/consistency-report`
+(read-only), a gated `POST /api/system/maintenance/run-log-archival`
+(added to `tests/dashboard.test.js`'s `ALL_POST_ROUTES` -- deliberately
+NOT exercised with real auth in a dashboard-level test, since doing so
+would rename this test run's own real, shared log files; the underlying
+logic is already thoroughly covered against real temp files), and a new
+"Maintenance" widget in the System panel.
+
+**Tests:** `tests/system-maintenance.test.js` (5 tests) -- a real no-op
+for a missing log file and one under threshold; a real file genuinely
+renamed (not copied, not deleted) once over threshold, with its content
+verified intact at the new path; `runLogArchival()` exercised against
+the REAL `executions.log`/`errors.log` paths (backed up and restored
+around the test) proving a fresh write recreates the file cleanly
+immediately after archival; and `consistencyReport()` returning the
+real, reused shape. Plus 1 new dashboard test for the read-only report
+route.
+
+731 -> 737 tests, all passing.

@@ -67,6 +67,12 @@ const GOOGLE_POLL_INTERVAL_MS = 15 * 60 * 1000;
 const GIT_OBSERVER_INTERVAL_MS = 5 * 60 * 1000;
 const CONNECTOR_HEALTH_INTERVAL_MS = 5 * 60 * 1000;
 
+// Project G (Autonomous Maintenance): a real log file only grows large
+// enough to matter over days, not minutes -- daily is more than
+// frequent enough, same cadence as consolidate/learning-recommend
+// above.
+const LOG_MAINTENANCE_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
 
 function registerBuiltInJobs(engine){
 
@@ -114,6 +120,13 @@ function registerBuiltInJobs(engine){
     engine.registerJob("git-observer", () => require("../system/gitObserver").checkForNewCommits());
     engine.registerJob("connector-health", () => require("../system/connectorHealth").checkConnectorHealth());
 
+    // Project G (Autonomous Maintenance): the one real, safe,
+    // reversible action -- archives (never deletes) a real log file
+    // once it crosses a real size threshold. See
+    // core/system/maintenance.js's own header comment for why anything
+    // riskier stays report-only, never automatic.
+    engine.registerJob("log-maintenance", () => require("../system/maintenance").runLogArchival());
+
     registerPackageJobs(engine);
 
     engine.schedule("consolidate", CONSOLIDATE_INTERVAL_MS);
@@ -126,6 +139,7 @@ function registerBuiltInJobs(engine){
     engine.schedule("google-poll", GOOGLE_POLL_INTERVAL_MS);
     engine.schedule("git-observer", GIT_OBSERVER_INTERVAL_MS);
     engine.schedule("connector-health", CONNECTOR_HEALTH_INTERVAL_MS);
+    engine.schedule("log-maintenance", LOG_MAINTENANCE_INTERVAL_MS);
 
 }
 

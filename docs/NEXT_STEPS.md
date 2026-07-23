@@ -1,51 +1,45 @@
 # VERONICA — Next Steps
 
-Snapshot as of **Project F (Self Diagnostics) + startup diagnostics
-wiring into Project B**. 731/731 tests passing. Objective: "turn the
-architecture into daily-usable software," organized into lettered
-Projects rather than numbered phases:
+Snapshot as of **Project G (Autonomous Maintenance)**. 737/737 tests
+passing. Objective: "turn the architecture into daily-usable software,"
+organized into lettered Projects rather than numbered phases:
 
-- **Project A** — Mission Control Dashboard (command-center redesign;
-  browser-blocked for the final visual pass, but structural/data work
-  is not blocked)
+- **Project A** — Mission Control Dashboard (structural/data work not
+  blocked; the full visual/UX pass waits on real browser access)
 - **Project B** — Resident Personal Operating System (substantially
   already built; startup diagnostics now wired in)
-- **Project C** — Device Synchronization
+- **Project C** — Device Synchronization (not started)
 - **Project D** — Connector Hardening (part 1 done)
-- **Project E** — Executive UX
+- **Project E** — Executive UX (not started)
 - **Project F** — Self Diagnostics (unified health score -- done)
-- **Project G** — Autonomous Maintenance
-- **Project H** — Package Quality
-- **Project I** — Production Polish
+- **Project G** — Autonomous Maintenance (done)
+- **Project H** — Package Quality (not started)
+- **Project I** — Production Polish (ongoing, opportunistic)
 
 ## Resolved since the last snapshot
 
-- **Project F**: `core/system/healthScore.js` -- a deterministic,
-  explainable 0-100 score combining `health.js`/`selfImprovement.js`/
-  `marketplace.js`'s real signals, with a traceable per-deduction
-  breakdown. Wired into a new `GET /api/system/health-score` route and
-  both dashboard health widgets.
-- **Project B**: `core/system/startupManager.js`'s `start()` now runs
-  real startup diagnostics (non-blocking, never throws) via the new
-  health score -- the one genuinely-missing piece from the audit.
-- **A real, pre-existing bug fixed**: `dashboard/frontend/index.html`'s
-  duplicate `id="system-health"` (flagged across multiple prior
-  snapshots, always deferred as "needs a browser pass") turned out to
-  be a structural JS bug fixable without any visual/browser work --
-  fixed. The "System" panel's Health widget had never once been
-  populated before this fix.
+- **Project G**: `core/system/maintenance.js` -- real, safe, reversible
+  log archival (rename, never delete) for `executions.log`/`errors.log`
+  once they cross a real size threshold, run as a real daily automation
+  job. Anything riskier (duplicates, dangling references) is
+  report-only, reusing `selfImprovement.js`'s/`marketplace.js`'s
+  already-real checks rather than inventing new destructive ones.
 
 ## Resolved earlier
 
+- **Project F**: unified 0-100 health score
+  (`core/system/healthScore.js`), wired into Project B's startup
+  diagnostics and both dashboard health widgets. Fixed a real,
+  pre-existing `id="system-health"` duplicate along the way (a
+  structural JS bug, not something that needed a browser to fix).
 - **Project D, part 1**: a real crash-risk bug in
-  `core/integrations/discordBot.js` (unhandled discord.js `"error"`
-  event could crash the whole process); real `status()`/`isConfigured()`
-  added to `obsidian.js`/`fileIntelligence.js`.
+  `core/integrations/discordBot.js` fixed; real `status()` added to
+  `obsidian.js`/`fileIntelligence.js`.
 - **Phases 42-59** (see `docs/CHANGELOG.md`): all six Divisions,
   Executive Intelligence, Knowledge Graph expansion, Department
   Collaboration, the Executive Constitution, the widened event bus,
   composable workflows, multi-model routing, personal intelligence,
-  knowledge acquisition, and real capability-builder tool shapes.
+  knowledge acquisition, real capability-builder tool shapes.
 - Phases 58/60 remain genuine external blockers (browser access; a real
   LaunchAgent install on the operator's actual machine).
 
@@ -58,23 +52,15 @@ Projects rather than numbered phases:
 2. **Project A — dashboard panels genuinely missing**: Memory Timeline,
    a dedicated Knowledge Graph Explorer (today only a widget inside
    "Intelligence"), Package Management (today only Capability
-   Marketplace), AI Conversations. Structural/data work only -- the
-   full visual/UX command-center pass still waits on real browser
-   access, but individual missing panels with real data are not
-   blocked (see how the `system-health` id fix above needed no browser
-   at all).
+   Marketplace), AI Conversations. Structural/data work only -- proven
+   not to require a browser by the `system-health` id fix; the full
+   visual/UX command-center pass still waits on real browser access.
 3. **Project C — Device Synchronization**: real presence/heartbeat/sync
    already exist (`core/device/`); "handoff" (marking a task/mission for
    a specific device to pick up) and cross-device notifications
    (queued, poll-based -- no push infrastructure exists or is being
    fabricated) are the genuine gaps.
-4. **Project G — Autonomous Maintenance**: no real "clean temp data /
-   archive logs / remove duplicates / repair references" job exists
-   today. Real, SAFE, reversible work only (log rotation/archival);
-   anything riskier (duplicate/dangling-reference detection) should be
-   a REPORT, not an automatic action, matching "run only approval-free
-   maintenance" and "never remove human oversight."
-5. **Projects E, H, I** — executive-response formatting polish, a
+4. **Projects E, H, I** — executive-response formatting polish, a
    per-package consistency audit, and general production polish --
    applied opportunistically alongside the above rather than as
    separate, dedicated efforts.
