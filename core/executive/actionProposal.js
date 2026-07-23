@@ -21,6 +21,7 @@
 
 const memory = require("../memory");
 const bus = require("../bus");
+const notifications = require("../device/notifications");
 const ExecutivePlanner = require("./planner");
 const ProjectManager = require("./projectManager");
 const BlockerDetector = require("./blockerDetection");
@@ -161,6 +162,18 @@ class ActionProposalEngine {
             metadata: proposal
         });
 
+        // Project C/A: a real, poll-based notification -- only for
+        // proposals that actually need the operator's attention
+        // (approvalRequired), not the purely informational ones
+        // (high_urgency) that never require a decision.
+        if(proposal.approvalRequired){
+            notifications.create({
+                title: `Approval needed: ${recommendation.detail}`,
+                message: proposal.reason,
+                severity: proposal.risk === "high" ? "critical" : "warning"
+            });
+        }
+
         return this.toRecord(entry);
 
     }
@@ -204,6 +217,14 @@ class ActionProposalEngine {
             source: "action-proposal",
             metadata: proposal
         });
+
+        if(proposal.approvalRequired){
+            notifications.create({
+                title: `Approval needed: ${reason}`,
+                message: reason,
+                severity: proposal.risk === "high" ? "critical" : "warning"
+            });
+        }
 
         return this.toRecord(entry);
 

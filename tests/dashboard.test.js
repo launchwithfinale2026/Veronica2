@@ -454,6 +454,44 @@ test("GET /api/system/operational-readiness returns the real combined checklist 
 });
 
 
+test("Real, poll-based notifications: create via a real approval-required proposal, poll, and mark read through the live server (Project C/A)", async () => {
+
+    process.env.API_TOKEN = "test-api-secret";
+
+    const authedHeaders = {
+        Authorization: "Bearer test-api-secret",
+        "Content-Type": "application/json"
+    };
+
+    const proposalRes = await fetch(`${baseUrl}/api/executive/proposals/external`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ action: "post_discord_message", reason: "dashboard notification test XQZDASH15", payload: { content: "test" } })
+    });
+    assert.strictEqual(proposalRes.status, 200);
+
+    const pendingRes = await fetch(`${baseUrl}/api/notifications`);
+    const pending = await pendingRes.json();
+    const found = pending.find(n => n.title.includes("XQZDASH15"));
+    assert.ok(found, "expected a real notification created by the approval-required proposal above");
+
+    const readRes = await fetch(`${baseUrl}/api/notifications/${found.id}/read`, {
+        method: "POST",
+        headers: authedHeaders
+    });
+    assert.strictEqual((await readRes.json()).read, true);
+
+    const afterRes = await fetch(`${baseUrl}/api/notifications`);
+    const after = await afterRes.json();
+    assert.ok(!after.some(n => n.id === found.id));
+
+    const allRes = await fetch(`${baseUrl}/api/notifications/all`);
+    const all = await allRes.json();
+    assert.ok(all.some(n => n.id === found.id));
+
+});
+
+
 // Phase 57 (Knowledge Acquisition Engine): pure history read, no LLM
 // call -- safe to exercise over the real running server. The gated
 // POST .../acquire-file/.../acquire-note routes are already covered
@@ -1634,6 +1672,7 @@ const ALL_POST_ROUTES = [
     "/api/system/maintenance/run-log-archival",
     "/api/knowledge/acquire-file",
     "/api/knowledge/acquire-note",
+    "/api/notifications/test-id/read",
     "/api/marketing/campaigns",
     "/api/marketing/campaigns/test-id/schedule-content",
     "/api/marketing/campaigns/test-id/generate-draft",

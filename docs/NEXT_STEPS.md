@@ -1,8 +1,8 @@
 # VERONICA — Next Steps
 
-Snapshot as of **Project B (verify script) + Project J (briefing/review
-gaps)**. 753/753 tests passing. Objective: "make VERONICA operational
-for daily use." Projects A-N, pursued autonomously.
+Snapshot as of **Project C + Project A (real, poll-based
+notifications)**. 760/760 tests passing. Objective: "make VERONICA
+operational for daily use." Projects A-N, pursued autonomously.
 
 - **Project A** — Mission Control Dashboard: modular panel injection
   done; Memory Timeline/Analytics, Conversation History, Notification
@@ -40,6 +40,10 @@ for daily use." Projects A-N, pursued autonomously.
 
 ## Resolved since the last snapshot
 
+- **Project C + Project A**: `core/device/notifications.js` -- real,
+  poll-based notifications (no fabricated push infrastructure), wired
+  into a real trigger (approval-required proposals), plus a
+  Notification Center dashboard widget.
 - **Project B**: `scripts/verify-launch-agent.sh` -- real, read-only
   checks (plist present, launchctl loaded, dashboard responding).
 - **Project J**: `dailyBriefing.js`'s `upcomingDeadlines()` and

@@ -21,6 +21,7 @@ const tools = require("../../core/tools");
 const device = require("../../core/device");
 const sync = require("../../core/device/sync");
 const DeviceManager = require("../../core/device/deviceManager");
+const notifications = require("../../core/device/notifications");
 const executive = require("../../core/executive");
 const learning = require("../../core/learning");
 const automation = require("../../core/automation");
@@ -283,6 +284,12 @@ const ROUTES = {
     "GET /api/device/known": () => sync.knownDevices(),
 
     "GET /api/devices/network": () => deviceManager.networkStatus(),
+
+    // Project C (Device Ecosystem) / Project A (Notification Center):
+    // real, poll-based notifications -- see core/device/notifications.js.
+    "GET /api/notifications": (searchParams) => notifications.pending({ role: searchParams.get("role") || undefined }),
+
+    "GET /api/notifications/all": (searchParams) => notifications.all(Number(searchParams.get("limit")) || 50),
 
     "GET /api/memory/semantic-search-status": () => ({ available: memory.semanticSearchAvailable() }),
 
@@ -686,7 +693,9 @@ const STREAMED_EVENTS = [
     "capability.installed", "campaign.published", "research.finished",
     "git.commit", "connector.online", "connector.offline",
     // Phase 54 (Automation Engine 2.0).
-    "workflow.completed"
+    "workflow.completed",
+    // Project C/A (Device Ecosystem / Notification Center).
+    "notification.created"
 ];
 const SSE_HEARTBEAT_MS = 25000;
 
@@ -799,6 +808,21 @@ function createServer(){
                 }
 
                 return sendJSON(res, 200, maintenance.runLogArchival());
+
+            }
+
+            // Project C/A: marks a real notification read.
+            const notificationReadMatch = parsed.pathname.match(/^\/api\/notifications\/([^/]+)\/read$/);
+
+            if(notificationReadMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                return sendJSON(res, 200, notifications.markRead(decodeURIComponent(notificationReadMatch[1])));
 
             }
 

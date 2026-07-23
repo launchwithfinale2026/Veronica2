@@ -2520,3 +2520,48 @@ exactly the right bucket and none other) and 1 new in
 success and a real failure logged today are correctly reflected).
 
 751 -> 753 tests, all passing.
+
+## Project C + Project A -- real, poll-based notifications
+
+**Audit first:** `registry/devices.json` already defines real device
+roles (desktop/laptop/phone/server/chromebook) with real permissions
+and capabilities -- `phone` already lists `push_notifications` as a
+capability. What genuinely didn't exist was any mechanism to actually
+deliver one. A phone-role device has no real push channel without a
+real mobile app and a real push service this project has no
+credentials for -- building fake push infrastructure would be exactly
+the fabrication this codebase has avoided since Phase 19.
+
+**Added:** `core/device/notifications.js` -- a real, persisted,
+POLL-based queue. `create()`/`pending()`/`markRead()`/`all()`, an
+ordinary memory entry per notification (not a new parallel store),
+optionally targeted at one real device role or left untargeted (every
+device). Every device, phone included, gets real notifications the
+same honest way every other connector in this codebase already handles
+a capability it can't fully deliver: by polling.
+
+**Wired into a real, demonstrated trigger:**
+`core/executive/actionProposal.js`'s `fromRecommendation()`/
+`proposeExternalAction()` now create a real notification whenever a
+proposal is actually `approvalRequired` -- `high_urgency` (never
+requires approval) correctly creates none. This is the same real
+"approvals waiting" signal Project N's operational readiness checklist
+already surfaces, now also reaching a real notification queue.
+
+**Wired into:** `GET /api/notifications` (pending, optionally
+`?role=`), `GET /api/notifications/all`, a gated
+`POST /api/notifications/:id/read`, a real `notification.created` bus
+event (added to the SSE whitelist), and a new Notification Center
+widget in the Executive Summary panel (mark-read buttons included).
+
+**Tests:** `tests/device-notifications.test.js` (4 tests) -- real
+validation, a real bus event, real role-filtering (both role-targeted
+and untargeted notifications reach the right poll), and a real
+mark-read round trip. `tests/action-proposal.test.js` gained 2 -- a
+real deadlock recommendation creating a real notification, and a real
+`high_urgency` proposal creating none; plus a real external-action
+proposal doing the same. Plus 1 new dashboard test exercising the full
+real path: create an external proposal through the live server, poll,
+mark read, confirm it drops off pending but stays in history.
+
+753 -> 760 tests, all passing.

@@ -4364,3 +4364,60 @@ correct bucket; a real before/after delta for today's performance
 metrics).
 
 753 tests (751 -> 753), `npm test` green.
+
+## Real, poll-based notifications (Project C + Project A)
+
+**The constraint that shaped this, stated up front:** `registry/devices.json`'s
+`phone` role already lists `push_notifications` as a real capability --
+but a real push notification needs a real mobile app and a real push
+service (APNs/FCM), neither of which this project has credentials or
+infrastructure for. Fabricating a "push" mechanism that doesn't
+actually push anything would be exactly the dishonesty Phase 19's
+connector work has avoided from the start. The honest answer: every
+device, including a phone, gets real notifications by polling, same as
+how `core/system/startupManager.js` itself checks the dashboard's
+health by polling rather than assuming a push-style callback exists.
+
+**`core/device/notifications.js`**: `create()`/`pending()`/
+`markRead()`/`all()` -- an ordinary memory entry per notification
+(content = title, metadata carries message/severity/targetRole/read),
+not a new parallel store. `targetRole` is optional and matches
+`registry/devices.json`'s own real role vocabulary (`desktop`/`laptop`/
+`phone`/`server`/`chromebook`) -- `pending({ role })` returns
+notifications aimed at that role specifically PLUS untargeted ones
+(meant for every device), never notifications aimed at a DIFFERENT
+role. A real `notification.created` bus event fires on creation, so it
+also streams live over the existing SSE mechanism (Phase 52-53) with
+zero new plumbing.
+
+**Wired into a real, already-existing trigger point rather than
+invented from scratch.** `core/executive/actionProposal.js`'s
+`fromRecommendation()` and `proposeExternalAction()` are the two real
+places a pending proposal is ever created. Both now call
+`notifications.create()` -- but ONLY when `proposal.approvalRequired`
+is true. `high_urgency` recommendations (the one kind that's
+`approvalRequired: false`, purely informational, never blocking on a
+human decision) correctly create no notification -- a notification
+queue that fired for every proposal regardless of whether it actually
+needed attention would train an operator to ignore it.
+
+**Wired into:** `GET /api/notifications` (optional `?role=`),
+`GET /api/notifications/all`, a gated `POST /api/notifications/:id/read`
+(added to `tests/dashboard.test.js`'s `ALL_POST_ROUTES`), and a real
+Notification Center widget in the Executive Summary panel with
+mark-read buttons wired to the real route.
+
+**Tests:** `tests/device-notifications.test.js` (4 tests) -- real input
+validation, a real bus event captured via a temporary subscription,
+real role-filtering proving BOTH a role-targeted and an untargeted
+notification reach a phone-role poll while a desktop-targeted one
+doesn't, and a real mark-read round trip including the unknown-id
+error path. `tests/action-proposal.test.js` gained 2 real tests proving
+the trigger fires exactly when it should and doesn't when it shouldn't
+(a real deadlock recommendation vs. a real `high_urgency` one), plus a
+real external-action proposal doing the same. Plus 1 new dashboard test
+exercising the complete real path through the live server: create a
+real external proposal -> poll and find it -> mark it read -> confirm
+it's gone from pending but still in history.
+
+760 tests (753 -> 760), `npm test` green.

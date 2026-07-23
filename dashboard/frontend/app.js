@@ -838,7 +838,8 @@ async function loadDashboard(){
             loadExecutiveSummary(),
             loadSystemHealth(),
             loadMaintenanceReport(),
-            loadOperationalReadiness()
+            loadOperationalReadiness(),
+            loadNotificationCenter()
         ]);
 
     } catch(error){
@@ -4028,6 +4029,54 @@ function setupKnowledgeGraphExplorer(){
         }
 
     });
+
+}
+
+
+async function loadNotificationCenter(){
+
+    const container = document.getElementById("notification-center");
+
+    try {
+
+        const pending = await fetchJSON("/api/notifications");
+
+        if(!pending.length){
+            container.textContent = "No pending notifications.";
+            return;
+        }
+
+        container.innerHTML = "";
+
+        const list = el("ul", { className: "list" });
+
+        for(const notification of pending){
+
+            const item = el("li", {
+                textContent: `[${notification.severity}] ${notification.title}${notification.message ? ` -- ${notification.message}` : ""} `
+            });
+
+            const button = el("button", { textContent: "Mark read" });
+
+            button.addEventListener("click", async () => {
+                try {
+                    await authedFetch(`/api/notifications/${encodeURIComponent(notification.id)}/read`, { method: "POST" });
+                    loadNotificationCenter();
+                } catch(error){
+                    item.textContent += ` (Error marking read: ${error.message})`;
+                }
+            });
+
+            item.appendChild(button);
+            list.appendChild(item);
+
+        }
+
+        container.appendChild(list);
+
+    } catch(error){
+        container.textContent = `Error: ${error.message}`;
+    }
 
 }
 

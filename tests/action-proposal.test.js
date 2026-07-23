@@ -119,6 +119,54 @@ test("high_urgency proposals are low risk and do not require approval", () => {
 });
 
 
+test("fromRecommendation() creates a real notification only for approval-required proposals, not high_urgency ones (Project C/A)", async () => {
+
+    const notifications = require("../core/device/notifications");
+
+    const realPlanner = new ExecutivePlanner();
+    const project = realPlanner.plan({ title: "Proposal notification project XQZPROP7", department: "ares" });
+
+    const scoped = scopedPlanner(realPlanner, [project.id]);
+    const decomposer = new GoalDecomposer({ planner: scoped });
+    mockDecomposerBrain(decomposer, {
+        milestones: [{ title: "Milestone XQZPROP7", tasks: [{ title: "Task XQZPROP7", subtasks: [], deliverables: [] }] }]
+    });
+
+    const projectManager = new ProjectManager({ planner: scoped });
+    await decomposer.decompose(project.id);
+
+    const [task] = projectManager.tasksForProject(project.id);
+    projectManager.updateStatus(task.id, "blocked", "Execution failed: simulated XQZPROP7");
+
+    const engine = makeEngine(scoped, projectManager);
+    engine.generateProposals();
+
+    const pending = notifications.pending();
+    assert.ok(pending.some(n => n.title.includes("simulated XQZPROP7")), "expected a real notification for the approval-required deadlock proposal");
+    assert.ok(!pending.some(n => n.severity === "critical" && n.title.includes("simulated XQZPROP7")), "medium risk should be \"warning\", not \"critical\"");
+
+});
+
+
+test("proposeExternalAction() creates a real notification for a real external approval-required proposal (Project C/A)", () => {
+
+    const notifications = require("../core/device/notifications");
+
+    const realPlanner = new ExecutivePlanner();
+    const engine = makeEngine(realPlanner, new ProjectManager({ planner: realPlanner }));
+
+    engine.proposeExternalAction({
+        action: "post_discord_message",
+        reason: "notification test XQZPROP8",
+        payload: { content: "test" }
+    });
+
+    const pending = notifications.pending();
+    assert.ok(pending.some(n => n.title.includes("notification test XQZPROP8")));
+
+});
+
+
 test("execute() refuses to run a proposal that hasn't been approved", () => {
 
     const realPlanner = new ExecutivePlanner();
