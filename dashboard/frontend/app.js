@@ -2285,6 +2285,40 @@ function setupCommandPalette(){
 }
 
 
+function setupAutonomousBuildForm(){
+
+    const form = document.getElementById("autonomous-build-form");
+    const result = document.getElementById("autonomous-build-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const objective = document.getElementById("autonomous-build-objective").value;
+
+        result.textContent = "Analyzing and generating (real files, no LLM call)...";
+
+        try {
+
+            const outcome = await authedFetch("/api/capabilities/autonomous-build", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ objective })
+            });
+
+            result.textContent = outcome.report;
+
+            await loadCapabilityMarketplace();
+
+        } catch(error){
+            result.textContent = `Error: ${error.message}`;
+        }
+
+    });
+
+}
+
+
 // --- Live updates (Server-Sent Events) ------------------------------------
 //
 // Replaces interval polling: GET /api/events streams memory/knowledge
@@ -2425,6 +2459,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupCapabilityInstallForm();
     setupCapabilitySearchForm();
     setupCapabilityBuildForm();
+    setupAutonomousBuildForm();
     setupResearchForm();
     setupSelfImprovementButton();
     setupMissionDefineForm();

@@ -37,6 +37,7 @@ const capabilitiesPlanner = require("../../core/capabilities/planner");
 const systemReport = require("../../core/system/report");
 const capabilitiesMarketplace = require("../../core/capabilities/marketplace");
 const capabilitiesBuilder = require("../../core/capabilities/builder");
+const autonomousBuilder = require("../../core/capabilities/autonomousBuilder");
 const ResearchEngine = require("../../core/research/engine");
 const SelfImprovementEngine = require("../../core/system/selfImprovement");
 const OrganizationOverview = require("../../core/executive/organizationOverview");
@@ -971,6 +972,29 @@ function createServer(){
                 }
 
                 return sendJSON(res, 200, capabilitiesBuilder.buildPackage(input));
+
+            }
+
+            // Phase 39 (Autonomous Capability Builder): the full
+            // analyze -> plan -> generate -> validate -> request-approval
+            // pipeline from a single free-text objective (e.g. "Build a
+            // recruiting department"). Always produces a pending
+            // approval proposal -- never installs/activates on its own.
+            if(parsed.pathname === "/api/capabilities/autonomous-build" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { objective } = JSON.parse((await readBody(req)) || "{}");
+
+                if(!objective){
+                    return sendJSON(res, 400, { error: "objective is required" });
+                }
+
+                return sendJSON(res, 200, autonomousBuilder.buildCapability(objective));
 
             }
 

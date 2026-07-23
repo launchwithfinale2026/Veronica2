@@ -86,6 +86,19 @@ const CAPABILITY_CATALOG = {
             { name: "market comparables", requiredAgentRole: "Market Analyst", requiredAPIs: ["MLS API"], dependsOn: ["listing analysis"], risk: "medium", estimatedDays: 4 },
             { name: "document management", requiredAgentRole: "Document Manager", requiredAPIs: [], dependsOn: [], risk: "low", estimatedDays: 3 }
         ]
+    },
+
+    // Phase 39's own worked example ("Build a recruiting department") --
+    // added for real, same structure/reasoning as every other domain
+    // above, not a special case.
+    recruiting: {
+        permissions: ["read"],
+        capabilities: [
+            { name: "candidate sourcing", requiredAgentRole: "Sourcing Specialist", requiredAPIs: ["job board API"], dependsOn: [], risk: "low", estimatedDays: 3 },
+            { name: "candidate screening", requiredAgentRole: "Recruiting Screener", requiredAPIs: [], dependsOn: ["candidate sourcing"], risk: "medium", estimatedDays: 3 },
+            { name: "interview coordination", requiredAgentRole: "Interview Coordinator", requiredAPIs: ["calendar API"], dependsOn: ["candidate screening"], risk: "low", estimatedDays: 2 },
+            { name: "offer management", requiredAgentRole: "Offer Manager", requiredAPIs: [], dependsOn: ["interview coordination"], risk: "medium", estimatedDays: 2 }
+        ]
     }
 
 };
