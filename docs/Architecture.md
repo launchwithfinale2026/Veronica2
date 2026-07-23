@@ -2820,3 +2820,65 @@ store, exactly the operator's own instruction.
 green before each). No architectural redesign -- the only genuinely new
 stores are budgets, invoices, and subscriptions; the ledger itself was
 reused, not rebuilt.
+
+## Research Division (`core/research/missions.js`, Phase 44)
+
+**Decision:** the fourth Phase 35 package moved from skeleton to
+production-ready. `core/research/engine.js` (Phase 29) already did the
+hard part -- real document fetching through the allowlisted HTTP
+client, real LLM-based structured knowledge extraction, real citation
+storage in memory. The genuine gap was grouping multiple citations
+under one themed objective with ranking and a synthesized summary, not
+a second research engine.
+
+- **Research Missions, Source Ranking, Executive Summaries**
+  (`core/research/missions.js`): `addCitation()` reuses
+  `ResearchEngine.research()` wholesale -- fetch a real URL, extract via
+  LLM, store with citation. `rankSources()` orders a mission's real
+  citations by their real, already-computed extraction confidence
+  (highest first) -- deliberately NOT a fabricated credibility score;
+  the confidence value already exists from the extraction step,
+  ranking just reads it. `generateExecutiveSummary()` follows
+  `core/marketing/contentGenerator.js`/`core/sales/proposalGenerator.js`'s
+  established pattern.
+- **"Competitor research"/"Industry reports"/"Technology reports"/
+  "Market trend reports" are one mechanism, not four**: a mission's
+  `type` field is purely informational (what kind of research this is);
+  the underlying pipeline (collect citations -> rank -> synthesize) is
+  identical regardless of type. Building four separate report
+  generators would have been exactly the kind of duplication this
+  project's standing instructions warn against.
+- **Missions are optionally company-scoped**: unlike Marketing/Sales/
+  Finance's entities (which all require a companyId), a mission's
+  companyId is optional -- `core/research/engine.js` was deliberately
+  built global in Phase 29 (research isn't inherently about one
+  company), so forcing a company onto every mission would have been a
+  real design regression, not a consistency improvement.
+- **The same circular-require bug, a third time**: both
+  `core/research/missions.js` and `core/research/engine.js` itself
+  top-level-required `core/intelligence`, whose chain reaches
+  `core/brain/providers/claude.js`, which requires `core/tools/index.js`
+  at its own top level. `engine.js` predates this discovery (Phase 29)
+  and had never been reached from a tool-loading path before Phase 44's
+  `research.dept.synthesize.js` made it reachable. Fixed the same way
+  in both files (lazy-require inside the function that needs it) --
+  this is now a three-for-three pattern (Sales, proactively Marketing,
+  Research) worth watching for in ANY future module that both gets
+  pulled in from a package tool handler and itself top-level-requires
+  anything in the `core/learning`/`core/intelligence`/`core/brain`
+  chain.
+- **A real HTML id collision, found building the dashboard panel**:
+  the new Research Mission form's objective field was originally named
+  `mission-objective`, already used by the pre-existing Phase 31
+  Mission Engine panel. Duplicate ids are invalid HTML;
+  `document.getElementById()` silently returns only the first match, so
+  this would have bound both forms to the same element without either
+  form or the browser ever raising an error. Renamed to
+  `research-mission-objective`. A second, unrelated `system-health` id
+  duplicate was found in the same pass but left unfixed as out of
+  scope -- see `docs/NEXT_STEPS.md`.
+
+576 -> 587 tests across three parts (one commit per part, `npm test`
+green before each). No architectural redesign -- the only genuinely new
+store is missions themselves; the citation/extraction/storage pipeline
+was reused wholesale from Phase 29.

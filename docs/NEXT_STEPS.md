@@ -1,7 +1,7 @@
 # VERONICA — Next Steps
 
-Snapshot as of Phase 43 part 3 (Finance Division production-readiness,
-dashboard surfacing complete). 576/576 tests passing. See
+Snapshot as of Phase 44 part 3 (Research Division production-readiness,
+dashboard surfacing complete). 587/587 tests passing. See
 `docs/CHANGELOG.md` for what each phase actually built, and
 `docs/NEXT_HUMAN_ACTIONS.md`/`docs/EXTERNAL_DEPENDENCIES.md` for what
 still needs a human.
@@ -13,60 +13,63 @@ still needs a human.
   (9 built-in + 19 package), 15 live departments (9 built-in + 6
   package).
 - **The operator's 9-point integration checklist is closed.**
-- **The Marketing Division is production-ready** (Phase 41 parts 1-5):
-  Company Brain + Brand Profile, a real Campaign Engine with
-  Planner/Calendar, a real Content Generator, an approval-gated
-  Publishing Queue (honest about only Discord actually working), a real
-  Analytics Engine, Department/Campaign Health in the morning briefing,
-  a complete real agent hierarchy, and full dashboard surfacing.
-- **The Sales Division is production-ready** (Phase 42 parts 1-3): a
-  real Lead database with deterministic, explainable scoring, a real
-  Opportunity/Pipeline engine (Contact Management, Follow-up
-  Scheduling, a deterministic weighted-pipeline Forecast), a real
-  Proposal Generator, real Win/Loss Analytics, Sales Health in the
-  morning briefing, and full dashboard surfacing. Building it surfaced
-  a real, order-dependent circular-require bug
-  (`core/sales/analytics.js`'s top-level `require("../learning")`
-  reaching back into `core/tools/index.js` via
-  `core/brain/providers/claude.js`) -- fixed, and proactively fixed in
-  `core/marketing/analytics.js` too, which had the identical latent
-  landmine.
+- **The Marketing Division is production-ready** (Phase 41 parts 1-5).
+- **The Sales Division is production-ready** (Phase 42 parts 1-3).
+  Building it surfaced a real, order-dependent circular-require bug
+  (an analytics module's top-level `require("../learning")` reaching
+  back into `core/tools/index.js` via `core/brain/providers/claude.js`)
+  -- fixed there and proactively in Marketing's analytics module too.
 - **The Finance Division is production-ready** (Phase 43 parts 1-3):
-  real Budgets/Invoices/Subscriptions built on top of the existing
-  ledger (`companyManager.js`'s `recordFinance()`/`financialSummary()`,
-  not duplicated), real Cash-flow Reporting/Runway/Forecasting/
-  Financial KPIs (`core/finance/reports.js`), a real
-  `finance.report.generate` tool, real agent prompts, Finance Health in
-  the morning briefing, and full dashboard surfacing. No banking
-  connection anywhere, per the operator's explicit instruction.
-- **Three of six Phase 35 packages are now genuinely `"active"`** in
-  `core/capabilities/health.js`: marketing, sales, and finance. The
-  remaining three (business-operations, research-department,
+  built entirely on top of the existing ledger
+  (`companyManager.js`'s `recordFinance()`/`financialSummary()`, not
+  duplicated). No banking connection anywhere, per the operator's
+  explicit instruction.
+- **The Research Division is production-ready** (Phase 44 parts 1-3): a
+  real Research Mission Engine (`core/research/missions.js`) reusing
+  `core/research/engine.js`'s Phase 29 pipeline wholesale -- Source
+  Ranking (deterministic, by real extraction confidence) and Executive
+  Summaries (a real LLM synthesis) on top. "Competitor
+  research"/"Industry reports"/"Technology reports"/"Market trend
+  reports" are all the same mechanism with a different mission `type`
+  label, not four separate report generators. The SAME circular-require
+  bug class surfaced a third time here (`core/research/missions.js` and
+  `core/research/engine.js` itself both top-level-required
+  `core/intelligence`) -- fixed in both.
+- **Four of six Phase 35 packages are now genuinely `"active"`** in
+  `core/capabilities/health.js`: marketing, sales, finance, and
+  research-department. The remaining two (business-operations,
   trading-research) are still "Installed – Awaiting Integration" --
   their tools are still generated skeletons, awaiting the same
   production-readiness pass.
+- **Minor, unrelated finding, not yet fixed**: `dashboard/frontend/index.html`
+  has a pre-existing (predates this session) duplicate
+  `id="system-health"` on two different `<div>`s -- harmless today (both
+  happen to be populated identically), but `document.getElementById()`
+  only ever returns the first match, so if the two were ever meant to
+  show different content, one silently wouldn't update. Worth a
+  dedicated fix, out of scope for whichever phase happens to notice it
+  next.
 
-## Recommended Phase 44+
+## Recommended Phase 45+
 
-1. **Apply the same production-readiness template to the remaining
-   three Phase 35 packages** (research-department, trading-research,
-   business-operations, per the standing roadmap order) -- Research
-   next: real research missions, citation management, source ranking,
-   competitor/industry/technology reports, reusing
-   `core/research/engine.js` (the existing, already-real Phase 29
-   research/citation engine -- `packages/research-department/manifest.json`'s
-   own description already notes this distinction: the package's agents
-   are meant to actually call the real engine, not reimplement one)
-   wherever it genuinely fits rather than building a second research
-   engine. Then Trading Research
-   (portfolio model, watchlists, strategy storage, paper trading,
-   backtesting, risk metrics -- no real trade execution, approval-gated
-   and unimplemented until broker credentials exist). Then Business
-   Operations (SOP library, workflow documentation, process analysis,
-   KPI tracking, department scorecards). Each is its own genuine scope
-   -- audit first, and watch for the same class of circular-require bug
-   (`core/learning` required at a module's top level, reached from a
-   tool handler) in any new analytics module.
+1. **Apply the same production-readiness template to the remaining two
+   Phase 35 packages** (trading-research, business-operations, per the
+   standing roadmap order) -- Trading Research next: portfolio model,
+   watchlists, strategy storage, paper trading engine, backtesting, risk
+   metrics, position sizing, journal, performance analytics -- no real
+   trade execution, approval-gated and unimplemented until broker
+   credentials exist. Then Business Operations (SOP library, workflow
+   documentation, process analysis, KPI tracking, department
+   scorecards, blocker management, meeting summaries, weekly operating
+   reviews). Each is its own genuine scope -- audit first, and watch for
+   the same class of circular-require bug (`core/learning` or
+   `core/intelligence` required at a module's top level, reached from a
+   tool handler) in any new analytics/reasoning module -- it has now
+   surfaced three times (Sales, proactively in Marketing, Research) and
+   will keep recurring in any new domain module that both (a) gets
+   `require()`'d from a package tool handler and (b) itself top-level-
+   requires anything in the `core/learning`/`core/intelligence`/
+   `core/brain` chain.
 2. **Close the recommendation feedback loop.** Phase 38's
    `adaptiveInsights.js` computes real acceptance rates and repeated-
    recommendation counts but doesn't feed them back into
@@ -78,9 +81,11 @@ still needs a human.
    change across this entire project has been verified at the
    endpoint/content level only -- no browser is available in this
    environment. The command palette, search, Executive Summary panel
-   (Phase 34), and the Marketing (Phase 41), Sales (Phase 42), and
-   Finance (Phase 43) Division panels are functionally real but never
-   visually confirmed.
+   (Phase 34), and the Marketing (Phase 41), Sales (Phase 42),
+   Finance (Phase 43), and Research (Phase 44) Division panels are
+   functionally real but never visually confirmed. This would also be
+   the moment to fix the pre-existing "system-health" duplicate id
+   noted above.
 4. **The six architecture-debt/upgrade items** flagged in
    `core/system/selfImprovement.js` -- genuinely the operator's call,
    not something to decide autonomously.

@@ -1305,3 +1305,67 @@ commit per part. No architectural redesign -- every new piece follows
 an existing pattern from Marketing/Sales or elsewhere in the codebase;
 the only genuinely new stores are budgets, invoices, and subscriptions
 themselves.
+
+## Phase 44 (Research Division) -- parts 1-3
+
+The fourth Phase 35 package, per the standing roadmap. Audited
+`core/research/engine.js` (Phase 29) first -- it already does real
+document fetching (through the allowlisted HTTP client), real LLM-based
+knowledge extraction with citation tracking, and real memory-backed
+storage. The genuine gap was grouping multiple citations into one
+themed research effort with ranking and a synthesized summary -- not a
+second research engine.
+
+**Part 1 -- real Research Mission Engine.** New
+`core/research/missions.js`: `addCitation()` reuses
+`ResearchEngine.research()` wholesale (fetch a real URL, extract via
+LLM, store with citation) -- not a duplicate implementation.
+"Competitor research"/"Industry reports"/"Technology reports"/"Market
+trend reports" are all the same mechanism with a different `type` label
+on a mission, not four separate report generators. `rankSources()` is
+real and deterministic: orders a mission's citations by their real,
+already-computed extraction confidence, never a fabricated credibility
+score. `generateExecutiveSummary()` follows the established Content
+Generator/Proposal Generator pattern (`core/intelligence.think()`),
+synthesizing across everything a mission has actually collected.
+Missions are optionally company-scoped, not required -- research isn't
+inherently tied to one company.
+
+**Part 2 -- real tool + agent prompts, the same circular-require bug a
+third time.** `packages/research-department`'s one skeleton tool
+(`research.dept.synthesize`) given a real implementation, permission
+fixed to `"read_memory"`, every agent prompt replaced with a real one
+(ResearchAgent collects, AnalysisAgent ranks/synthesizes). Building it
+surfaced the SAME circular-require bug class found in Phase 42 (Sales)
+a third time: both `core/research/missions.js` and
+`core/research/engine.js` (Phase 29, predating this discovery)
+top-level-required `core/intelligence`, whose chain reaches
+`core/tools/index.js`. Fixed the same way in both files. Verified with
+a real, live end-to-end call through the real Tool Registry against the
+actual Claude connection -- it correctly identified test-fixture content
+as placeholder data rather than fabricating a finding.
+
+**Part 3 -- Research Status + dashboard surfacing.** `dailyBriefing.js`
+gained `researchStatus()` -- unlike every other division's health
+rollup, this is a single system-wide summary (total/in-progress/
+completed missions, average source confidence), not a per-company list,
+matching missions' own optional company-scoping. Full dashboard wiring
+-- create/list/complete a mission, add a real citation, view ranked
+sources, generate a real executive summary -- and a new frontend panel.
+Found and fixed a real HTML id collision while building it
+("mission-objective" already used by the pre-existing Phase 31 Mission
+Engine panel -- duplicate ids are invalid HTML and
+`document.getElementById()` would have silently bound both forms to
+whichever element came first) -- renamed to
+"research-mission-objective". Also found, but left as out-of-scope pre-
+existing debt: a "system-health" id duplicate that predates this
+session (see `docs/NEXT_STEPS.md`).
+
+Result: `core/capabilities/health.js` now reports research-department
+as genuinely `"active"` -- the fourth of six Phase 35 packages to cross
+that line.
+
+576 -> 587 tests across all three parts, all passing throughout, one
+commit per part. No architectural redesign -- the only genuinely new
+store is missions themselves; the citation/extraction/storage pipeline
+was reused wholesale from Phase 29.
