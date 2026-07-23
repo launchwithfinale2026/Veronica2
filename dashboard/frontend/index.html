@@ -241,6 +241,55 @@
     </div>
   </section>
 
+  <section class="panel panel-wide">
+    <h2>Finance Division (Phase 43)</h2>
+    <p class="hint">Look up a company id from the Companies list above (record revenue/expenses via that panel's existing finance form), then set a budget, create an invoice, add a subscription, and view real Financial KPIs (MRR/ARR, accounts receivable, runway). No banking connection -- every number traces back to what's actually been recorded.</p>
+    <div class="widget-group">
+      <h3>Set a Budget</h3>
+      <form id="budget-create-form" class="stacked-form">
+        <input type="text" id="budget-company-id" placeholder="Company id" required>
+        <input type="text" id="budget-category" placeholder="Category (e.g. infrastructure)" required>
+        <input type="text" id="budget-period" placeholder="Period (YYYY-MM)" required>
+        <input type="number" id="budget-limit" placeholder="Limit" required>
+        <button type="submit">Set Budget</button>
+      </form>
+      <p id="budget-create-result" class="hint"></p>
+    </div>
+    <div class="widget-group">
+      <h3>Create an Invoice</h3>
+      <form id="invoice-create-form" class="stacked-form">
+        <input type="text" id="invoice-company-id" placeholder="Company id" required>
+        <input type="text" id="invoice-client-name" placeholder="Client name" required>
+        <input type="number" id="invoice-amount" placeholder="Amount" required>
+        <button type="submit">Create Invoice</button>
+      </form>
+      <p id="invoice-create-result" class="hint"></p>
+    </div>
+    <div class="widget-group">
+      <h3>Add a Subscription</h3>
+      <form id="subscription-create-form" class="stacked-form">
+        <input type="text" id="subscription-company-id" placeholder="Company id" required>
+        <input type="text" id="subscription-client-name" placeholder="Client name" required>
+        <input type="number" id="subscription-amount" placeholder="Amount" required>
+        <select id="subscription-interval">
+          <option value="monthly">Monthly</option>
+          <option value="annual">Annual</option>
+        </select>
+        <button type="submit">Add Subscription</button>
+      </form>
+      <p id="subscription-create-result" class="hint"></p>
+    </div>
+    <div class="widget-group">
+      <h3>Financial KPIs</h3>
+      <form id="finance-kpis-form" class="inline-form">
+        <input type="text" id="finance-kpis-company-id" placeholder="Company id" required>
+        <button type="submit">Load</button>
+      </form>
+      <div id="budget-status-list" class="widget"></div>
+      <pre id="finance-kpis-result" class="widget code-block"></pre>
+    </div>
+  </section>
+
   <section class="panel">
     <h2>Executive</h2>
     <div class="widget-group">

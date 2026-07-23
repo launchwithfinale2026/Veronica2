@@ -228,6 +228,37 @@ test("generate() surfaces real Sales Health (Phase 42 Executive Daily Operations
 });
 
 
+test("generate() surfaces real Finance Health (Phase 43 Executive Daily Operations)", () => {
+
+    const invoices = require("../core/finance/invoices");
+    const budgets = require("../core/finance/budgets");
+
+    const realPlanner = new ExecutivePlanner();
+    const briefing = makeBriefingEngine(realPlanner);
+
+    const quietCompany = briefing.companyManager.createCompany({ name: "Finance Briefing Quiet Co XQZBRIEF9" });
+    const activeCompany = briefing.companyManager.createCompany({ name: "Finance Briefing Active Co XQZBRIEF9" });
+
+    briefing.companyManager.recordFinance(activeCompany.id, { label: "Revenue XQZBRIEF9", amount: 1000, type: "revenue" });
+
+    const overdueInvoice = invoices.createInvoice({ companyId: activeCompany.id, clientName: "Overdue Client XQZBRIEF9", amount: 500, dueDate: "2020-01-01" });
+    invoices.setInvoiceStatus(overdueInvoice.id, "sent");
+
+    const result = briefing.generate();
+
+    // A company with zero finance activity must not appear.
+    assert.ok(!result.financeHealth.some(entry => entry.companyId === quietCompany.id));
+
+    const activeHealth = result.financeHealth.find(entry => entry.companyId === activeCompany.id);
+    assert.ok(activeHealth);
+    assert.strictEqual(activeHealth.cashOnHand, 1000);
+    assert.strictEqual(activeHealth.runwayStatus, "profitable");
+    assert.strictEqual(activeHealth.overdueInvoiceCount, 1);
+    assert.strictEqual(activeHealth.overBudgetCount, 0);
+
+});
+
+
 test("generate() and run()'s recommendations are computed identically", () => {
 
     const realPlanner = new ExecutivePlanner();

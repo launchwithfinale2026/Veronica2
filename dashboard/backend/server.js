@@ -46,6 +46,10 @@ const salesLeads = require("../../core/sales/leads");
 const salesOpportunities = require("../../core/sales/opportunities");
 const salesProposalGenerator = require("../../core/sales/proposalGenerator");
 const salesAnalytics = require("../../core/sales/analytics");
+const financeBudgets = require("../../core/finance/budgets");
+const financeInvoices = require("../../core/finance/invoices");
+const financeSubscriptions = require("../../core/finance/subscriptions");
+const financeReports = require("../../core/finance/reports");
 const ResearchEngine = require("../../core/research/engine");
 const SelfImprovementEngine = require("../../core/system/selfImprovement");
 const OrganizationOverview = require("../../core/executive/organizationOverview");
@@ -368,6 +372,24 @@ const ROUTES = {
     "GET /api/sales/forecast": (searchParams) => salesOpportunities.forecast(searchParams.get("companyId")),
 
     "GET /api/sales/analytics": (searchParams) => salesAnalytics.salesOverview(searchParams.get("companyId")),
+
+    // Phase 43 (Finance Division). Real, per-company reads -- see
+    // core/finance/budgets.js, core/finance/invoices.js,
+    // core/finance/subscriptions.js, core/finance/reports.js. Mutating
+    // routes live below as dynamic routes.
+    "GET /api/finance/budgets": (searchParams) => financeBudgets.budgetStatus(searchParams.get("companyId")),
+
+    "GET /api/finance/invoices": (searchParams) => financeInvoices.listInvoices(searchParams.get("companyId")),
+
+    "GET /api/finance/subscriptions": (searchParams) => financeSubscriptions.listSubscriptions(searchParams.get("companyId")),
+
+    "GET /api/finance/cash-flow": (searchParams) => financeReports.cashFlow(searchParams.get("companyId")),
+
+    "GET /api/finance/runway": (searchParams) => financeReports.runway(searchParams.get("companyId")),
+
+    "GET /api/finance/forecast": (searchParams) => financeReports.forecast(searchParams.get("companyId")),
+
+    "GET /api/finance/kpis": (searchParams) => financeReports.kpis(searchParams.get("companyId")),
 
     "GET /api/research/history": (searchParams) => researchEngine.history(searchParams.get("topic") || undefined),
 
@@ -1796,6 +1818,88 @@ function createServer(){
             if(opportunityDetailMatch && req.method === "GET"){
 
                 return sendJSON(res, 200, salesOpportunities.getOpportunity(decodeURIComponent(opportunityDetailMatch[1])));
+
+            }
+
+            // Phase 43 (Finance Division): budget/invoice/subscription
+            // lifecycle routes.
+            if(parsed.pathname === "/api/finance/budgets" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const input = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, financeBudgets.createBudget(input));
+
+            }
+
+            if(parsed.pathname === "/api/finance/invoices" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const input = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, financeInvoices.createInvoice(input));
+
+            }
+
+            const invoiceStatusMatch = parsed.pathname.match(/^\/api\/finance\/invoices\/([^/]+)\/status$/);
+
+            if(invoiceStatusMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { status } = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, { status: financeInvoices.setInvoiceStatus(decodeURIComponent(invoiceStatusMatch[1]), status) });
+
+            }
+
+            const invoiceDetailMatch = parsed.pathname.match(/^\/api\/finance\/invoices\/([^/]+)$/);
+
+            if(invoiceDetailMatch && req.method === "GET"){
+
+                return sendJSON(res, 200, financeInvoices.getInvoice(decodeURIComponent(invoiceDetailMatch[1])));
+
+            }
+
+            if(parsed.pathname === "/api/finance/subscriptions" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const input = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, financeSubscriptions.createSubscription(input));
+
+            }
+
+            const subscriptionCancelMatch = parsed.pathname.match(/^\/api\/finance\/subscriptions\/([^/]+)\/cancel$/);
+
+            if(subscriptionCancelMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                return sendJSON(res, 200, { status: financeSubscriptions.cancelSubscription(decodeURIComponent(subscriptionCancelMatch[1])) });
 
             }
 

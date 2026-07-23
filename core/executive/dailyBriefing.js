@@ -51,7 +51,7 @@ class DailyBriefingEngine {
 
     static TAG = BRIEFING_TAG;
 
-    constructor({ planner, projectManager, priorityRanking, goalMonitor, blockerDetector, recommendationEngine, actionProposalEngine, companyManager, missionEngine, learning, organizationOverview, marketingCampaigns, salesOpportunities, salesLeads } = {}){
+    constructor({ planner, projectManager, priorityRanking, goalMonitor, blockerDetector, recommendationEngine, actionProposalEngine, companyManager, missionEngine, learning, organizationOverview, marketingCampaigns, salesOpportunities, salesLeads, financeReports, financeBudgets, financeInvoices } = {}){
 
         this.planner = planner || new ExecutivePlanner();
         this.projectManager = projectManager || new ProjectManager({ planner: this.planner });
@@ -112,6 +112,11 @@ class DailyBriefingEngine {
         // Phase 42 (Sales Division).
         this.salesOpportunities = salesOpportunities || require("../sales/opportunities");
         this.salesLeads = salesLeads || require("../sales/leads");
+
+        // Phase 43 (Finance Division).
+        this.financeReports = financeReports || require("../finance/reports");
+        this.financeBudgets = financeBudgets || require("../finance/budgets");
+        this.financeInvoices = financeInvoices || require("../finance/invoices");
 
     }
 
@@ -295,6 +300,45 @@ class DailyBriefingEngine {
     }
 
 
+    // Phase 43 (Finance Division): same per-company rollup pattern as
+    // salesHealth()/campaignHealth() above, over core/finance/reports.js's/
+    // core/finance/budgets.js's/core/finance/invoices.js's real state.
+    // Companies with no real finance activity at all (no ledger entries,
+    // no budgets, no invoices) are omitted, same "keep the morning read
+    // short" principle.
+    financeHealth(){
+
+        return this.companyManager.listCompanies()
+            .map(company => {
+
+                const kpis = this.financeReports.kpis(company.id);
+                const companyBudgets = this.financeBudgets.budgetStatus(company.id);
+                const companyInvoices = this.financeInvoices.listInvoices(company.id);
+
+                const hasActivity = kpis.financialSummary.entries > 0 ||
+                    companyBudgets.length > 0 ||
+                    companyInvoices.length > 0;
+
+                if(!hasActivity){
+                    return null;
+                }
+
+                return {
+                    companyId: company.id,
+                    companyName: company.name,
+                    cashOnHand: kpis.financialSummary.net,
+                    runwayStatus: kpis.runway.status,
+                    runwayMonths: kpis.runway.runwayMonths,
+                    overBudgetCount: companyBudgets.filter(budget => budget.overBudget).length,
+                    overdueInvoiceCount: companyInvoices.filter(invoice => invoice.overdue).length
+                };
+
+            })
+            .filter(Boolean);
+
+    }
+
+
     // Assembles the briefing's contents WITHOUT persisting -- exposed
     // separately so a caller (or a test) can inspect what would be
     // generated without adding to the daily history.
@@ -330,7 +374,9 @@ class DailyBriefingEngine {
             departmentHealth: this.departmentHealth(),
             campaignHealth: this.campaignHealth(),
             // Phase 42 addition.
-            salesHealth: this.salesHealth()
+            salesHealth: this.salesHealth(),
+            // Phase 43 addition.
+            financeHealth: this.financeHealth()
         };
 
     }

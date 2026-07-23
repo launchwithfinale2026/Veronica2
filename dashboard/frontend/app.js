@@ -2109,6 +2109,155 @@ function setupSalesAnalyticsForm(){
 }
 
 
+function setupBudgetCreateForm(){
+
+    const form = document.getElementById("budget-create-form");
+    const result = document.getElementById("budget-create-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const companyId = document.getElementById("budget-company-id").value;
+        const category = document.getElementById("budget-category").value;
+        const period = document.getElementById("budget-period").value;
+        const limit = Number(document.getElementById("budget-limit").value);
+
+        result.textContent = "Saving...";
+
+        try {
+
+            const budget = await authedFetch("/api/finance/budgets", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ companyId, category, period, limit })
+            });
+
+            result.textContent = `Set "${budget.category}" budget for ${budget.period} at ${budget.limit}`;
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupInvoiceCreateForm(){
+
+    const form = document.getElementById("invoice-create-form");
+    const result = document.getElementById("invoice-create-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const companyId = document.getElementById("invoice-company-id").value;
+        const clientName = document.getElementById("invoice-client-name").value;
+        const amount = Number(document.getElementById("invoice-amount").value);
+
+        result.textContent = "Creating...";
+
+        try {
+
+            const invoice = await authedFetch("/api/finance/invoices", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ companyId, clientName, amount })
+            });
+
+            result.textContent = `Created invoice for ${invoice.clientName} (${invoice.amount}), status: ${invoice.status}`;
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupSubscriptionCreateForm(){
+
+    const form = document.getElementById("subscription-create-form");
+    const result = document.getElementById("subscription-create-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const companyId = document.getElementById("subscription-company-id").value;
+        const clientName = document.getElementById("subscription-client-name").value;
+        const amount = Number(document.getElementById("subscription-amount").value);
+        const interval = document.getElementById("subscription-interval").value;
+
+        result.textContent = "Adding...";
+
+        try {
+
+            const subscription = await authedFetch("/api/finance/subscriptions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ companyId, clientName, amount, interval })
+            });
+
+            result.textContent = `Added ${subscription.interval} subscription for ${subscription.clientName} (${subscription.amount})`;
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupFinanceKpisForm(){
+
+    const form = document.getElementById("finance-kpis-form");
+    const result = document.getElementById("finance-kpis-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const companyId = document.getElementById("finance-kpis-company-id").value;
+
+        result.textContent = "Loading...";
+
+        try {
+
+            const budgetStatus = await fetchJSON(`/api/finance/budgets?companyId=${encodeURIComponent(companyId)}`);
+
+            renderList(
+                "budget-status-list",
+                budgetStatus,
+                "No budgets set for this company yet.",
+                budget => `${budget.category} (${budget.period}): ${budget.actualSpend} / ${budget.limit}${budget.overBudget ? " — OVER BUDGET" : ""}`
+            );
+
+            const kpis = await fetchJSON(`/api/finance/kpis?companyId=${encodeURIComponent(companyId)}`);
+
+            result.textContent = JSON.stringify(kpis, null, 2);
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
 function setupCompanyCreateForm(){
 
     const form = document.getElementById("company-create-form");
@@ -2797,6 +2946,10 @@ document.addEventListener("DOMContentLoaded", () => {
     setupLeadLookupForm();
     setupOpportunityCreateForm();
     setupSalesAnalyticsForm();
+    setupBudgetCreateForm();
+    setupInvoiceCreateForm();
+    setupSubscriptionCreateForm();
+    setupFinanceKpisForm();
     setupCapabilityAnalysisForm();
     setupCapabilityInstallForm();
     setupCapabilitySearchForm();

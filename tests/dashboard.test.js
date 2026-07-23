@@ -563,6 +563,100 @@ test("Sales Division: create a company, a lead, an opportunity, move it through 
 
 });
 
+test("Finance Division: create a company, record real revenue, set a budget, invoice a client, add a subscription, and read real KPIs back (Phase 43)", async () => {
+
+    process.env.API_TOKEN = "test-api-secret";
+
+    const authedHeaders = {
+        Authorization: "Bearer test-api-secret",
+        "Content-Type": "application/json"
+    };
+
+    const companyRes = await fetch(`${baseUrl}/api/companies`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ name: "Dashboard Finance Co XQZDASH3" })
+    });
+    const company = await companyRes.json();
+
+    const financeRes = await fetch(`${baseUrl}/api/companies/${company.id}/finances`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ label: "Revenue XQZDASH3", amount: 4000, type: "revenue" })
+    });
+    assert.strictEqual(financeRes.status, 200);
+
+    const budgetRes = await fetch(`${baseUrl}/api/finance/budgets`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ companyId: company.id, category: "infrastructure", period: "2026-07", limit: 500 })
+    });
+    assert.strictEqual(budgetRes.status, 200);
+    const budget = await budgetRes.json();
+
+    const budgetStatusRes = await fetch(`${baseUrl}/api/finance/budgets?companyId=${company.id}`);
+    const budgetStatus = await budgetStatusRes.json();
+    assert.strictEqual(budgetStatus.length, 1);
+    assert.strictEqual(budgetStatus[0].id, budget.id);
+
+    const invoiceRes = await fetch(`${baseUrl}/api/finance/invoices`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ companyId: company.id, clientName: "Acme XQZDASH3", amount: 1500 })
+    });
+    assert.strictEqual(invoiceRes.status, 200);
+    const invoice = await invoiceRes.json();
+
+    const invoiceStatusRes = await fetch(`${baseUrl}/api/finance/invoices/${invoice.id}/status`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ status: "sent" })
+    });
+    assert.strictEqual((await invoiceStatusRes.json()).status, "sent");
+
+    const invoiceDetailRes = await fetch(`${baseUrl}/api/finance/invoices/${invoice.id}`);
+    assert.strictEqual((await invoiceDetailRes.json()).status, "sent");
+
+    const invoiceListRes = await fetch(`${baseUrl}/api/finance/invoices?companyId=${company.id}`);
+    assert.strictEqual((await invoiceListRes.json()).length, 1);
+
+    const subRes = await fetch(`${baseUrl}/api/finance/subscriptions`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ companyId: company.id, clientName: "Beta XQZDASH3", amount: 200, interval: "monthly" })
+    });
+    assert.strictEqual(subRes.status, 200);
+    const subscription = await subRes.json();
+
+    const subListRes = await fetch(`${baseUrl}/api/finance/subscriptions?companyId=${company.id}`);
+    assert.strictEqual((await subListRes.json()).length, 1);
+
+    const cancelRes = await fetch(`${baseUrl}/api/finance/subscriptions/${subscription.id}/cancel`, {
+        method: "POST",
+        headers: authedHeaders
+    });
+    assert.strictEqual((await cancelRes.json()).status, "canceled");
+
+    const cashFlowRes = await fetch(`${baseUrl}/api/finance/cash-flow?companyId=${company.id}`);
+    const cashFlow = await cashFlowRes.json();
+    assert.strictEqual(cashFlow.length, 1);
+    assert.strictEqual(cashFlow[0].revenue, 4000);
+
+    const runwayRes = await fetch(`${baseUrl}/api/finance/runway?companyId=${company.id}`);
+    assert.strictEqual((await runwayRes.json()).status, "profitable");
+
+    const forecastRes = await fetch(`${baseUrl}/api/finance/forecast?companyId=${company.id}`);
+    assert.ok((await forecastRes.json()).projection);
+
+    const kpisRes = await fetch(`${baseUrl}/api/finance/kpis?companyId=${company.id}`);
+    const kpis = await kpisRes.json();
+    assert.strictEqual(kpis.financialSummary.revenue, 4000);
+    // Subscription was canceled, so it must not count toward MRR.
+    assert.strictEqual(kpis.mrr, 0);
+    assert.strictEqual(kpis.accountsReceivable, 1500);
+
+});
+
 test("GET /api/memory without a filter returns the real stored memories", async () => {
 
     const res = await fetch(`${baseUrl}/api/memory`);
@@ -936,6 +1030,11 @@ const ALL_POST_ROUTES = [
     "/api/sales/opportunities/test-id/follow-ups/test-followup-id/complete",
     "/api/sales/opportunities/test-id/generate-proposal",
     "/api/sales/opportunities/test-id/lessons",
+    "/api/finance/budgets",
+    "/api/finance/invoices",
+    "/api/finance/invoices/test-id/status",
+    "/api/finance/subscriptions",
+    "/api/finance/subscriptions/test-id/cancel",
     "/api/departments/athena/run",
     "/api/tools/memory.recall/run"
 ];
