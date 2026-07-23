@@ -28,6 +28,9 @@ const ActionProposalEngine = require("./actionProposal");
 const CompanyManager = require("./companyManager");
 const MissionEngine = require("./missionEngine");
 const capabilitiesMarketplace = require("../capabilities/marketplace");
+const OrganizationOverview = require("./organizationOverview");
+const loadAgents = require("../agents/loader");
+const loadDepartments = require("../departments/loader");
 
 const BRIEFING_TAG = "executive-briefing";
 
@@ -48,7 +51,7 @@ class DailyBriefingEngine {
 
     static TAG = BRIEFING_TAG;
 
-    constructor({ planner, projectManager, priorityRanking, goalMonitor, blockerDetector, recommendationEngine, actionProposalEngine, companyManager, missionEngine, learning } = {}){
+    constructor({ planner, projectManager, priorityRanking, goalMonitor, blockerDetector, recommendationEngine, actionProposalEngine, companyManager, missionEngine, learning, organizationOverview, marketingCampaigns } = {}){
 
         this.planner = planner || new ExecutivePlanner();
         this.projectManager = projectManager || new ProjectManager({ planner: this.planner });
@@ -82,6 +85,29 @@ class DailyBriefingEngine {
         // defensive convention core/executive/weeklyReport.js's own
         // constructor already follows for this exact dependency.
         this.learning = learning || require("../learning");
+
+        // Phase 41 (Marketing Division / Executive Daily Operations):
+        // Department Health and Campaign Health, the two sections the
+        // spec asked for that Phase 37's briefing didn't yet cover (see
+        // the architecture audit in docs/CHANGELOG.md's Phase 41 entry).
+        // Reuses core/executive/organizationOverview.js's own
+        // departmentHealth() wholesale rather than duplicating its
+        // agentCount/activeProjects/executions/successRate logic --
+        // constructing real department instances here follows the same
+        // accepted tradeoff core/system/selfKnowledge.js already made
+        // (Phase 40): fresh instances per call, not a live cache.
+        const agents = loadAgents();
+        this.organizationOverview = organizationOverview || new OrganizationOverview({
+            departments: loadDepartments(agents),
+            agents,
+            planner: this.planner,
+            companyManager: this.companyManager,
+            missionEngine: this.missionEngine,
+            actionProposalEngine: this.actionProposalEngine,
+            learning: this.learning
+        });
+
+        this.marketingCampaigns = marketingCampaigns || require("../marketing/campaigns");
 
     }
 
@@ -164,6 +190,60 @@ class DailyBriefingEngine {
     }
 
 
+    // Phase 41: per-department real health (agent count, active/total
+    // projects, real execution success rate) -- reuses
+    // OrganizationOverview.departmentHealth() wholesale, not a second
+    // implementation of the same aggregation.
+    departmentHealth(){
+        return this.organizationOverview.departmentHealth();
+    }
+
+
+    // Phase 41 (Marketing Division / Executive Daily Operations):
+    // per-company campaign health -- genuinely new (no prior campaign
+    // concept existed), but a thin rollup over core/marketing/campaigns.js's
+    // real, already-persisted campaign state, not a new store. Companies
+    // with zero campaigns are omitted -- same "keep the morning read
+    // short" principle this file's header comment already states, and
+    // there's nothing to report for a company marketing hasn't touched
+    // yet.
+    campaignHealth(){
+
+        const SOON_MS = 7 * 24 * 60 * 60 * 1000;
+        const now = Date.now();
+
+        return this.companyManager.listCompanies()
+            .map(company => {
+
+                const companyCampaigns = this.marketingCampaigns.listCampaigns(company.id);
+
+                const nearingDeadline = companyCampaigns.filter(campaign => {
+
+                    if(campaign.publishingStatus === "published" || !campaign.timeline.end){
+                        return false;
+                    }
+
+                    const end = new Date(campaign.timeline.end).getTime();
+
+                    return Number.isFinite(end) && end - now > 0 && end - now <= SOON_MS;
+
+                }).length;
+
+                return {
+                    companyId: company.id,
+                    companyName: company.name,
+                    totalCampaigns: companyCampaigns.length,
+                    pendingApproval: companyCampaigns.filter(c => c.approvalStatus === "pending_approval").length,
+                    approvedNotPublished: companyCampaigns.filter(c => c.approvalStatus === "approved" && c.publishingStatus !== "published").length,
+                    nearingDeadline
+                };
+
+            })
+            .filter(entry => entry.totalCampaigns > 0);
+
+    }
+
+
     // Assembles the briefing's contents WITHOUT persisting -- exposed
     // separately so a caller (or a test) can inspect what would be
     // generated without adding to the daily history.
@@ -194,7 +274,10 @@ class DailyBriefingEngine {
             companyHealth: this.companyHealth(),
             missionStatus: this.missionStatus(),
             packageUpdates: this.packageUpdates(),
-            learningSummary: this.learningSummary()
+            learningSummary: this.learningSummary(),
+            // Phase 41 additions -- see each method's own comment.
+            departmentHealth: this.departmentHealth(),
+            campaignHealth: this.campaignHealth()
         };
 
     }

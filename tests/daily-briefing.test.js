@@ -148,6 +148,54 @@ test("generate() surfaces pending approvals, company health, mission status, pac
 });
 
 
+test("generate() surfaces real Department Health and Campaign Health (Phase 41 Executive Daily Operations)", () => {
+
+    const CompanyManager = require("../core/executive/companyManager");
+    const campaigns = require("../core/marketing/campaigns");
+
+    const realPlanner = new ExecutivePlanner();
+    const briefing = makeBriefingEngine(realPlanner);
+
+    // Department Health: reuses OrganizationOverview.departmentHealth()
+    // wholesale -- this machine has real, active package departments
+    // (Phase 35/41), so this must include at least the built-in roster,
+    // each with a real agentCount.
+    const result = briefing.generate();
+
+    assert.ok(result.departmentHealth.length >= 9);
+    assert.ok(result.departmentHealth.every(dept => typeof dept.agentCount === "number"));
+    const marketingDept = result.departmentHealth.find(dept => dept.id === "marketing-dept");
+    assert.ok(marketingDept);
+    assert.strictEqual(marketingDept.agentCount, 6);
+
+    // Campaign Health: a real company with zero campaigns must NOT
+    // appear (keeps the briefing focused); one with a real campaign
+    // nearing its timeline deadline, still unpublished, must show up
+    // with the real, computed rollup.
+    const quietCompany = briefing.companyManager.createCompany({ name: "Briefing Quiet Co XQZBRIEF7" });
+    const activeCompany = briefing.companyManager.createCompany({ name: "Briefing Active Co XQZBRIEF7" });
+
+    const campaign = campaigns.createCampaign({
+        companyId: activeCompany.id,
+        objective: "Briefing campaign health XQZBRIEF7",
+        timeline: { end: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString() }
+    });
+    campaigns.setApprovalStatus(campaign.id, "approved");
+
+    const withCampaigns = briefing.generate();
+
+    assert.ok(!withCampaigns.campaignHealth.some(entry => entry.companyId === quietCompany.id));
+
+    const activeHealth = withCampaigns.campaignHealth.find(entry => entry.companyId === activeCompany.id);
+    assert.ok(activeHealth);
+    assert.strictEqual(activeHealth.totalCampaigns, 1);
+    assert.strictEqual(activeHealth.pendingApproval, 0);
+    assert.strictEqual(activeHealth.approvedNotPublished, 1);
+    assert.strictEqual(activeHealth.nearingDeadline, 1);
+
+});
+
+
 test("generate() and run()'s recommendations are computed identically", () => {
 
     const realPlanner = new ExecutivePlanner();
