@@ -2397,6 +2397,282 @@ function setupMissionSummaryButton(){
 }
 
 
+function setupPortfolioCreateForm(){
+
+    const form = document.getElementById("portfolio-create-form");
+    const result = document.getElementById("portfolio-create-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const name = document.getElementById("portfolio-name").value;
+        const startingCash = Number(document.getElementById("portfolio-starting-cash").value);
+
+        result.textContent = "Creating...";
+
+        try {
+
+            const portfolio = await authedFetch("/api/trading/portfolios", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, startingCash })
+            });
+
+            result.textContent = `Created portfolio "${portfolio.name}" with $${portfolio.cash} cash (id: ${portfolio.id})`;
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupPaperTradeForm(){
+
+    const form = document.getElementById("paper-trade-form");
+    const result = document.getElementById("paper-trade-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const portfolioId = document.getElementById("trade-portfolio-id").value;
+        const symbol = document.getElementById("trade-symbol").value;
+        const side = document.getElementById("trade-side").value;
+        const quantity = Number(document.getElementById("trade-quantity").value);
+        const price = Number(document.getElementById("trade-price").value);
+
+        result.textContent = "Executing paper trade...";
+
+        try {
+
+            const { trade, portfolio } = await authedFetch(`/api/trading/portfolios/${encodeURIComponent(portfolioId)}/trades`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ symbol, side, quantity, price })
+            });
+
+            result.textContent = `Executed ${trade.side} ${trade.quantity} ${trade.symbol} @ ${trade.price} (paper). Cash now $${portfolio.cash}`;
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupPortfolioReviewForm(){
+
+    const form = document.getElementById("portfolio-review-form");
+    const result = document.getElementById("portfolio-review-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const portfolioId = document.getElementById("review-portfolio-id").value;
+        const pricesText = document.getElementById("review-prices").value;
+        const prices = pricesText ? pricesText : "{}";
+
+        result.textContent = "Loading...";
+
+        try {
+
+            const journalEntries = await fetchJSON(`/api/trading/portfolios/${encodeURIComponent(portfolioId)}/journal`);
+
+            renderList(
+                "portfolio-journal-list",
+                journalEntries,
+                "No paper trades yet.",
+                entry => `${entry.side.toUpperCase()} ${entry.quantity} ${entry.symbol} @ ${entry.price} (${entry.timestamp})`
+            );
+
+            const review = await fetchJSON(`/api/trading/portfolios/${encodeURIComponent(portfolioId)}/review?prices=${encodeURIComponent(prices)}`);
+
+            result.textContent = JSON.stringify(review, null, 2);
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupPositionSizeForm(){
+
+    const form = document.getElementById("position-size-form");
+    const result = document.getElementById("position-size-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const accountValue = document.getElementById("size-account-value").value;
+        const riskPercent = document.getElementById("size-risk-percent").value;
+        const entryPrice = document.getElementById("size-entry-price").value;
+        const stopPrice = document.getElementById("size-stop-price").value;
+
+        result.textContent = "Calculating...";
+
+        try {
+
+            const sizing = await fetchJSON(`/api/trading/position-size?accountValue=${accountValue}&riskPercent=${riskPercent}&entryPrice=${entryPrice}&stopPrice=${stopPrice}`);
+
+            result.textContent = `${sizing.shares} shares (risking $${sizing.riskAmount}, $${sizing.perShareRisk}/share)`;
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupWatchlistCreateForm(){
+
+    const form = document.getElementById("watchlist-create-form");
+    const result = document.getElementById("watchlist-create-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const name = document.getElementById("watchlist-name").value;
+        const symbolsRaw = document.getElementById("watchlist-symbols").value;
+        const symbols = symbolsRaw ? symbolsRaw.split(",").map(s => s.trim()).filter(Boolean) : [];
+
+        result.textContent = "Creating...";
+
+        try {
+
+            await authedFetch("/api/trading/watchlists", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, symbols })
+            });
+
+            result.textContent = "Watchlist created.";
+
+            const watchlists = await fetchJSON("/api/trading/watchlists");
+
+            renderList(
+                "watchlist-list",
+                watchlists,
+                "No watchlists yet.",
+                watchlist => `${watchlist.name}: ${watchlist.symbols.join(", ") || "no symbols"}`
+            );
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupStrategyCreateForm(){
+
+    const form = document.getElementById("strategy-create-form");
+    const result = document.getElementById("strategy-create-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const name = document.getElementById("strategy-name").value;
+        const description = document.getElementById("strategy-description").value;
+
+        result.textContent = "Saving...";
+
+        try {
+
+            await authedFetch("/api/trading/strategies", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, description: description || undefined })
+            });
+
+            result.textContent = "Strategy saved.";
+
+            const strategyList = await fetchJSON("/api/trading/strategies");
+
+            renderList(
+                "strategy-list",
+                strategyList,
+                "No strategies yet.",
+                strategy => `${strategy.name}${strategy.description ? ` — ${strategy.description}` : ""}`
+            );
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
+function setupBacktestForm(){
+
+    const form = document.getElementById("backtest-form");
+    const result = document.getElementById("backtest-result");
+
+    form.addEventListener("submit", async event => {
+
+        event.preventDefault();
+
+        const pricesText = document.getElementById("backtest-prices").value;
+        const shortWindow = Number(document.getElementById("backtest-short-window").value);
+        const longWindow = Number(document.getElementById("backtest-long-window").value);
+        const startingCash = Number(document.getElementById("backtest-starting-cash").value);
+
+        result.textContent = "Running...";
+
+        try {
+
+            const prices = JSON.parse(pricesText);
+            const priceSeries = prices.map((price, i) => ({ date: `t${i}`, price }));
+
+            const backtestResult = await authedFetch("/api/trading/backtest", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ priceSeries, shortWindow, longWindow, startingCash })
+            });
+
+            result.textContent = JSON.stringify(backtestResult, null, 2);
+
+        } catch(error){
+
+            result.textContent = `Error: ${error.message}`;
+
+        }
+
+    });
+
+}
+
+
 function setupCompanyCreateForm(){
 
     const form = document.getElementById("company-create-form");
@@ -3093,6 +3369,13 @@ document.addEventListener("DOMContentLoaded", () => {
     setupMissionCitationForm();
     setupMissionLookupForm();
     setupMissionSummaryButton();
+    setupPortfolioCreateForm();
+    setupPaperTradeForm();
+    setupPortfolioReviewForm();
+    setupPositionSizeForm();
+    setupWatchlistCreateForm();
+    setupStrategyCreateForm();
+    setupBacktestForm();
     setupCapabilityAnalysisForm();
     setupCapabilityInstallForm();
     setupCapabilitySearchForm();

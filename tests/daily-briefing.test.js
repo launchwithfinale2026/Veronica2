@@ -301,6 +301,32 @@ test("generate() surfaces real, system-wide Research Status (Phase 44 Executive 
 });
 
 
+test("generate() surfaces real, system-wide Trading Status (Phase 45 Executive Daily Operations)", () => {
+
+    const tradingPortfolio = require("../core/trading/portfolio");
+    const paperTrading = require("../core/trading/paperTrading");
+
+    const realPlanner = new ExecutivePlanner();
+    const briefing = makeBriefingEngine(realPlanner);
+
+    const before = briefing.generate().tradingStatus;
+
+    const portfolio = tradingPortfolio.createPortfolio({ name: "Briefing Trading Portfolio XQZBRIEF11", startingCash: 10000 });
+    paperTrading.executePaperTrade({ portfolioId: portfolio.id, symbol: "ACME", side: "buy", quantity: 10, price: 100 });
+    paperTrading.executePaperTrade({ portfolioId: portfolio.id, symbol: "ACME", side: "sell", quantity: 5, price: 120 });
+
+    const after = briefing.generate().tradingStatus;
+
+    // Deltas, not absolute values -- same reasoning as researchStatus()
+    // above (tradingStatus() is system-wide, not per-company).
+    assert.strictEqual(after.totalPortfolios, before.totalPortfolios + 1);
+    // Sold 5 of 10 shares bought at 100, for 120 -- realized P&L = 100.
+    assert.strictEqual(after.totalRealizedPnl, before.totalRealizedPnl + 100);
+    assert.strictEqual(after.openPositions, before.openPositions + 1);
+
+});
+
+
 test("generate() and run()'s recommendations are computed identically", () => {
 
     const realPlanner = new ExecutivePlanner();

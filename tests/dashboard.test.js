@@ -711,6 +711,113 @@ test("Research Division: create a mission, read it back, and mark it complete th
 
 });
 
+test("Trading Research Division: create a portfolio, execute paper trades, review real P&L, size a position, and backtest a strategy through every real endpoint (Phase 45)", async () => {
+
+    process.env.API_TOKEN = "test-api-secret";
+
+    const authedHeaders = {
+        Authorization: "Bearer test-api-secret",
+        "Content-Type": "application/json"
+    };
+
+    const portfolioRes = await fetch(`${baseUrl}/api/trading/portfolios`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ name: "Dashboard Trading Portfolio XQZDASH5", startingCash: 10000 })
+    });
+    assert.strictEqual(portfolioRes.status, 200);
+    const portfolio = await portfolioRes.json();
+    assert.strictEqual(portfolio.cash, 10000);
+
+    const tradeRes = await fetch(`${baseUrl}/api/trading/portfolios/${portfolio.id}/trades`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ symbol: "ACME", side: "buy", quantity: 10, price: 100 })
+    });
+    assert.strictEqual(tradeRes.status, 200);
+    const tradeResult = await tradeRes.json();
+    assert.strictEqual(tradeResult.portfolio.cash, 9000);
+
+    const sellRes = await fetch(`${baseUrl}/api/trading/portfolios/${portfolio.id}/trades`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ symbol: "ACME", side: "sell", quantity: 5, price: 120 })
+    });
+    assert.strictEqual(sellRes.status, 200);
+
+    const journalRes = await fetch(`${baseUrl}/api/trading/portfolios/${portfolio.id}/journal`);
+    const journal = await journalRes.json();
+    assert.strictEqual(journal.length, 2);
+
+    const valueRes = await fetch(`${baseUrl}/api/trading/portfolios/${portfolio.id}/value?prices=${encodeURIComponent(JSON.stringify({ ACME: 130 }))}`);
+    const value = await valueRes.json();
+    assert.strictEqual(value.positions[0].unrealizedPnl, (130 - 100) * 5);
+
+    const reviewRes = await fetch(`${baseUrl}/api/trading/portfolios/${portfolio.id}/review?prices=${encodeURIComponent(JSON.stringify({ ACME: 130 }))}`);
+    const review = await reviewRes.json();
+    // Sold 5 of 10 shares bought at 100, for 120 -- realized P&L = 100.
+    assert.strictEqual(review.performance.realizedPnl, 100);
+
+    const portfolioListRes = await fetch(`${baseUrl}/api/trading/portfolios`);
+    const portfolioList = await portfolioListRes.json();
+    assert.ok(portfolioList.some(p => p.id === portfolio.id));
+
+    const watchlistRes = await fetch(`${baseUrl}/api/trading/watchlists`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ name: "Dashboard Watchlist XQZDASH5", symbols: ["ACME"] })
+    });
+    const watchlist = await watchlistRes.json();
+
+    const addSymbolRes = await fetch(`${baseUrl}/api/trading/watchlists/${watchlist.id}/add-symbol`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ symbol: "BETA" })
+    });
+    assert.deepStrictEqual((await addSymbolRes.json()).symbols, ["ACME", "BETA"]);
+
+    const removeSymbolRes = await fetch(`${baseUrl}/api/trading/watchlists/${watchlist.id}/remove-symbol`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ symbol: "ACME" })
+    });
+    assert.deepStrictEqual((await removeSymbolRes.json()).symbols, ["BETA"]);
+
+    const watchlistListRes = await fetch(`${baseUrl}/api/trading/watchlists`);
+    assert.ok((await watchlistListRes.json()).some(w => w.id === watchlist.id));
+
+    const strategyRes = await fetch(`${baseUrl}/api/trading/strategies`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({ name: "Dashboard Strategy XQZDASH5", rules: { shortWindow: 2, longWindow: 4 } })
+    });
+    const strategy = await strategyRes.json();
+
+    const strategyDetailRes = await fetch(`${baseUrl}/api/trading/strategies/${strategy.id}`);
+    assert.strictEqual((await strategyDetailRes.json()).name, "Dashboard Strategy XQZDASH5");
+
+    const strategyListRes = await fetch(`${baseUrl}/api/trading/strategies`);
+    assert.ok((await strategyListRes.json()).some(s => s.id === strategy.id));
+
+    const positionSizeRes = await fetch(`${baseUrl}/api/trading/position-size?accountValue=10000&riskPercent=0.02&entryPrice=100&stopPrice=90`);
+    assert.strictEqual((await positionSizeRes.json()).shares, 20);
+
+    const backtestRes = await fetch(`${baseUrl}/api/trading/backtest`, {
+        method: "POST",
+        headers: authedHeaders,
+        body: JSON.stringify({
+            priceSeries: [10, 10, 10, 10, 20, 20, 20, 20, 20, 5, 5, 5, 5].map((price, i) => ({ date: `d${i}`, price })),
+            shortWindow: 2,
+            longWindow: 4,
+            startingCash: 1000
+        })
+    });
+    const backtestResult = await backtestRes.json();
+    assert.strictEqual(backtestResult.tradeCount, 2);
+    assert.strictEqual(backtestResult.finalValue, 250);
+
+});
+
 test("GET /api/memory without a filter returns the real stored memories", async () => {
 
     const res = await fetch(`${baseUrl}/api/memory`);
@@ -1093,6 +1200,13 @@ const ALL_POST_ROUTES = [
     "/api/research/missions/test-id/citations",
     "/api/research/missions/test-id/summary",
     "/api/research/missions/test-id/complete",
+    "/api/trading/portfolios",
+    "/api/trading/portfolios/test-id/trades",
+    "/api/trading/watchlists",
+    "/api/trading/watchlists/test-id/add-symbol",
+    "/api/trading/watchlists/test-id/remove-symbol",
+    "/api/trading/strategies",
+    "/api/trading/backtest",
     "/api/departments/athena/run",
     "/api/tools/memory.recall/run"
 ];

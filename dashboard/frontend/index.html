@@ -331,6 +331,88 @@
     </div>
   </section>
 
+  <section class="panel panel-wide">
+    <h2>Trading Research Division (Phase 45)</h2>
+    <p class="hint">Research and analysis only -- there is no real broker connection anywhere in this system, and every trade below is explicitly a PAPER trade. Create a portfolio, execute paper trades, and review real P&amp;L (no live prices -- supply your own as JSON, e.g. <code>{"ACME":120}</code>).</p>
+    <div class="widget-group">
+      <h3>Create a Portfolio</h3>
+      <form id="portfolio-create-form" class="stacked-form">
+        <input type="text" id="portfolio-name" placeholder="Portfolio name" required>
+        <input type="number" id="portfolio-starting-cash" placeholder="Starting cash" required>
+        <button type="submit">Create Portfolio</button>
+      </form>
+      <p id="portfolio-create-result" class="hint"></p>
+    </div>
+    <div class="widget-group">
+      <h3>Execute a Paper Trade</h3>
+      <form id="paper-trade-form" class="stacked-form">
+        <input type="text" id="trade-portfolio-id" placeholder="Portfolio id" required>
+        <input type="text" id="trade-symbol" placeholder="Symbol (e.g. ACME)" required>
+        <select id="trade-side">
+          <option value="buy">Buy</option>
+          <option value="sell">Sell</option>
+        </select>
+        <input type="number" id="trade-quantity" placeholder="Quantity" required>
+        <input type="number" id="trade-price" placeholder="Price" required>
+        <button type="submit">Execute Paper Trade</button>
+      </form>
+      <p id="paper-trade-result" class="hint"></p>
+    </div>
+    <div class="widget-group">
+      <h3>Portfolio Review</h3>
+      <form id="portfolio-review-form" class="stacked-form">
+        <input type="text" id="review-portfolio-id" placeholder="Portfolio id" required>
+        <input type="text" id="review-prices" placeholder='Current prices JSON, e.g. {"ACME":120}'>
+        <button type="submit">Load Review</button>
+      </form>
+      <div id="portfolio-journal-list" class="widget"></div>
+      <pre id="portfolio-review-result" class="widget code-block"></pre>
+    </div>
+    <div class="widget-group">
+      <h3>Position Sizing</h3>
+      <form id="position-size-form" class="stacked-form">
+        <input type="number" id="size-account-value" placeholder="Account value" required>
+        <input type="number" id="size-risk-percent" placeholder="Risk percent (e.g. 0.02)" step="0.01" required>
+        <input type="number" id="size-entry-price" placeholder="Entry price" required>
+        <input type="number" id="size-stop-price" placeholder="Stop price" required>
+        <button type="submit">Calculate</button>
+      </form>
+      <p id="position-size-result" class="hint"></p>
+    </div>
+    <div class="widget-group">
+      <h3>Watchlist</h3>
+      <form id="watchlist-create-form" class="stacked-form">
+        <input type="text" id="watchlist-name" placeholder="Watchlist name" required>
+        <input type="text" id="watchlist-symbols" placeholder="Symbols, comma-separated">
+        <button type="submit">Create Watchlist</button>
+      </form>
+      <p id="watchlist-create-result" class="hint"></p>
+      <div id="watchlist-list" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Strategy Storage</h3>
+      <form id="strategy-create-form" class="stacked-form">
+        <input type="text" id="strategy-name" placeholder="Strategy name" required>
+        <input type="text" id="strategy-description" placeholder="Description (optional)">
+        <button type="submit">Save Strategy</button>
+      </form>
+      <p id="strategy-create-result" class="hint"></p>
+      <div id="strategy-list" class="widget"></div>
+    </div>
+    <div class="widget-group">
+      <h3>Backtest (moving-average crossover -- the one strategy shape this engine can evaluate)</h3>
+      <p class="hint">Paste a real price series as JSON, e.g. <code>[10,10,10,10,20,20,20,20,20,5,5,5,5]</code>. No market data connector exists -- these prices must be real historical data you already have.</p>
+      <form id="backtest-form" class="stacked-form">
+        <input type="text" id="backtest-prices" placeholder="Prices JSON array" required>
+        <input type="number" id="backtest-short-window" placeholder="Short window" required>
+        <input type="number" id="backtest-long-window" placeholder="Long window" required>
+        <input type="number" id="backtest-starting-cash" placeholder="Starting cash" required>
+        <button type="submit">Run Backtest</button>
+      </form>
+      <pre id="backtest-result" class="widget code-block"></pre>
+    </div>
+  </section>
+
   <section class="panel">
     <h2>Executive</h2>
     <div class="widget-group">

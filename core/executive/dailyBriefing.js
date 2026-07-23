@@ -51,7 +51,7 @@ class DailyBriefingEngine {
 
     static TAG = BRIEFING_TAG;
 
-    constructor({ planner, projectManager, priorityRanking, goalMonitor, blockerDetector, recommendationEngine, actionProposalEngine, companyManager, missionEngine, learning, organizationOverview, marketingCampaigns, salesOpportunities, salesLeads, financeReports, financeBudgets, financeInvoices, researchMissions } = {}){
+    constructor({ planner, projectManager, priorityRanking, goalMonitor, blockerDetector, recommendationEngine, actionProposalEngine, companyManager, missionEngine, learning, organizationOverview, marketingCampaigns, salesOpportunities, salesLeads, financeReports, financeBudgets, financeInvoices, researchMissions, tradingPortfolio, tradingAnalytics } = {}){
 
         this.planner = planner || new ExecutivePlanner();
         this.projectManager = projectManager || new ProjectManager({ planner: this.planner });
@@ -120,6 +120,10 @@ class DailyBriefingEngine {
 
         // Phase 44 (Research Division).
         this.researchMissions = researchMissions || require("../research/missions");
+
+        // Phase 45 (Trading Research Division).
+        this.tradingPortfolio = tradingPortfolio || require("../trading/portfolio");
+        this.tradingAnalytics = tradingAnalytics || require("../trading/analytics");
 
     }
 
@@ -368,6 +372,35 @@ class DailyBriefingEngine {
     }
 
 
+    // Phase 45 (Trading Research Division): system-wide, like
+    // researchStatus() above -- portfolios are optionally company-
+    // scoped (core/trading/portfolio.js's own header comment), so this
+    // is a global rollup of real, already-recorded state: total
+    // portfolios, total realized P&L (FIFO, from core/trading/analytics.js's
+    // journalPerformance()) and total open positions across every
+    // portfolio. Deliberately does NOT include unrealized P&L here --
+    // that needs real current prices this briefing has no source for
+    // (no market data feed exists).
+    tradingStatus(){
+
+        const portfolios = this.tradingPortfolio.listPortfolios();
+
+        const totalRealizedPnl = portfolios.reduce(
+            (sum, portfolio) => sum + this.tradingAnalytics.journalPerformance(portfolio.id).realizedPnl,
+            0
+        );
+
+        const openPositions = portfolios.reduce((sum, portfolio) => sum + portfolio.positions.length, 0);
+
+        return {
+            totalPortfolios: portfolios.length,
+            totalRealizedPnl,
+            openPositions
+        };
+
+    }
+
+
     // Assembles the briefing's contents WITHOUT persisting -- exposed
     // separately so a caller (or a test) can inspect what would be
     // generated without adding to the daily history.
@@ -407,7 +440,9 @@ class DailyBriefingEngine {
             // Phase 43 addition.
             financeHealth: this.financeHealth(),
             // Phase 44 addition.
-            researchStatus: this.researchStatus()
+            researchStatus: this.researchStatus(),
+            // Phase 45 addition.
+            tradingStatus: this.tradingStatus()
         };
 
     }

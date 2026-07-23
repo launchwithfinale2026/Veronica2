@@ -51,6 +51,11 @@ const financeInvoices = require("../../core/finance/invoices");
 const financeSubscriptions = require("../../core/finance/subscriptions");
 const financeReports = require("../../core/finance/reports");
 const researchMissions = require("../../core/research/missions");
+const tradingPortfolio = require("../../core/trading/portfolio");
+const tradingStrategies = require("../../core/trading/strategies");
+const tradingPaperTrading = require("../../core/trading/paperTrading");
+const tradingBacktest = require("../../core/trading/backtest");
+const tradingAnalytics = require("../../core/trading/analytics");
 const ResearchEngine = require("../../core/research/engine");
 const SelfImprovementEngine = require("../../core/system/selfImprovement");
 const OrganizationOverview = require("../../core/executive/organizationOverview");
@@ -396,6 +401,24 @@ const ROUTES = {
     // missions aren't inherently tied to one company (see
     // core/research/missions.js's own header comment).
     "GET /api/research/missions": (searchParams) => researchMissions.listMissions(searchParams.get("companyId")),
+
+    // Phase 45 (Trading Research Division). Research/analysis only --
+    // no real trade execution anywhere in this codebase. companyId is
+    // optional, same reasoning as research missions.
+    "GET /api/trading/portfolios": (searchParams) => tradingPortfolio.listPortfolios(searchParams.get("companyId")),
+
+    "GET /api/trading/watchlists": () => tradingPortfolio.listWatchlists(),
+
+    "GET /api/trading/strategies": () => tradingStrategies.listStrategies(),
+
+    // A pure, stateless calculation (the real "percent risk" formula) --
+    // no auth needed, same reasoning as any other read-only endpoint.
+    "GET /api/trading/position-size": (searchParams) => tradingPortfolio.calculatePositionSize({
+        accountValue: Number(searchParams.get("accountValue")),
+        riskPercent: Number(searchParams.get("riskPercent")),
+        entryPrice: Number(searchParams.get("entryPrice")),
+        stopPrice: Number(searchParams.get("stopPrice"))
+    }),
 
     "GET /api/research/history": (searchParams) => researchEngine.history(searchParams.get("topic") || undefined),
 
@@ -1997,6 +2020,167 @@ function createServer(){
             if(missionDetailMatch && req.method === "GET"){
 
                 return sendJSON(res, 200, researchMissions.getMission(decodeURIComponent(missionDetailMatch[1])));
+
+            }
+
+            // Phase 45 (Trading Research Division): portfolio/watchlist/
+            // strategy lifecycle routes. Research/analysis only -- no
+            // real trade execution anywhere in this codebase.
+            if(parsed.pathname === "/api/trading/portfolios" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const input = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, tradingPortfolio.createPortfolio(input));
+
+            }
+
+            const portfolioTradeMatch = parsed.pathname.match(/^\/api\/trading\/portfolios\/([^/]+)\/trades$/);
+
+            if(portfolioTradeMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { symbol, side, quantity, price, strategyId, notes } = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, tradingPaperTrading.executePaperTrade({
+                    portfolioId: decodeURIComponent(portfolioTradeMatch[1]),
+                    symbol, side, quantity, price, strategyId, notes
+                }));
+
+            }
+
+            const portfolioJournalMatch = parsed.pathname.match(/^\/api\/trading\/portfolios\/([^/]+)\/journal$/);
+
+            if(portfolioJournalMatch && req.method === "GET"){
+
+                return sendJSON(res, 200, tradingPaperTrading.journal(decodeURIComponent(portfolioJournalMatch[1])));
+
+            }
+
+            const portfolioValueMatch = parsed.pathname.match(/^\/api\/trading\/portfolios\/([^/]+)\/value$/);
+
+            if(portfolioValueMatch && req.method === "GET"){
+
+                const pricesParam = parsed.searchParams.get("prices");
+                const currentPrices = pricesParam ? JSON.parse(pricesParam) : {};
+
+                return sendJSON(res, 200, tradingPortfolio.portfolioValue(decodeURIComponent(portfolioValueMatch[1]), currentPrices));
+
+            }
+
+            const portfolioReviewMatch = parsed.pathname.match(/^\/api\/trading\/portfolios\/([^/]+)\/review$/);
+
+            if(portfolioReviewMatch && req.method === "GET"){
+
+                const pricesParam = parsed.searchParams.get("prices");
+                const currentPrices = pricesParam ? JSON.parse(pricesParam) : {};
+
+                return sendJSON(res, 200, tradingAnalytics.tradingOverview(decodeURIComponent(portfolioReviewMatch[1]), currentPrices));
+
+            }
+
+            // Read-only: no auth required -- must come after the write
+            // routes above since they share the
+            // /api/trading/portfolios/:id... prefix.
+            const portfolioDetailMatch = parsed.pathname.match(/^\/api\/trading\/portfolios\/([^/]+)$/);
+
+            if(portfolioDetailMatch && req.method === "GET"){
+
+                return sendJSON(res, 200, tradingPortfolio.getPortfolio(decodeURIComponent(portfolioDetailMatch[1])));
+
+            }
+
+            if(parsed.pathname === "/api/trading/watchlists" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const input = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, tradingPortfolio.createWatchlist(input));
+
+            }
+
+            const watchlistAddSymbolMatch = parsed.pathname.match(/^\/api\/trading\/watchlists\/([^/]+)\/add-symbol$/);
+
+            if(watchlistAddSymbolMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { symbol } = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, { symbols: tradingPortfolio.addSymbol(decodeURIComponent(watchlistAddSymbolMatch[1]), symbol) });
+
+            }
+
+            const watchlistRemoveSymbolMatch = parsed.pathname.match(/^\/api\/trading\/watchlists\/([^/]+)\/remove-symbol$/);
+
+            if(watchlistRemoveSymbolMatch && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const { symbol } = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, { symbols: tradingPortfolio.removeSymbol(decodeURIComponent(watchlistRemoveSymbolMatch[1]), symbol) });
+
+            }
+
+            if(parsed.pathname === "/api/trading/strategies" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const input = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, tradingStrategies.createStrategy(input));
+
+            }
+
+            const strategyDetailMatch = parsed.pathname.match(/^\/api\/trading\/strategies\/([^/]+)$/);
+
+            if(strategyDetailMatch && req.method === "GET"){
+
+                return sendJSON(res, 200, tradingStrategies.getStrategy(decodeURIComponent(strategyDetailMatch[1])));
+
+            }
+
+            // A pure computation (no state change) but still auth-gated,
+            // consistent with every other POST route in this codebase.
+            if(parsed.pathname === "/api/trading/backtest" && req.method === "POST"){
+
+                const auth = checkApiAuth(req);
+
+                if(!auth.ok){
+                    return sendJSON(res, auth.status, { error: auth.error });
+                }
+
+                const input = JSON.parse((await readBody(req)) || "{}");
+
+                return sendJSON(res, 200, tradingBacktest.backtestMovingAverageCrossover(input));
 
             }
 
