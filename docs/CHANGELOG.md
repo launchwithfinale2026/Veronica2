@@ -2732,3 +2732,68 @@ convention `tests/system-startup-manager.test.js` already established
 for `child_process`), no real binaries, models, or microphone required.
 
 775 -> 788 tests, all passing.
+
+## Voice Layer "Ears" -- real microphone input (Phase 43)
+
+**Added:** `core/voice/microphone.js` -- captures real microphone audio
+by spawning SoX (free, local, no native Node addon to compile or
+verify) and emitting raw PCM chunks on a real `"data"` event.
+`isAvailable()` really invokes the configured command rather than
+assuming from an env var; `start()` never throws, failing safely (a
+real `"error"` event, `{started: false}`) when the command is missing
+or a real ENOENT occurs.
+
+**Changed the wake-word contract:** previously (initial voice-layer
+commit) the external wake-word process owned the microphone directly
+and recorded the follow-up utterance itself. Now `core/voice/wakeWord.js`
+only performs inference -- `feed(chunk)` pipes real microphone audio
+(supplied by `voiceEngine.js`, never wakeWord.js itself) into the
+external process's stdin, and it prints a bare `WAKE` line (no path) on
+detection. `core/voice/external/wake_word_listener.py` was rewritten to
+match: it reads raw PCM frames from stdin instead of opening PyAudio
+itself.
+
+**Rewired `voiceEngine.js`** around a real state machine
+(`idle -> waiting -> listening -> processing -> waiting`): while
+`waiting`, real microphone chunks feed wake-word inference only; on a
+real wake detection, the engine buffers the *next* `VOICE_LISTEN_SECONDS`
+of chunks instead (never re-feeding wake-word mid-command -- "do not
+process speech before activation" holds in both directions), encodes
+them to a real WAV file (`core/voice/wav.js`, a small dependency-free
+44-byte-header PCM writer) and passes that to the unchanged
+`speechToText.transcribe()`, then the existing `handleUtterance()`
+(kept, still directly testable) routes the transcript through the same
+`core/router` `Router` and speaks the response. Every failure anywhere
+in this mic-driven loop is caught and published as a real `voice.error`
+event -- never thrown, never crashing anything else.
+
+**Added:** `core/voice/events.js` -- symbolic names
+(`WAKE_DETECTED`/`LISTENING`/`PROCESSING`/`TRANSCRIBED`/`ROUTED`/
+`SPOKEN`/`ERROR`) for the real bus event strings, keeping this
+codebase's existing dotted-lowercase bus convention rather than
+introducing a second naming style. `core/voice/config.js` gained
+`microphone()` plus short primary env var names (`WHISPER_PATH`/
+`PIPER_PATH`/`WAKEWORD_MODEL`), falling back to the longer Phase-42
+names for backward compatibility, and `VOICE_ENABLED` now accepts
+`"true"` alongside `"1"`. `core/voice/index.js` gained
+`validateStartup()` -- real, non-throwing, log-only diagnostics for all
+four dependencies (microphone/wake-word/whisper/Piper), same discipline
+as `core/integrations/credentialManager.js`'s own `validateStartup()`.
+
+`core/memory`, `core/router`, and `core/agents` were not modified.
+
+**Tests:** `tests/voice.test.js` rewritten for the new flow (24 tests,
+up from 12) -- microphone failing safely on both a synchronous throw
+and a real async ENOENT (the same failure shape as SoX not being
+installed), the wake/no-wake state machine's chunk routing, the full
+mic-driven flow end to end (including a byte-level real WAV file
+assertion), a real whisper.cpp failure being caught and isolated
+without crashing the engine or reaching the router, and an explicit
+isolation test confirming requiring `core/voice` starts nothing
+automatically and leaves no bus listeners registered afterward.
+
+`docs/VOICE_SETUP.md` added: required installs, every environment
+variable, how to enable voice, and troubleshooting via
+`voice.status()`.
+
+788 -> 800 tests, all passing.
