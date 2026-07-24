@@ -135,6 +135,25 @@ for(const department of departments){
 
 const collaboration = new CollaborationEngine(departments);
 
+// Reports which connectors (Claude/OpenAI/GitHub/Discord/Google/etc.)
+// have their required env vars present, logging only variable NAMES
+// that are missing -- never a value. A missing credential disables
+// that one connector; it never stops the dashboard from booting. Moved
+// to top-level module code (not gated behind `require.main === module`
+// like installCrashGuards()/capabilitiesRegistry.validateStartup()
+// below) specifically so this stage completes in the same real order
+// declared in core/system/bootSequence.js's STAGES -- before automation
+// registration, not after.
+credentialManager.validateStartup();
+
+// "loading_connectors" is marked here, honestly: validateStartup()
+// above is the real point every connector's credential/config state
+// becomes known for this run. Connectors with a real async login step
+// (e.g. discordBot.start(), further below) still connect on their own
+// after this, tracked via their own status()/runtimeState, not by
+// delaying this boot stage for them.
+bootSequence.markStage("loading_connectors");
+
 // Wires the autonomous task-execution job to this process's real,
 // already-loaded departments (see core/automation/jobs.js for why this
 // is opt-in rather than automatic on require("../automation")), and
@@ -2874,20 +2893,6 @@ if(require.main === module){
     // process.exit(1) and kill the whole `npm test` run. See
     // docs/Architecture.md "Production Hardening".
     installCrashGuards("dashboard");
-
-    // Reports which connectors (Claude/OpenAI/GitHub/Discord/Google/etc.)
-    // have their required env vars present, logging only variable NAMES
-    // that are missing -- never a value. A missing credential disables
-    // that one connector; it never stops the dashboard from booting.
-    credentialManager.validateStartup();
-
-    // "loading_connectors" is marked here, honestly: validateStartup()
-    // above is the real point every connector's credential/config state
-    // becomes known for this run. Connectors with a real async login step
-    // (e.g. discordBot.start(), below) still connect on their own after
-    // this, tracked via their own status()/runtimeState, not by delaying
-    // this boot stage for them.
-    bootSequence.markStage("loading_connectors");
 
     // Phase 33: surfaces any capability already in "error"/"disabled"
     // status at boot -- same log-only, never-throws posture as

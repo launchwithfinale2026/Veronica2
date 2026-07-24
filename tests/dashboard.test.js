@@ -213,6 +213,41 @@ test("GET /api/status reports online with real agent/department counts", async (
 
 });
 
+
+// Regression test: bootSequence is a process-global singleton, already
+// populated by the time this file's own require("../dashboard/backend/
+// server") ran (top-level module code, not gated behind require.main --
+// this test process never runs the require.main-only block, so it only
+// ever reaches the last top-level-marked stage, "loading_automations";
+// "loading_dashboard"/"running_diagnostics"/"online" are marked inside
+// server.listen()'s callback, which only real boot exercises).
+//
+// Real bug found during Phase 22 verification: a stage marked in
+// server.js's former require.main-only block (loading_connectors)
+// completed AFTER a stage marked in top-level code
+// (loading_automations) that the declared core/system/bootSequence.js
+// STAGES order says should come first -- status() infers "current
+// stage" from array position, so an out-of-order completion mid-boot
+// would misreport it. Asserts the real completion order is an exact
+// PREFIX of the declared order, not just that every stage eventually
+// finishes in some order.
+test("GET /api/system/boot-status reports every real stage completed in the exact declared order", async () => {
+
+    const res = await fetch(`${baseUrl}/api/system/boot-status`);
+    const body = await res.json();
+
+    assert.strictEqual(res.status, 200);
+
+    const completedOrder = body.completed.map(entry => entry.stage);
+    assert.deepStrictEqual(completedOrder, body.stages.slice(0, completedOrder.length));
+
+    // In this test process specifically (required, not run as main),
+    // real boot should have reached at least through "loading_automations"
+    // -- the last stage marked in top-level module code.
+    assert.ok(completedOrder.includes("loading_automations"));
+
+});
+
 test("GET /api/health reports process health, not just a canned online string", async () => {
 
     const res = await fetch(`${baseUrl}/api/health`);
