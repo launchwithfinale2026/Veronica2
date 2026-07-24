@@ -8,6 +8,10 @@ const LOG_PATH = path.join(__dirname, "..", "core", "logging", "errors.log");
 const LOG_EXISTED_BEFORE = fs.existsSync(LOG_PATH);
 const LOG_BACKUP = path.join(os.tmpdir(), `veronica-errors-log-backup-crashguard-${process.pid}.log`);
 
+const CRASH_LOG_PATH_FOR_BACKUP = path.join(__dirname, "..", "runtime", "logs", "crash.log");
+const CRASH_LOG_EXISTED_BEFORE = fs.existsSync(CRASH_LOG_PATH_FOR_BACKUP);
+const CRASH_LOG_BACKUP = path.join(os.tmpdir(), `veronica-crash-log-backup-crashguard-${process.pid}.log`);
+
 test.before(() => {
     if(LOG_EXISTED_BEFORE){
         fs.copyFileSync(LOG_PATH, LOG_BACKUP);
@@ -20,6 +24,10 @@ test.before(() => {
     // assumption breaks. Starting from empty makes the count
     // deterministic regardless of how large the real log has grown.
     fs.writeFileSync(LOG_PATH, "");
+
+    if(CRASH_LOG_EXISTED_BEFORE){
+        fs.copyFileSync(CRASH_LOG_PATH_FOR_BACKUP, CRASH_LOG_BACKUP);
+    }
 });
 
 test.after(() => {
@@ -29,6 +37,13 @@ test.after(() => {
         fs.unlinkSync(LOG_BACKUP);
     } else if(fs.existsSync(LOG_PATH)){
         fs.unlinkSync(LOG_PATH);
+    }
+
+    if(CRASH_LOG_EXISTED_BEFORE){
+        fs.copyFileSync(CRASH_LOG_BACKUP, CRASH_LOG_PATH_FOR_BACKUP);
+        fs.unlinkSync(CRASH_LOG_BACKUP);
+    } else if(fs.existsSync(CRASH_LOG_PATH_FOR_BACKUP)){
+        fs.unlinkSync(CRASH_LOG_PATH_FOR_BACKUP);
     }
 
 });
@@ -45,7 +60,8 @@ test.after(() => {
 const {
     installCrashGuards,
     makeUnhandledRejectionHandler,
-    makeUncaughtExceptionHandler
+    makeUncaughtExceptionHandler,
+    CRASH_LOG_PATH
 } = require("../core/logging/crashGuard");
 
 const log = require("../core/logging");
@@ -124,5 +140,28 @@ test("the uncaughtException handler logs the error and calls process.exit(1)", (
     const after = log.readErrors(1000);
     assert.strictEqual(after.length, before + 1);
     assert.ok(after[0].message.includes("synthetic crash XQZCRASH2"));
+
+});
+
+test("the uncaughtException handler also appends a real, human-readable line to runtime/logs/crash.log (Phase 46.5)", () => {
+
+    const handler = makeUncaughtExceptionHandler("test-crash-guard");
+
+    const before = fs.existsSync(CRASH_LOG_PATH) ? fs.readFileSync(CRASH_LOG_PATH, "utf8") : "";
+
+    const realExit = process.exit;
+    process.exit = () => {};
+
+    try {
+        handler(new Error("synthetic crash XQZCRASH4"));
+    } finally {
+        process.exit = realExit;
+    }
+
+    const after = fs.readFileSync(CRASH_LOG_PATH, "utf8");
+
+    assert.ok(after.length > before.length);
+    assert.ok(after.includes("synthetic crash XQZCRASH4"));
+    assert.ok(after.includes("test-crash-guard"));
 
 });

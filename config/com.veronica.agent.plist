@@ -2,17 +2,18 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
     VERONICA -- macOS user-level LaunchAgent (Phase 21: Mac Resident
-    System). A TEMPLATE, not a ready-to-install file: __NODE_PATH__ and
-    __REPO_PATH__ below are filled in by
-    scripts/install-launch-agent.sh at install time, since the real
-    paths depend on where Node is installed and where this repo lives
-    on the machine actually running it.
+    System; Phase 46.5: routes through scripts/start-veronica.sh for a
+    real pre-flight check before launching). A TEMPLATE, not a
+    ready-to-install file: __NODE_PATH__ and __REPO_PATH__ below are
+    filled in by scripts/install-launch-agent.sh at install time, since
+    the real paths depend on where Node is installed and where this
+    repo lives on the machine actually running it.
 
     Deliberately placed under ~/Library/LaunchAgents/ (per-user,
     unprivileged) when installed, NOT /Library/LaunchDaemons/
-    (system-wide, root) -- this starts core/system/startupManager.js
-    only when THIS user logs in, and never touches sleep/shutdown/
-    battery/power-management settings or any other system policy.
+    (system-wide, root) -- this starts VERONICA only when THIS user
+    logs in, and never touches sleep/shutdown/battery/power-management
+    settings or any other system policy.
 -->
 <plist version="1.0">
 <dict>
@@ -21,8 +22,8 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>__NODE_PATH__</string>
-        <string>__REPO_PATH__/core/system/startupManager.js</string>
+        <string>/bin/bash</string>
+        <string>__REPO_PATH__/scripts/start-veronica.sh</string>
     </array>
 
     <key>WorkingDirectory</key>
@@ -31,17 +32,36 @@
     <key>RunAtLoad</key>
     <true/>
 
-    <!-- Restarts startupManager.js itself if IT crashes (distinct from
-         startupManager.js's own bounded restart logic for the dashboard
-         child process it supervises) -- launchd's own throttling
-         already prevents a crash-loop from spinning unboundedly. -->
+    <!-- Restarts start-veronica.sh (and therefore
+         core/system/startupManager.js, which it execs into) if the
+         whole process tree dies -- distinct from startupManager.js's
+         own bounded restart logic for the dashboard child process it
+         supervises. launchd's own throttling already prevents a
+         crash-loop from spinning unboundedly. Note: while this agent is
+         loaded, `kill`ing the resulting process directly gets it
+         immediately relaunched by launchd -- use
+         scripts/veronica-desktop.sh stop (launchctl unload) or
+         `npm run stop:desktop` to actually stop it, not a raw signal. -->
     <key>KeepAlive</key>
     <true/>
 
+    <!-- Preserves a sane, explicit PATH (launchd's own default
+         environment for a LaunchAgent is minimal -- it does not source
+         .zshrc/.bash_profile) and the real, resolved Node path found at
+         install time, so start-veronica.sh never has to guess where
+         `node` lives. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+        <key>VERONICA_NODE_PATH</key>
+        <string>__NODE_PATH__</string>
+    </dict>
+
     <key>StandardOutPath</key>
-    <string>__REPO_PATH__/core/logging/launchagent.out.log</string>
+    <string>__REPO_PATH__/runtime/logs/launchagent.out.log</string>
 
     <key>StandardErrorPath</key>
-    <string>__REPO_PATH__/core/logging/launchagent.err.log</string>
+    <string>__REPO_PATH__/runtime/logs/launchagent.err.log</string>
 </dict>
 </plist>

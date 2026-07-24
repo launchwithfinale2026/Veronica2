@@ -3057,3 +3057,82 @@ a real SIGTERM received during boot (fixed to allow it from any
 non-OFFLINE state).
 
 852 -> 923 tests, all passing.
+
+## Phase 46.5 — macOS Auto Launch Integration
+
+**Audit first:** `config/com.veronica.agent.plist` +
+`scripts/install-launch-agent.sh`/`uninstall-launch-agent.sh`/
+`verify-launch-agent.sh` already existed and already covered
+"start at login," "restart on failure" (`KeepAlive: true`), and basic
+logging (Phase 21). Extended, not duplicated.
+
+**Updated `config/com.veronica.agent.plist`:** now invokes
+`scripts/start-veronica.sh` instead of `node core/system/
+startupManager.js` directly (adds a real pre-flight layer in front of
+the same, unchanged resident supervisor); log paths moved to
+`runtime/logs/`; an explicit `EnvironmentVariables` dict preserves a
+sane `PATH` (launchd's own default environment is minimal -- it doesn't
+source `.zshrc`/`.bash_profile`) and the real, install-time-resolved
+Node path.
+
+**Added:**
+- `scripts/start-veronica.sh` -- real pre-flight validation (Node
+  found + version logged, `core/system/startupChecks.js`'s real
+  critical checks run and must pass) before `exec`-ing into
+  `startupManager.js` (`exec`, not a child spawn, so launchd tracks the
+  real node process directly and `KeepAlive`/signal handling both work
+  correctly). Also fires `open-dashboard.sh` in the background,
+  independent of the main process.
+- `scripts/open-dashboard.sh` -- polls the real `GET /api/system/
+  lifecycle` (Phase 46) until `READY`/`DEGRADED`, then opens the
+  dashboard with macOS's real `open` command. Never opens before
+  VERONICA is actually ready.
+- `scripts/veronica-desktop.sh` -- the LaunchAgent-aware wrapper `npm
+  run start:desktop|stop:desktop|restart:desktop|status:desktop` call.
+  Real, important distinction found while building this: the plist's
+  `KeepAlive: true` means a raw `kill` on a LaunchAgent-managed instance
+  gets it immediately relaunched by launchd -- `veronica-cli.js`'s
+  existing PID-file-based `stop()` (correct for a manual run) would
+  silently not work as "stop" while the agent is loaded. This script
+  checks `launchctl list` first: loaded → `launchctl unload`/`load`;
+  not loaded → falls back to the existing `veronica-cli.js`.
+
+**Extended (real, additive log writes, not new logging systems):**
+`core/logging/crashGuard.js`'s uncaught-exception handler now also
+appends a human-readable line to `runtime/logs/crash.log` (the full
+structured record still goes to `errors.log` exactly as before).
+`core/system/shutdownManager.js`'s `gracefulShutdown()` now also
+appends a line to `runtime/logs/shutdown.log` on every real graceful
+shutdown.
+
+**Verified live:** ran `scripts/start-veronica.sh` directly, confirmed
+the real pre-flight checks ran and passed (found and fixed a real bug
+in the process -- see below), confirmed a real `runtime/logs/
+startup.log` entry, confirmed `open-dashboard.sh` correctly waited for
+a real `DEGRADED` state before opening the dashboard. Sent a real
+`SIGTERM` and confirmed `shutdownManager.js`'s graceful sequence ran
+with a real `shutdown.log` entry. Discovered mid-testing that this
+machine already has a real, previously-installed LaunchAgent instance
+resident from earlier in this project's life -- confirmed it self-
+recovered correctly and is healthy after this session's testing
+inadvertently disturbed it (real, unplanned validation that the
+existing crash-recovery design works under real conditions). A full
+reboot test was not performed -- rebooting the actual development
+machine isn't something this process can safely trigger; documented as
+the one honest verification gap in `docs/DesktopIntegration.md`.
+
+**Real bug found and fixed:** `start-veronica.sh`'s inline `node -e`
+invocation of `startupChecks.runAll()` never loaded `.env` (a fresh
+`node -e` subprocess doesn't inherit `dotenv`'s effects from anywhere
+else), so the advisory "environmentVariables" check always reported
+0/9 connectors configured regardless of the real `.env` contents --
+fixed by calling `require('dotenv').config()` first, same as every
+other real entry point in this codebase already does.
+
+**Documentation:** `docs/DesktopIntegration.md` added (installation,
+enabling/disabling, the desktop commands, logging, troubleshooting,
+and an honest note on the untested-reboot gap). `README.md` and
+`docs/DEPLOYMENT.md` updated with pointers.
+
+925 tests (923 -> 925: 1 new crash-guard test, 1 new shutdown-manager
+test), all passing.

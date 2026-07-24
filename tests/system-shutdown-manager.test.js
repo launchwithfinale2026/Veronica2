@@ -1,9 +1,21 @@
 const test = require("node:test");
 const assert = require("node:assert");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
 
 const shutdownManager = require("../core/system/shutdownManager");
 const SystemState = require("../core/system/systemState");
 const recoveryManager = require("../core/system/recoveryManager");
+
+const SHUTDOWN_LOG_EXISTED_BEFORE = fs.existsSync(shutdownManager.SHUTDOWN_LOG_PATH);
+const SHUTDOWN_LOG_BACKUP = path.join(os.tmpdir(), `veronica-shutdown-log-backup-${process.pid}.log`);
+
+test.before(() => {
+    if(SHUTDOWN_LOG_EXISTED_BEFORE){
+        fs.copyFileSync(shutdownManager.SHUTDOWN_LOG_PATH, SHUTDOWN_LOG_BACKUP);
+    }
+});
 
 test.beforeEach(() => {
     recoveryManager._resetForTests();
@@ -13,6 +25,13 @@ test.beforeEach(() => {
 test.after(() => {
     recoveryManager._resetForTests();
     shutdownManager._resetForTests();
+
+    if(SHUTDOWN_LOG_EXISTED_BEFORE){
+        fs.copyFileSync(SHUTDOWN_LOG_BACKUP, shutdownManager.SHUTDOWN_LOG_PATH);
+        fs.unlinkSync(SHUTDOWN_LOG_BACKUP);
+    } else if(fs.existsSync(shutdownManager.SHUTDOWN_LOG_PATH)){
+        fs.unlinkSync(shutdownManager.SHUTDOWN_LOG_PATH);
+    }
 });
 
 
@@ -157,5 +176,26 @@ test("gracefulShutdown() records real activeTasks/failures passed in, in the rea
 
     assert.strictEqual(result.shutdownRecord.activeTasks.length, 1);
     assert.strictEqual(result.shutdownRecord.failures.length, 1);
+
+});
+
+
+test("gracefulShutdown() appends a real, human-readable line to runtime/logs/shutdown.log (Phase 46.5)", async () => {
+
+    const before = fs.existsSync(shutdownManager.SHUTDOWN_LOG_PATH) ? fs.readFileSync(shutdownManager.SHUTDOWN_LOG_PATH, "utf8") : "";
+
+    const state = readyState();
+
+    await shutdownManager.gracefulShutdown({
+        reason: "XQZ46.5 test shutdown",
+        systemState: state,
+        voice: { status: () => ({ engineState: "IDLE" }) },
+        automation: { status: () => ({ running: false }) }
+    });
+
+    const after = fs.readFileSync(shutdownManager.SHUTDOWN_LOG_PATH, "utf8");
+
+    assert.ok(after.length > before.length);
+    assert.ok(after.includes("XQZ46.5 test shutdown"));
 
 });

@@ -65,6 +65,21 @@ For running VERONICA as a persistent, login-time service (a macOS
 LaunchAgent) rather than a manually-started process, see
 `docs/DEPLOYMENT.md` and `docs/FINAL_DEPLOYMENT_CHECKLIST.md`.
 
+### Desktop app behavior (macOS)
+
+```bash
+bash scripts/install-launch-agent.sh   # the one manual step: enables auto-start at login
+npm run start:desktop                  # start now
+npm run stop:desktop                   # real, correct stop (launchctl-aware -- see docs/DesktopIntegration.md)
+npm run restart:desktop
+npm run status:desktop
+```
+
+Once installed: every login starts VERONICA automatically, no terminal
+needed, the dashboard opens in your browser once VERONICA is actually
+ready (never before), and a crash restarts it automatically. See
+`docs/DesktopIntegration.md`.
+
 ## Documentation
 
 - `docs/Architecture.md` -- the full, phase-by-phase build history and
@@ -77,6 +92,9 @@ LaunchAgent) rather than a manually-started process, see
 - `docs/BootSequence.md` -- the real, tracked per-process boot sequence.
 - `docs/BootSystem.md` -- the system-wide lifecycle: boot/shutdown,
   crash recovery, health checks, the service registry, the CLI.
+- `docs/DesktopIntegration.md` -- the macOS LaunchAgent: installing/
+  enabling/disabling auto-start, the desktop npm commands, logging,
+  troubleshooting.
 
 ## Design discipline
 

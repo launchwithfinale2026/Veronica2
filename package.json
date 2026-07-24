@@ -10,7 +10,11 @@
   "scripts": {
     "start": "node core/interface/terminal.js",
     "dashboard": "node dashboard/backend/server.js",
-    "test": "node --test --test-concurrency=1 tests/*.test.js"
+    "test": "node --test --test-concurrency=1 tests/*.test.js",
+    "start:desktop": "bash scripts/veronica-desktop.sh start",
+    "stop:desktop": "bash scripts/veronica-desktop.sh stop",
+    "restart:desktop": "bash scripts/veronica-desktop.sh restart",
+    "status:desktop": "bash scripts/veronica-desktop.sh status"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.4",

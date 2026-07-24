@@ -76,6 +76,16 @@ bash scripts/uninstall-launch-agent.sh    # reverses it completely
 new one, so re-running it is always safe. It writes only to
 `~/Library/LaunchAgents/` (per-user), never `/Library/LaunchDaemons/`.
 
+**Phase 46.5 update:** the installed LaunchAgent now routes through
+`scripts/start-veronica.sh` (real pre-flight checks, logging to
+`runtime/logs/`) and automatically opens the dashboard in your browser
+once VERONICA reaches a real `READY`/`DEGRADED` state -- see
+`docs/DesktopIntegration.md` for the full breakdown, the LaunchAgent-
+aware `npm run *:desktop` commands, and why stopping a LaunchAgent-
+managed instance needs `launchctl unload` (via those commands) rather
+than a raw signal. If you installed the LaunchAgent before this phase,
+re-run `install-launch-agent.sh` to pick up the improvements.
+
 ## Configuration
 
 All configuration is environment variables, read from `.env` in the

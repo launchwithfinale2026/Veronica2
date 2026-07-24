@@ -15,8 +15,31 @@
 // this module doesn't reimplement how to stop voice or automation, it
 // just calls them in the right order and records what happened.
 
+const fs = require("fs");
+const path = require("path");
+
 const log = require("../logging");
 const recoveryManager = require("./recoveryManager");
+
+// Phase 46.5 (macOS Auto Launch Integration): a real, dedicated
+// shutdown log a human can `tail -f` without knowing core/logging's
+// JSON-lines format -- additive to log.info() below, which still
+// writes to core/logging/errors.log-adjacent structured logging (info
+// level isn't persisted there -- see core/logging/index.js -- so this
+// is genuinely the only durable trace of a routine, successful
+// shutdown).
+const SHUTDOWN_LOG_PATH = path.join(__dirname, "..", "..", "runtime", "logs", "shutdown.log");
+
+function appendShutdownLog(reason){
+
+    try {
+        fs.mkdirSync(path.dirname(SHUTDOWN_LOG_PATH), { recursive: true });
+        fs.appendFileSync(SHUTDOWN_LOG_PATH, `${new Date().toISOString()} Graceful shutdown: ${reason}\n`);
+    } catch(error){
+        console.error(`[shutdown-manager] Failed to write ${SHUTDOWN_LOG_PATH}: ${error.message}`);
+    }
+
+}
 
 let acceptingCommands = true;
 
@@ -105,6 +128,7 @@ async function gracefulShutdown({
     systemState.transition("OFFLINE", reason);
 
     log.info("shutdown-manager", `Graceful shutdown complete: ${reason}`);
+    appendShutdownLog(reason);
 
     return {
         reason,
@@ -130,5 +154,6 @@ module.exports = {
     stopAcceptingCommands,
     flushLogs,
     gracefulShutdown,
-    _resetForTests
+    _resetForTests,
+    SHUTDOWN_LOG_PATH
 };

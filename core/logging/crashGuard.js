@@ -29,7 +29,31 @@
 // failures, so synthetically emitting them during a test run fights the
 // test runner itself rather than exercising this module's logic.
 
+const fs = require("fs");
+const path = require("path");
+
 const log = require("./index");
+
+// Phase 46.5 (macOS Auto Launch Integration): a real, dedicated crash
+// log a human can `tail -f` without needing to know core/logging's own
+// JSON-lines errors.log format -- one plain line per real uncaught
+// exception. Additive: log.error() below still writes the full,
+// structured record to errors.log exactly as before; this is a second,
+// human-readable trace of the same real event, not a replacement.
+const CRASH_LOG_PATH = path.join(__dirname, "..", "..", "runtime", "logs", "crash.log");
+
+function appendCrashLog(moduleName, error){
+
+    try {
+        fs.mkdirSync(path.dirname(CRASH_LOG_PATH), { recursive: true });
+        fs.appendFileSync(CRASH_LOG_PATH, `${new Date().toISOString()} [${moduleName}] ${error.message}\n${error.stack || ""}\n\n`);
+    } catch(writeError){
+        // Never let a failure to write the human-readable crash log
+        // mask or interrupt handling the real crash itself.
+        console.error(`[crash-guard] Failed to write ${CRASH_LOG_PATH}: ${writeError.message}`);
+    }
+
+}
 
 
 function makeUnhandledRejectionHandler(moduleName){
@@ -52,6 +76,7 @@ function makeUncaughtExceptionHandler(moduleName){
     return function handleUncaughtException(error){
 
         log.error(moduleName, `Uncaught exception, exiting: ${error.message}`, { stack: error.stack });
+        appendCrashLog(moduleName, error);
 
         process.exit(1);
 
@@ -68,4 +93,4 @@ function installCrashGuards(moduleName){
 }
 
 
-module.exports = { installCrashGuards, makeUnhandledRejectionHandler, makeUncaughtExceptionHandler };
+module.exports = { installCrashGuards, makeUnhandledRejectionHandler, makeUncaughtExceptionHandler, CRASH_LOG_PATH };
