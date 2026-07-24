@@ -2797,3 +2797,80 @@ variable, how to enable voice, and troubleshooting via
 `voice.status()`.
 
 788 -> 800 tests, all passing.
+
+## Voice Identity (Phase 44)
+
+**Added:** `core/voice/voiceIdentity.js` -- VERONICA's vocal
+characteristics (`name`/`voiceModel`/`speakingRate`/`pitch`/`style`),
+sourced from `config.js`'s existing Piper model path plus new
+`VOICE_SPEAKING_RATE`/`VOICE_PITCH`/`VOICE_STYLE` env vars. Contains no
+personality-response text -- purely configuration, matching the
+explicit ask. Honest about real Piper support: `speakingRate` maps to
+Piper's real `--length_scale` flag; `pitch`/`style` are carried through
+faithfully but currently have no effect on Piper's actual output (no
+direct pitch-shift flag exists, and "style" in Piper terms means a
+different model file entirely) -- documented rather than fabricated.
+
+**Added:** `core/voice/speechFormatter.js` -- a deterministic, rule-based
+reshape of a raw response for speech clarity (`"Agent count: 9."` ->
+`"agent count is 9."`), never an LLM call and never new content.
+Deliberately does not reproduce the task's own example's invented
+opening summary sentence ("All systems are healthy") -- documented in
+the module's own header as a real, safety-motivated scope limitation:
+reliably generating that for arbitrary future agent text without
+occasionally misrepresenting a NOT-healthy state would need either a
+fragile pile of domain-specific rules or an actual LLM pass, which "do
+not invent information" argues against for something this structural.
+
+**Upgraded `textToSpeech.js`:** `speak()` now accepts either a bare
+string (unchanged) or `{ text, context }`; reads `voiceIdentity.get()`
+for the model/rate instead of `config.js` directly; and gained
+`isSpeaking()`/`stopPlayback()` -- the real hook Task 5 needed to cut
+off audio output specifically, tracked via module-level state on the
+currently-playing child process.
+
+**Added:** `core/voice/conversationState.js` -- the real
+IDLE/LISTENING/PROCESSING/SPEAKING/INTERRUPTED state machine, with
+guarded transitions (an invalid one throws) and real `lastCommand`/
+`lastResponse`/`interrupted` tracking. Publishes its own specific bus
+events on transition (`voice.speakingStarted`/`voice.speakingFinished`/
+`voice.interrupted`) -- the same established pattern
+`core/system/bootSequence.js`/`runtimeState.js` already use.
+`voiceEngine.js` now delegates its own lifecycle to this instead of an
+ad hoc string, with a private `recordingCommand` flag distinguishing
+"waiting for the wake word" from "actively recording a command" (both
+publicly `LISTENING`) for correct audio-chunk routing.
+
+**Voice interruption (Task 5):** wake-word inference now also runs
+while `SPEAKING` (previously only while waiting for the initial wake),
+specifically so a new "Veronica" can be detected mid-response. On
+detection, `voiceEngine.js`'s `interrupt()` calls
+`textToSpeech.stopPlayback()` (audio only -- a real agent call has
+already completed by the time anything is playing, so there is nothing
+to interrupt there) and immediately begins recording a new command.
+Wake-word inference intentionally never runs during `PROCESSING`, which
+is what makes it structurally impossible for voice to interrupt agent
+execution -- there's no way to generate a new wake event in that
+window at all.
+
+**Added:** `voice.ready`/`voice.offline` (engine lifecycle, published by
+`voiceEngine.js` itself) and `voice.statusChanged` (Task 7's exact
+dashboard-status shape: `{ voiceStatus: { enabled, state,
+lastInteraction, modelLoaded } }`) -- no dashboard UI was built, only
+the status events a future panel will consume.
+
+**Tests:** `tests/voice-identity.test.js` (14 tests) -- voice identity
+sourcing/overrides, speech formatting (including an explicit assertion
+that no fabricated summary sentence is ever added), and
+textToSpeech.js's new input shape + interruption plumbing.
+`tests/voice.test.js` gained 7 (conversation-state transitions/events,
+full interruption behavior proving agent execution is untouched, engine
+lifecycle events, and the dashboard status shape) and had its existing
+state assertions updated for the new IDLE/LISTENING/PROCESSING/SPEAKING
+vocabulary. Also fixed two real bugs found while writing these tests: a
+duplicate, invalid `PROCESSING -> PROCESSING` transition call that was
+silently swallowing the router call on every real command, and a test
+fixture (`FakeWakeWord`) missing a `status()` method that `voiceEngine
+.status()` now depends on.
+
+800 -> 821 tests, all passing.

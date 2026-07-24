@@ -5,14 +5,18 @@
 // Orchestrates the full requested flow:
 //   Microphone -> openWakeWord -> Wake detected -> Record command ->
 //   whisper.cpp -> VOICE_INPUT -> Existing Router -> Existing Agent
-//   System -> Response -> textToSpeech.js -> Audio output
+//   System -> Response -> Voice Identity Layer -> Piper TTS -> Audio
+//   output
 //
 // Deliberately does NOT construct its own Router/agents/departments --
 // accepts an already-constructed core/router Router instance (the exact
 // same class core/interface/terminal.js's "ask" command already uses),
 // so voice reuses the one real router/agent/Claude pipeline instead of
 // standing up a second one. Never modifies core/router, core/agents, or
-// core/memory.
+// core/memory. Voice identity (core/voice/voiceIdentity.js) and speech
+// formatting (core/voice/speechFormatter.js) only ever affect HOW a real
+// response is spoken, never WHAT is said -- no personality responses
+// are generated or hardcoded here.
 //
 // microphone/wakeWord/speechToText/textToSpeech are all injectable
 // (default to the real modules) purely for testability -- the same
@@ -20,17 +24,33 @@
 // (e.g. core/executive/actionProposal.js's `departments` override,
 // core/system/healthScore.js's override params).
 //
-// A small real state machine (idle -> waiting -> listening ->
-// processing -> waiting) governs the flow so speech is never processed
-// before a real wake-word detection: while "waiting", real microphone
-// chunks are fed only to wake-word inference; once woken, chunks are
-// buffered for transcription instead (and NOT fed back into wake-word
-// inference, so the engine can't re-trigger on the tail of its own
-// listening window). Every stage publishes a real bus event (see
-// core/voice/events.js) so the rest of the system -- dashboard,
-// logging, future automation -- can observe voice activity the same
-// way it observes everything else.
+// core/voice/conversationState.js is the single real source of truth
+// for the engine's own IDLE/LISTENING/PROCESSING/SPEAKING/INTERRUPTED
+// lifecycle (Task 4). "LISTENING" covers both "waiting for the wake
+// word" and "actively recording a command" -- this.recordingCommand is
+// a private, finer-grained flag distinguishing those two for real
+// audio-chunk routing, since "do not process speech before activation"
+// requires knowing exactly which one is happening: while NOT recording
+// (waiting for the wake word, OR while SPEAKING -- see Task 5 below),
+// real microphone chunks feed wake-word inference only; while
+// recording, chunks are buffered for transcription instead and never
+// fed back into wake-word inference, so the engine can't re-trigger on
+// the tail of its own recording window. Chunks arriving during
+// PROCESSING are dropped entirely -- wake-word inference intentionally
+// never runs then, which is what makes it structurally impossible for
+// voice to interrupt agent execution (there's nothing to interrupt with,
+// since no new wake event can even be generated in that window).
 //
+// Task 5 (Voice Interruption): wake-word inference DOES keep running
+// while SPEAKING (real audio is playing) specifically so a new
+// "Veronica" can be detected -- when it is, textToSpeech.stopPlayback()
+// cuts the real audio process (never the agent call, which already
+// finished before anything started playing), and the engine goes
+// straight back into recording a new command.
+//
+// Every stage publishes a real bus event (see core/voice/events.js) so
+// the rest of the system -- dashboard, logging, future automation --
+// can observe voice activity the same way it observes everything else.
 // Failures anywhere in the mic-driven loop (a bad recording, a whisper
 // crash, a router error) are caught here, logged, and published as a
 // real voice.error event -- they never escape as an unhandled
@@ -50,6 +70,8 @@ const config = require("./config");
 
 const Microphone = require("./microphone");
 const WakeWordDetector = require("./wakeWord");
+const ConversationState = require("./conversationState");
+const speechFormatter = require("./speechFormatter");
 const defaultSpeechToText = require("./speechToText");
 const defaultTextToSpeech = require("./textToSpeech");
 
@@ -62,6 +84,7 @@ class VoiceEngine {
         wakeWord = new WakeWordDetector(),
         speechToText = defaultSpeechToText,
         textToSpeech = defaultTextToSpeech,
+        conversationState = new ConversationState(),
         listenSeconds = Number(process.env.VOICE_LISTEN_SECONDS) || 4
     } = {}){
 
@@ -74,21 +97,47 @@ class VoiceEngine {
         this.wakeWord = wakeWord;
         this.speechToText = speechToText;
         this.textToSpeech = textToSpeech;
+        this.conversationState = conversationState;
         this.listenSeconds = listenSeconds;
 
-        this.state = "idle";
+        // Private, finer-grained than conversationState -- see header
+        // comment. Only ever true during the real post-wake recording
+        // window.
+        this.recordingCommand = false;
+
         this.listenBuffer = [];
         this.listenTimer = null;
 
         this._onMicData = chunk => this.handleMicChunk(chunk);
         this._onMicError = error => this.handleError(error);
-        this._onWakeDetected = () => this.beginListening();
+        this._onWakeDetected = () => this.handleWakeDetected();
 
     }
 
 
+    // Task 7 (Dashboard Preparation Only): the exact real shape a future
+    // dashboard panel will consume -- no UI built here, just the status
+    // itself, evidence-based (never a mystery flag).
     status(){
-        return { state: this.state };
+
+        const snapshot = this.conversationState.snapshot();
+
+        return {
+
+            voiceStatus: {
+                enabled: config.isEnabled(),
+                state: snapshot.state,
+                lastInteraction: snapshot.updatedAt,
+                modelLoaded: this.wakeWord.status().running
+            }
+
+        };
+
+    }
+
+
+    publishStatus(){
+        bus.publish(events.STATUS_CHANGED, this.status());
     }
 
 
@@ -120,7 +169,7 @@ class VoiceEngine {
 
     start(){
 
-        if(this.state !== "idle"){
+        if(this.conversationState.state !== "IDLE"){
             return { started: false, reason: "already running" };
         }
 
@@ -137,7 +186,11 @@ class VoiceEngine {
         this.microphone.start();
         this.wakeWord.start();
 
-        this.state = "waiting";
+        this.recordingCommand = false;
+        this.conversationState.transition("LISTENING");
+
+        bus.publish(events.READY, this.status().voiceStatus);
+        this.publishStatus();
 
         return { started: true };
 
@@ -158,24 +211,40 @@ class VoiceEngine {
         this.microphone.stop();
         this.wakeWord.stop();
 
-        this.state = "idle";
+        this.recordingCommand = false;
         this.listenBuffer = [];
+
+        if(this.conversationState.state !== "IDLE"){
+            this.conversationState.transition("IDLE");
+        }
+
+        bus.publish(events.OFFLINE, this.status().voiceStatus);
+        this.publishStatus();
 
         return { stopped: true };
 
     }
 
 
-    // Routes each real microphone chunk depending on the real current
-    // state -- "do not process speech before activation" is enforced
-    // structurally here: wake-word inference only ever sees chunks
-    // while "waiting," and the post-wake recording buffer only ever
-    // collects chunks while "listening."
+    // Whether real microphone chunks should currently be fed to
+    // wake-word inference -- true while waiting for the wake word AND
+    // while speaking (Task 5's interruption window), false while
+    // actively recording a command, and false while processing (see
+    // header comment on why that last one matters).
+    acceptingWakeWord(){
+
+        const state = this.conversationState.state;
+
+        return (state === "LISTENING" && !this.recordingCommand) || state === "SPEAKING";
+
+    }
+
+
     handleMicChunk(chunk){
 
-        if(this.state === "waiting"){
+        if(this.acceptingWakeWord()){
             this.wakeWord.feed(chunk);
-        } else if(this.state === "listening"){
+        } else if(this.conversationState.state === "LISTENING" && this.recordingCommand){
             this.listenBuffer.push(chunk);
         }
 
@@ -188,16 +257,49 @@ class VoiceEngine {
     }
 
 
-    beginListening(){
+    handleWakeDetected(){
 
-        if(this.state !== "waiting"){
-            return; // ignore a spurious/duplicate wake while already busy
+        if(this.conversationState.state === "SPEAKING"){
+            this.interrupt();
+            return;
         }
 
-        this.state = "listening";
+        if(this.conversationState.state === "LISTENING" && !this.recordingCommand){
+            this.beginListening();
+            return;
+        }
+
+        // PROCESSING (or an already-recording LISTENING) -- ignore a
+        // spurious/duplicate wake. In practice this branch is only
+        // reachable via a direct bus.publish() in a test, since real
+        // audio never reaches wake-word inference during PROCESSING at
+        // all (see acceptingWakeWord()).
+
+    }
+
+
+    // Task 5 (Voice Interruption): stops real audio playback only, then
+    // begins recording a brand new command immediately -- exactly like
+    // a fresh wake, just arriving via SPEAKING instead of LISTENING.
+    interrupt(){
+
+        this.textToSpeech.stopPlayback();
+
+        this.conversationState.transition("INTERRUPTED");
+        this.conversationState.transition("LISTENING");
+
+        this.beginListening();
+
+    }
+
+
+    beginListening(){
+
+        this.recordingCommand = true;
         this.listenBuffer = [];
 
         bus.publish(events.LISTENING, { startedAt: new Date().toISOString() });
+        this.publishStatus();
 
         this.listenTimer = setTimeout(
             () => this.finishListening().catch(error => this.handleError(error)),
@@ -211,7 +313,8 @@ class VoiceEngine {
     // "Record command" -> whisper.cpp -> VOICE_INPUT -> Router -> Agent
     // System -> Response -> TTS. Any failure along this real chain is
     // caught, logged, and published as voice.error -- the engine always
-    // returns to "waiting" afterward rather than getting stuck.
+    // returns to LISTENING (waiting for the next wake word) afterward
+    // rather than getting stuck.
     async finishListening(){
 
         // clearTimeout() (not just discarding the reference) matters
@@ -223,16 +326,20 @@ class VoiceEngine {
         // process alive.
         clearTimeout(this.listenTimer);
         this.listenTimer = null;
-        this.state = "processing";
 
+        this.recordingCommand = false;
+
+        this.conversationState.transition("PROCESSING");
         bus.publish(events.PROCESSING, { startedAt: new Date().toISOString() });
+        this.publishStatus();
 
         const pcm = Buffer.concat(this.listenBuffer);
         this.listenBuffer = [];
 
         if(pcm.length === 0){
             log.warn("voice-engine", "No audio was recorded after the wake word -- nothing to transcribe.");
-            this.state = "waiting";
+            this.conversationState.transition("LISTENING");
+            this.publishStatus();
             return null;
         }
 
@@ -247,25 +354,41 @@ class VoiceEngine {
 
             if(!text || !text.trim()){
                 log.warn("voice-engine", "Speech-to-text returned no transcript.");
-                this.state = "waiting";
+                this.conversationState.transition("LISTENING");
+                this.publishStatus();
                 return null;
             }
 
             // VOICE_INPUT: the transcript is now real voice input to the
             // existing Router, same shape as any other request it
-            // handles.
+            // handles. Already PROCESSING (transitioned above, before
+            // transcription started) -- PROCESSING -> PROCESSING isn't a
+            // valid transition, so the real command text is recorded
+            // directly rather than through another transition() call.
+            this.conversationState.lastCommand = text;
             bus.publish(events.TRANSCRIBED, { text, audioPath });
 
             const result = await this.handleUtterance(text);
 
-            this.state = "waiting";
+            // handleUtterance() itself transitions to SPEAKING (if there
+            // was something to say) and back to LISTENING when speech
+            // finishes -- but if there was NO response text to speak,
+            // it never leaves PROCESSING, so this is the one place that
+            // needs to return to LISTENING for that specific case.
+            if(this.conversationState.state === "PROCESSING"){
+                this.conversationState.transition("LISTENING");
+                this.publishStatus();
+            }
 
             return result;
 
         } catch(error){
             log.error("voice-engine", `Failed to process recorded command: ${error.message}`);
             bus.publish(events.ERROR, { message: error.message });
-            this.state = "waiting";
+            if(this.conversationState.state !== "IDLE"){
+                this.conversationState.transition("LISTENING");
+                this.publishStatus();
+            }
             return null;
         }
 
@@ -293,9 +416,33 @@ class VoiceEngine {
             return { routed, spoken: null };
         }
 
-        const spoken = await this.textToSpeech.speak(responseText);
+        // Speech formatting (Task 3) only ever reshapes for clarity --
+        // never alters the real response's meaning or invents content.
+        const spokenText = speechFormatter.format(responseText);
 
-        bus.publish(events.SPOKEN, { responseText, ...spoken });
+        if(this.conversationState.state === "PROCESSING"){
+            // transition() itself publishes the real SPEAKING_STARTED
+            // event (Task 6); publishStatus() separately covers Task
+            // 7's dashboard-status shape.
+            this.conversationState.transition("SPEAKING", { response: responseText });
+            this.publishStatus();
+        }
+
+        const spoken = await this.textToSpeech.speak({ text: spokenText, context: { agent: routed.agent } });
+
+        bus.publish(events.SPOKEN, { responseText, spokenText, ...spoken });
+
+        // Only transition back to LISTENING here if we're still
+        // SPEAKING -- a real interruption (Task 5) may have already
+        // moved conversationState to LISTENING (and begun recording a
+        // brand new command) while textToSpeech.speak() was resolving
+        // from being cut off early; re-transitioning here would both
+        // throw (LISTENING isn't a valid SPEAKING target once already
+        // left) and wrongly clobber that new in-progress recording.
+        if(this.conversationState.state === "SPEAKING"){
+            this.conversationState.transition("LISTENING");
+            this.publishStatus();
+        }
 
         return { routed, spoken };
 

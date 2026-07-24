@@ -76,17 +76,24 @@ function validateStartup(){
 
 
 // Real, honest status -- never a mystery "is voice on" flag. Combines
-// config.status() (what's configured on this machine) with whether the
-// engine/detector/microphone are actually running right now, in this
-// process.
+// config.status() (what's configured on this machine), whether the
+// engine/detector/microphone are actually running right now in this
+// process, and Task 7's exact `voiceStatus` dashboard shape (sourced
+// from the real, running engine when there is one; a real, honest
+// "not running" default otherwise -- never fabricated).
 function status(){
+
+    const voiceStatus = engine
+        ? engine.status().voiceStatus
+        : { enabled: config.isEnabled(), state: "IDLE", lastInteraction: null, modelLoaded: wakeWord.status().running };
 
     return {
         ...config.status(),
         microphoneAvailable: microphone.isAvailable(),
         microphoneRunning: microphone.status().running,
         wakeWordRunning: wakeWord.status().running,
-        engineState: engine ? engine.status().state : "idle"
+        engineState: voiceStatus.state,
+        voiceStatus
     };
 
 }

@@ -12,13 +12,46 @@ voice being enabled.
 ```
 Microphone -> openWakeWord -> "Veronica" detected -> record command ->
 whisper.cpp -> transcript -> existing Router -> existing Agent System ->
-response text -> Piper -> audio output
+response text -> speech formatting -> Voice Identity -> Piper ->
+audio output
 ```
 
 Voice does not add a second router, a second agent system, or a second
 memory store -- `core/voice/voiceEngine.js` routes every transcript
 through the exact same `core/router` `Router` instance
-`core/interface/terminal.js`'s `ask` command already uses.
+`core/interface/terminal.js`'s `ask` command already uses. Voice
+identity and speech formatting (below) only ever affect HOW a real
+response is spoken -- never WHAT is said. No personality/emotion system
+or avatar exists in this codebase.
+
+## Voice identity
+
+`core/voice/voiceIdentity.js` defines VERONICA's vocal characteristics
+-- never canned phrases. `core/voice/textToSpeech.js` reads it on every
+`speak()` call:
+
+```
+VOICE_SPEAKING_RATE=1.0    # Piper's real --length_scale; higher = slower
+VOICE_PITCH=default        # carried through; Piper has no direct pitch-shift flag today
+VOICE_STYLE=calm-professional  # informational label today, not a Piper CLI flag
+```
+
+`core/voice/speechFormatter.js` reshapes a raw agent response for
+clarity before it's spoken (e.g. `"Agent count: 9."` -> `"agent count is
+9."`) -- a real, deterministic, rule-based rewrite that never alters a
+fact or invents content (see the module's own header comment for the
+one deliberate scope limitation: it does not fabricate an evaluative
+summary sentence that isn't literally supported by the input).
+
+## Interruption
+
+Say "Veronica" again while she's still speaking a response, and the
+audio output stops immediately -- VERONICA goes straight back to
+listening and accepts your new command. This only ever interrupts audio
+playback; a real agent call has already finished by the time anything
+is playing, so there is nothing in-flight to interrupt. See
+`core/voice/textToSpeech.js`'s `stopPlayback()`/`isSpeaking()` and
+`core/voice/voiceEngine.js`'s `interrupt()`.
 
 ## Required installs
 
@@ -129,9 +162,23 @@ flag:
   microphoneAvailable: true,
   microphoneRunning: true,
   wakeWordRunning: true,
-  engineState: "waiting"
+  engineState: "LISTENING",
+  voiceStatus: {
+    enabled: true,
+    state: "LISTENING",
+    lastInteraction: "2026-07-24T01:02:03.000Z",
+    modelLoaded: true
+  }
 }
 ```
+
+`voiceStatus` is the exact shape a future dashboard panel will consume
+(no UI is built here -- see `core/voice/voiceEngine.js`'s `status()`).
+`state` is one of `IDLE` / `LISTENING` / `PROCESSING` / `SPEAKING` /
+`INTERRUPTED` (`core/voice/conversationState.js`) -- `LISTENING` covers
+both "waiting for the wake word" and "actively recording your command";
+they're not distinguished at this level since either way VERONICA is
+genuinely listening.
 
 - **`microphoneAvailable: false`** -- SoX (or whatever `VOICE_MIC_COMMAND`
   points at) isn't installed or isn't on `PATH`. Run `sox --version`
@@ -147,12 +194,17 @@ flag:
   response is still routed and returned; see
   `core/voice/voiceEngine.js`'s `handleUtterance()`).
 - **Nothing happens when you say "Veronica"** -- check
-  `voice.status().engineState`. `"idle"` means `start()` was never
-  called or failed; `"waiting"` means it's genuinely listening for the
-  wake word (the model just may not recognize your specific
-  pronunciation/mic -- try adjusting `--threshold` in
-  `wake_word_listener.py`); `"listening"`/`"processing"` mid-command is
-  normal.
+  `voice.status().engineState`. `"IDLE"` means `start()` was never
+  called or failed; `"LISTENING"` means it's genuinely listening (either
+  for the wake word, or actively recording your command -- the model
+  just may not recognize your specific pronunciation/mic; try adjusting
+  `--threshold` in `wake_word_listener.py`); `"PROCESSING"`/`"SPEAKING"`
+  mid-command is normal.
+- **Interrupting doesn't work** -- interruption only fires while
+  `engineState` is `"SPEAKING"`; saying "Veronica" during `"PROCESSING"`
+  (VERONICA is still thinking) is intentionally not detected at all --
+  see `docs/CHANGELOG.md`'s Phase 44 entry for why ("do not interrupt
+  agent execution").
 - **A voice error never crashes anything else** -- every real failure
   in the pipeline (mic error, whisper.cpp failure, wake-word process
   exit) is caught, logged via `core/logging` (`log.error`/`log.warn`
