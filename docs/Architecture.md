@@ -173,6 +173,14 @@ no host is given to `.listen()`). Multi-device reach is opt-in via
 memory/knowledge contents and, once `API_TOKEN` is set, several write
 endpoints (see "Dashboard write actions" below).
 
+**Phase 45 update:** the dashboard became the primary interface this
+Phase-7 note anticipated. `/` now serves Mission Control (a new,
+event-driven, real-time overview); the previous `index.html` was
+renamed to `panels.html` and remains the full, dense operational view,
+linked from Mission Control's header. See `docs/Dashboard.md` for the
+full breakdown (subscription model, widget authoring, visualization
+states, EventBus integration, testing) -- not duplicated here.
+
 ---
 
 ## Device identity & synchronization (Phase 8)

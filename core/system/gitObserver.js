@@ -62,6 +62,20 @@ function currentHead(cwd){
 }
 
 
+// Same fail-closed discipline as currentHead() -- a missing git binary
+// or non-repo checkout means "unknown," never a thrown error. Used by
+// the Mission Control status bar (Phase 45).
+function currentBranch(cwd = REPO_ROOT){
+
+    try {
+        return execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd, encoding: "utf8" }).trim();
+    } catch(error){
+        return null;
+    }
+
+}
+
+
 function commitsSince(cwd, sha){
 
     const range = sha ? `${sha}..HEAD` : "HEAD";
@@ -135,4 +149,4 @@ function checkForNewCommits({ cwd = REPO_ROOT, stateFile = STATE_FILE } = {}){
 }
 
 
-module.exports = { checkForNewCommits };
+module.exports = { checkForNewCommits, currentBranch };

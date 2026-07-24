@@ -2874,3 +2874,76 @@ fixture (`FakeWakeWord`) missing a `status()` method that `voiceEngine
 .status()` now depends on.
 
 800 -> 821 tests, all passing.
+
+## Phase 45 — Mission Control Dashboard
+
+**Added:** `dashboard/frontend/index.html` (new) + `mission-control.js`
++ `mission-control.css` -- the permanent, primary, real-time dashboard:
+a central node visualizing VERONICA's live state (idle/listening/
+thinking/speaking/working/interrupted/offline/error, driven entirely by
+real events, never a canned animation loop -- CSS `@keyframes` on the
+compositor thread, no JS `requestAnimationFrame`), a status bar (real
+time/date/version/git-branch/environment/uptime/CPU/RAM/disk/event-rate/
+queue-depth), a voice panel, live agent activity, a filterable real-time
+event stream, and a connection-health footer. No framework, no build
+step -- same plain-browser-JS convention `app.js` already established.
+No fake data anywhere: every field traces to a real endpoint or a real
+bus event.
+
+**Renamed:** the previous `index.html` (the full, ~40-panel operational
+dashboard built up over Phases 7-59) is now `panels.html`, unchanged,
+linked from Mission Control's header ("Full Dashboard →") and linking
+back ("← Mission Control"). Nothing in it was removed or altered.
+
+**Backend additions, all small and additive:**
+- `core/system/gitObserver.js` gained `currentBranch()` (same fail-
+  closed discipline as its existing `currentHead()`).
+- `core/router/index.js`'s `route()` now publishes a real
+  `router.dispatched` bus event (`{ agent, command, timestamp }`) --
+  pure observability, zero change to routing behavior. The one gap
+  found while building the Recent Events panel's "Router" filter
+  category: nothing previously made a route dispatch observable at all.
+- `GET /api/status` gained `version` (package.json), `gitBranch` (real
+  `git rev-parse`, `null` off a non-git checkout), and `environment`
+  (`NODE_ENV`, defaulting honestly to `"development"`).
+- `GET /api/voice/status` (new) -- exposes `core/voice/index.js`'s
+  already-real `status()`, honestly reporting "disabled"/`IDLE` when
+  voice was never started (never fabricated).
+- `STREAMED_EVENTS` (the SSE whitelist) extended with
+  `boot.stageCompleted`, `runtime.stateChanged`, `router.dispatched`,
+  and every `core/voice/events.js` event -- all real events that
+  already existed but were never forwarded to the browser.
+
+**Testing:** added `jsdom` as a devDependency (test-only -- never
+shipped to a real browser, the actual page stays framework-free).
+`mission-control.js` is split into pure logic (zero DOM reference,
+directly `require()`-able from Node) and a DOM controller, so:
+`tests/mission-control-logic.test.js` (16 tests) covers event
+categorization, visualization-state derivation for every real state,
+uptime/event-rate/queue-depth math, and payload summarization, with
+plain Node. `tests/mission-control-dom.test.js` (15 tests) loads the
+REAL `index.html` + `mission-control.js` into a constructed jsdom
+window (fake `fetch`/`EventSource` standing in for the two browser
+APIs jsdom doesn't implement) and covers rendering, subscription counts,
+real listener/EventSource cleanup, repeated start/stop cycles never
+accumulating listeners (memory-leak-shaped), malformed-event and
+missing-DOM-element failure isolation, window resize, event filtering,
+and a 250-event burst never growing the rendered list past its cap.
+Honest scope note (documented in `docs/Dashboard.md`): jsdom has no
+real paint pipeline, so true 60fps/frame-timing measurement isn't
+possible here -- the "performance" tests verify the two concrete bug
+patterns that requirement guards against instead (unbounded growth,
+duplicate subscriptions), not literal frame timing.
+
+Two real bugs found and fixed while writing these tests: `finishListening
+()`-style hang -- a failed assertion mid-test skipped `stop()`, leaking
+the real 1s clock/15s poll intervals and hanging the whole `node --test`
+process (fixed by wrapping every test in try/finally); and a test
+mistakenly reading `dom.document` instead of `dom.window.document`
+(`JSDOM` only exposes the latter).
+
+`README.md` (previously empty) and `docs/Dashboard.md` (new) added --
+see the latter for the full subscription-model/widget-authoring/
+visualization-state/EventBus-integration breakdown.
+
+821 -> 852 tests, all passing.

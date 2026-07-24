@@ -1,4 +1,5 @@
 const IntelligenceEngine = require("../intelligence");
+const bus = require("../bus");
 
 class Router {
 
@@ -102,6 +103,12 @@ class Router {
             mission
 
         );
+
+        // Real, additive observability only -- never changes routing
+        // behavior. Phase 45 (Mission Control): the one real signal the
+        // dashboard's "Router" event category and Agent Activity panel
+        // both need, which nothing previously published.
+        bus.publish("router.dispatched", { agent: agent.name, command, timestamp: new Date().toISOString() });
 
         return {
 
