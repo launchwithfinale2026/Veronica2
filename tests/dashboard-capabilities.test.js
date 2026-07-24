@@ -100,6 +100,13 @@ test("POST /api/capabilities/install requires API_TOKEN, and installs the real e
 
     const examplePackageDir = path.join(__dirname, "..", "packages", "example");
 
+    // Real .env may itself have a real API_TOKEN configured (this is the
+    // whole point of setting it -- see docs/FINAL_DEPLOYMENT_CHECKLIST.md)
+    // -- delete it here so the "unauthorized" assertion below tests the
+    // unset case regardless of this machine's real configuration, same
+    // pattern as tests/dashboard.test.js's own API_TOKEN-unset tests.
+    delete process.env.API_TOKEN;
+
     const unauthorized = await fetch(`${baseUrl}/api/capabilities/install`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

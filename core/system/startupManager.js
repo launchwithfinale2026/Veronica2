@@ -19,6 +19,8 @@
 // entry point (dashboard/backend/server.js) -- it introduces no new
 // capability of its own beyond "keep that process running."
 
+require("dotenv").config();
+
 const { spawn } = require("child_process");
 const path = require("path");
 const http = require("http");
