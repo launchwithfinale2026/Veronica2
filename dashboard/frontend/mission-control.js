@@ -117,6 +117,13 @@ function isWarningOrError(type, payload){
 //                         determinism in tests.
 //   sseConnected       -- whether the real EventSource is currently
 //                         open.
+//   systemLifecycleState -- the real system-wide lifecycle state from
+//                         core/system/systemState.js
+//                         (STARTING/.../READY/DEGRADED/FAILED/
+//                         SHUTTING_DOWN/OFFLINE), or null if unknown.
+//   lifecycleFailedAt  -- timestamp (ms) of the most recent real
+//                         system.stateChanged -> FAILED transition, or
+//                         null.
 // Returns one of: idle | listening | thinking | speaking | working |
 // interrupted | offline | error.
 const ACTIVITY_FLASH_MS = 2500;
@@ -130,14 +137,24 @@ function deriveVisualizationState({
     recentActivityAt = null,
     recentErrorAt = null,
     nowMs = Date.now(),
-    sseConnected = true
+    sseConnected = true,
+    systemLifecycleState = null,
+    lifecycleFailedAt = null
 } = {}){
 
-    if(!sseConnected){
+    if(!sseConnected || systemLifecycleState === "OFFLINE" || systemLifecycleState === "SHUTTING_DOWN"){
         return "offline";
     }
 
     if(recentErrorAt !== null && nowMs - recentErrorAt < ERROR_FLASH_MS){
+        return "error";
+    }
+
+    if(lifecycleFailedAt !== null && nowMs - lifecycleFailedAt < ERROR_FLASH_MS){
+        return "error";
+    }
+
+    if(systemLifecycleState === "FAILED"){
         return "error";
     }
 
@@ -418,7 +435,13 @@ if(typeof document !== "undefined"){
                 agentPerformance: [],
                 departmentState: new Map(),
                 agentLiveActivity: new Map(),
-                connectors: []
+                connectors: [],
+                // Phase 46 (System Resurrection & Operational Boot
+                // Layer): the real system-wide lifecycle state --
+                // IDLE/STARTING/.../READY/DEGRADED/FAILED/
+                // SHUTTING_DOWN/OFFLINE (core/system/systemState.js).
+                lifecycleState: null,
+                lifecycleFailedAt: null
             };
 
             this.pollTimer = null;
@@ -482,11 +505,16 @@ if(typeof document !== "undefined"){
                 fetchJSON("/api/automation/status"),
                 fetchJSON("/api/learning/agents"),
                 fetchJSON("/api/departments"),
-                fetchJSON("/api/integrations")
+                fetchJSON("/api/integrations"),
+                fetchJSON("/api/system/lifecycle")
             ]);
 
-            const [status, health, boot, runtime, voice, automation, agentPerf, departments, integrations] =
+            const [status, health, boot, runtime, voice, automation, agentPerf, departments, integrations, lifecycle] =
                 results.map(r => r.status === "fulfilled" ? r.value : null);
+
+            if(lifecycle){
+                this.state.lifecycleState = lifecycle.lifecycle.state;
+            }
 
             if(status){
                 this.state.startTime = Date.now() - status.uptimeSeconds * 1000;
@@ -639,6 +667,14 @@ if(typeof document !== "undefined"){
                 safeRender("connection-footer", "footer", () => this.renderFooter());
             }
 
+            if(type === "system.stateChanged"){
+                this.state.lifecycleState = payload.current;
+                if(payload.current === "FAILED"){
+                    this.state.lifecycleFailedAt = nowMs;
+                }
+                safeRender("connection-footer", "footer", () => this.renderFooter());
+            }
+
             safeRender("recent-events", "recent events", () => this.pushEventRow(event));
             safeRender("core-visualization", "core visualization", () => this.renderCoreVisualization());
 
@@ -775,7 +811,9 @@ if(typeof document !== "undefined"){
                 recentActivityAt: this.state.recentActivityAt,
                 recentErrorAt: this.state.recentErrorAt,
                 nowMs,
-                sseConnected: this.sseConnected
+                sseConnected: this.sseConnected,
+                systemLifecycleState: this.state.lifecycleState,
+                lifecycleFailedAt: this.state.lifecycleFailedAt
             });
 
             const stage = this.doc.querySelector(".node-stage");
@@ -892,6 +930,13 @@ if(typeof document !== "undefined"){
             this.setFooterField("footer-filesystem", "Online", "ok");
             this.setFooterField("footer-network", anyConnectorOnline ? "Reachable" : "No connectors configured", anyConnectorOnline ? "ok" : "warn");
             this.setFooterField("footer-stream", this.sseConnected ? "Live" : "Reconnecting…", this.sseConnected ? "ok" : "down");
+
+            if(this.state.lifecycleState){
+                const lifecycleTone = this.state.lifecycleState === "READY" ? "ok"
+                    : this.state.lifecycleState === "FAILED" ? "down"
+                        : "warn";
+                this.setFooterField("footer-lifecycle", this.state.lifecycleState, lifecycleTone);
+            }
 
             if(health){
                 this.setFooterField("footer-health", `${health.score}/100 (${health.status})`, health.score >= 80 ? "ok" : health.score >= 50 ? "warn" : "down");

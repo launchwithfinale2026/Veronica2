@@ -4,6 +4,9 @@
   "description": "VERONICA AI Operating System",
   "main": "core/interface/terminal.js",
   "type": "commonjs",
+  "bin": {
+    "veronica": "scripts/veronica-cli.js"
+  },
   "scripts": {
     "start": "node core/interface/terminal.js",
     "dashboard": "node dashboard/backend/server.js",

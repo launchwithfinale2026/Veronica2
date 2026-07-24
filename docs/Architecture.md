@@ -4502,3 +4502,29 @@ assertions in `tests/system-startup-manager.test.js` covering the real
 `dashboard-child` transitions.
 
 772 tests (761 -> 772), `npm test` green.
+
+## System Resurrection & Operational Boot Layer (Phase 46)
+
+A higher-level lifecycle sits on top of the boot sequence/runtime state
+above -- real OFFLINE/STARTING/.../READY/DEGRADED/FAILED/SHUTTING_DOWN
+states (`core/system/systemState.js`), a service registry, active
+health verification, real crash/state recovery, and a real graceful
+shutdown (`dashboard/backend/server.js` previously had no `SIGINT`/
+`SIGTERM` handler of its own at all). Composes -- never duplicates --
+`bootSequence`/`runtimeState`/`healthScore`/`credentialManager`. Full
+breakdown, including exactly what's recovered on a real crash and how
+to add a new service, in `docs/BootSystem.md`.
+
+`GET /api/system/lifecycle`, `/diagnose`, `/health-check` (new). A real
+CLI (`scripts/veronica-cli.js` / `npm link` → `veronica status|start|
+stop|restart|health|diagnose`). `VERONICA_DIAGNOSTIC=true` prints a
+real, evidence-based boot checklist. Mission Control's footer and
+central node both react to real `system.stateChanged` events.
+
+67 new tests across 8 files (one per new module) plus 3 more extending
+`tests/mission-control-*.test.js` for the dashboard integration,
+including a full real restart-simulation integration test (boot →
+save state → discard with no shutdown call, simulating a crash →
+reboot → assert the recovery report honestly reports it as unclean).
+
+923 tests (852 -> 923), `npm test` green.

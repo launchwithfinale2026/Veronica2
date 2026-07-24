@@ -131,6 +131,25 @@ test("deriveVisualizationState() defaults to idle with no real signals at all", 
 });
 
 
+test("deriveVisualizationState() (Phase 46) reports offline for a real system lifecycle OFFLINE/SHUTTING_DOWN state, even with a connected SSE stream", () => {
+
+    assert.strictEqual(mc.deriveVisualizationState({ sseConnected: true, systemLifecycleState: "OFFLINE" }), "offline");
+    assert.strictEqual(mc.deriveVisualizationState({ sseConnected: true, systemLifecycleState: "SHUTTING_DOWN" }), "offline");
+
+});
+
+
+test("deriveVisualizationState() (Phase 46) reports error for a real system lifecycle FAILED state, and during the real recent-FAILED flash window", () => {
+
+    assert.strictEqual(mc.deriveVisualizationState({ systemLifecycleState: "FAILED" }), "error");
+
+    const now = 1000000;
+    assert.strictEqual(mc.deriveVisualizationState({ nowMs: now, lifecycleFailedAt: now - 500 }), "error");
+    assert.strictEqual(mc.deriveVisualizationState({ nowMs: now, lifecycleFailedAt: now - 10000, systemLifecycleState: "READY" }), "idle");
+
+});
+
+
 // --- formatUptime() ----------------------------------------------------
 
 test("formatUptime() formats real seconds into the largest sensible real unit", () => {

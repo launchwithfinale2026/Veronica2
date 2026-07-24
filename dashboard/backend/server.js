@@ -96,6 +96,24 @@ const voice = require("../../core/voice");
 const voiceEvents = require("../../core/voice/events");
 const packageInfo = require("../../package.json");
 
+// Phase 46 (System Resurrection & Operational Boot Layer): the higher-
+// level lifecycle/health/recovery/service-registry layer -- see
+// core/system/lifecycleManager.js's own header for how it composes
+// (never duplicates) bootSequence/runtimeState above plus
+// healthScore/credentialManager/capabilitiesRegistry already used
+// elsewhere in this file. Constructing it here is cheap and side-
+// effect-free (matches bootSequence/runtimeState's own module-load-time
+// construction) -- the real boot() call happens later, only on the
+// real require.main entry path below, never merely from requiring this
+// file (e.g. from a test).
+const LifecycleManager = require("../../core/system/lifecycleManager");
+const systemEvents = require("../../core/system/systemEvents");
+const shutdownManager = require("../../core/system/shutdownManager");
+const recoveryManager = require("../../core/system/recoveryManager");
+const lifecycleManager = new LifecycleManager();
+
+const PID_FILE = path.join(path.dirname(recoveryManager.STATE_FILE), "dashboard.pid");
+
 bootSequence.markStage("initializing");
 runtimeState.register("dashboard-process", "starting");
 
@@ -798,9 +816,22 @@ const STREAMED_EVENTS = [
     // full event vocabulary (core/voice/events.js) -- all real events
     // that already existed but were never forwarded to the browser.
     "boot.stageCompleted", "runtime.stateChanged", "router.dispatched",
-    ...Object.values(voiceEvents)
+    ...Object.values(voiceEvents),
+    // Phase 46 (System Resurrection & Operational Boot Layer): the
+    // system-wide lifecycle events -- see core/system/systemEvents.js.
+    ...Object.values(systemEvents)
 ];
 const SSE_HEARTBEAT_MS = 25000;
+
+// Phase 46: a real, live count of open SSE connections -- read by
+// core/system/healthManager.js's checkDashboard() (passed in explicitly
+// by whichever route calls it; healthManager.js itself never reaches
+// into this file, see that module's own header comment on why).
+let activeSSEConnections = 0;
+
+function getActiveSSEConnections(){
+    return activeSSEConnections;
+}
 
 function handleEventStream(req, res){
 
@@ -811,6 +842,8 @@ function handleEventStream(req, res){
     });
 
     res.write(": connected\n\n");
+
+    activeSSEConnections += 1;
 
     const listeners = STREAMED_EVENTS.map(eventName => {
 
@@ -831,7 +864,14 @@ function handleEventStream(req, res){
         res.write(": heartbeat\n\n");
     }, SSE_HEARTBEAT_MS);
 
+    let cleanedUp = false;
+
     const cleanup = () => {
+        if(cleanedUp){
+            return;
+        }
+        cleanedUp = true;
+        activeSSEConnections = Math.max(0, activeSSEConnections - 1);
         clearInterval(heartbeat);
         listeners.forEach(({ eventName, handler }) => bus.off(eventName, handler));
     };
@@ -900,6 +940,29 @@ function createServer(){
             // core/system/operationalReadiness.js.
             if(parsed.pathname === "/api/system/operational-readiness" && req.method === "GET"){
                 return sendJSON(res, 200, await operationalReadiness.checklist());
+            }
+
+            // Phase 46 (System Resurrection & Operational Boot Layer):
+            // the real lifecycle state + registered services -- see
+            // core/system/lifecycleManager.js. Synchronous (no fresh
+            // health run) -- distinct from /diagnose below, which runs
+            // one.
+            if(parsed.pathname === "/api/system/lifecycle" && req.method === "GET"){
+                return sendJSON(res, 200, lifecycleManager.getStatus());
+            }
+
+            // The real, one-shot combined report `veronica diagnose`
+            // also produces -- lifecycle + services + a FRESH real
+            // health run + the last real boot's checks/recovery report.
+            if(parsed.pathname === "/api/system/diagnose" && req.method === "GET"){
+                return sendJSON(res, 200, await lifecycleManager.diagnose());
+            }
+
+            // `veronica health` -- the full real per-subsystem health
+            // report (core/system/healthManager.js), distinct from the
+            // pre-existing /api/system/health-score (CPU/RAM/disk only).
+            if(parsed.pathname === "/api/system/health-check" && req.method === "GET"){
+                return sendJSON(res, 200, await lifecycleManager.runHealthChecks({ activeSSEConnections: getActiveSSEConnections() }));
             }
 
             if(parsed.pathname === "/api/system/maintenance/run-log-archival" && req.method === "POST"){
@@ -2916,6 +2979,28 @@ function createServer(){
 module.exports = { createServer };
 
 
+// Phase 46 (Startup Diagnostic Mode): VERONICA_DIAGNOSTIC=true prints
+// this real, evidence-based checklist -- every line reflects an actual
+// field from the real lifecycleManager.boot() result, never a canned
+// "all good" print.
+function printDiagnosticReport(result){
+
+    console.log("\n[BOOT]");
+
+    for(const check of result.checks?.checks || []){
+        console.log(`${check.ok ? "✓" : "✗"} ${check.name}${check.detail ? ` -- ${check.detail}` : ""}`);
+    }
+
+    for(const service of result.services || []){
+        const mark = service.status === "FAILED" ? "✗" : service.status === "DISABLED" ? "⚠" : "✓";
+        console.log(`${mark} ${service.name} (${service.status})`);
+    }
+
+    console.log(`\nSYSTEM ${result.state}\n`);
+
+}
+
+
 if(require.main === module){
 
     // Scoped to the real-boot path, not module top level -- this file is
@@ -2945,6 +3030,15 @@ if(require.main === module){
     server.listen(PORT, HOST, () => {
         console.log(`[DASHBOARD] Online at http://${HOST}:${PORT}`);
 
+        // Phase 46: a real PID file -- scripts/veronica-cli.js's
+        // `veronica stop`/`restart` read this to send a real signal to
+        // the real running process, rather than guessing a port/PID.
+        // Removed on graceful shutdown below; a stale file left behind
+        // by a hard crash is simply overwritten on the next real boot.
+        // Lives alongside recoveryManager.js's own real state file
+        // rather than a second, separately-computed path.
+        fs.writeFileSync(PID_FILE, String(process.pid));
+
         // Real diagnostics -- the same unified health score
         // core/system/healthScore.js already computes for the dashboard's
         // own "System Health" panel -- computed once here so
@@ -2959,6 +3053,36 @@ if(require.main === module){
                 bootSequence.markStage("running_diagnostics");
                 bootSequence.markStage("online");
                 runtimeState.setState("dashboard-process", "online");
+
+                // Phase 46: the higher-level lifecycle boot pass -- real
+                // startup checks (can report FAILED, though it never
+                // halts an already-listening server; a real critical
+                // failure here is a signal for the operator, not a
+                // reason to crash a process that's already accepting
+                // connections), real service registration, real crash
+                // recovery, and a real health verification. Reuses this
+                // process's own already-loaded `agents` (no second real
+                // load) and `deviceManager` (already constructed above).
+                lifecycleManager.boot({
+                    loadAgentsFn: () => agents,
+                    deviceManager,
+                    voice,
+                    automation,
+                    healthOptions: { activeSSEConnections: getActiveSSEConnections() }
+                }).then(result => {
+
+                    if(process.env.VERONICA_DIAGNOSTIC === "true"){
+                        printDiagnosticReport(result);
+                    }
+
+                    if(!result.booted){
+                        log.error("boot-manager", `Lifecycle boot reported FAILED: ${JSON.stringify(result.checks?.failures || result.health?.checks?.filter(c => c.status === "unhealthy"))}`);
+                    }
+
+                }).catch(error => {
+                    log.error("boot-manager", `Lifecycle boot() itself failed: ${error.message}`, { stack: error.stack });
+                });
+
             });
     });
 
@@ -2981,5 +3105,34 @@ if(require.main === module){
     // cleanly (see discordBot.js's own start()) when DISCORD_BOT_TOKEN
     // isn't set at all.
     discordBot.start().catch(error => log.error("discord-bot", `Failed to start: ${error.message}`));
+
+    // Phase 46 (Clean Shutdown): a real, ordered graceful shutdown --
+    // this process previously had no SIGINT/SIGTERM handler of its own
+    // at all (only core/system/startupManager.js's resident-supervisor
+    // process did, and that just kills this one abruptly). `once()`,
+    // not `on()`: a second signal during an in-flight shutdown should
+    // not re-enter gracefulShutdown() a second time.
+    const handleShutdownSignal = signal => {
+
+        shutdownManager.gracefulShutdown({
+            reason: `received ${signal}`,
+            systemState: lifecycleManager.systemState,
+            voice,
+            automation,
+            httpServer: server
+        }).then(() => {
+            if(fs.existsSync(PID_FILE)){
+                fs.unlinkSync(PID_FILE);
+            }
+            process.exit(0);
+        }).catch(error => {
+            log.error("shutdown-manager", `Graceful shutdown failed: ${error.message}`, { stack: error.stack });
+            process.exit(1);
+        });
+
+    };
+
+    process.once("SIGINT", () => handleShutdownSignal("SIGINT"));
+    process.once("SIGTERM", () => handleShutdownSignal("SIGTERM"));
 
 }

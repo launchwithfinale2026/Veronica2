@@ -42,6 +42,23 @@ An optional, local-first voice interface (wake word → whisper.cpp →
 existing Router/Agents → Piper) -- off by default, never auto-started.
 See `docs/VOICE_SETUP.md`.
 
+## Operating VERONICA
+
+```bash
+node scripts/veronica-cli.js status     # real lifecycle state + registered services
+node scripts/veronica-cli.js health     # a fresh, real per-subsystem health run
+node scripts/veronica-cli.js diagnose   # the full combined report
+node scripts/veronica-cli.js start      # spawn the dashboard process
+node scripts/veronica-cli.js stop       # a real graceful shutdown (SIGTERM)
+node scripts/veronica-cli.js restart
+```
+
+Run `npm link` to make `veronica <command>` work directly (not done
+automatically -- see `docs/BootSystem.md`). A real restart (`kill` then
+relaunch, or `veronica restart`) restores lifecycle state and reports
+whether the previous shutdown was clean or a crash -- see
+`docs/BootSystem.md` for exactly what's recovered and how.
+
 ## Deployment
 
 For running VERONICA as a persistent, login-time service (a macOS
@@ -57,7 +74,9 @@ LaunchAgent) rather than a manually-started process, see
 - `docs/CHANGELOG.md` -- what shipped, in order.
 - `docs/TROUBLESHOOTING.md` -- diagnosing a real problem via real
   endpoints/logs.
-- `docs/BootSequence.md` -- the real, tracked boot sequence.
+- `docs/BootSequence.md` -- the real, tracked per-process boot sequence.
+- `docs/BootSystem.md` -- the system-wide lifecycle: boot/shutdown,
+  crash recovery, health checks, the service registry, the CLI.
 
 ## Design discipline
 

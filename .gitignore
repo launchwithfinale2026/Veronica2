@@ -6,12 +6,31 @@
 # Dependencies
 node_modules/
 
+# Phase 46 (System Resurrection & Operational Boot Layer): real,
+# per-machine runtime state -- recovery snapshots, last-shutdown
+# records, persisted lifecycle state. Same "real operational state, not
+# source" treatment as core/automation/state.json above.
+runtime/state/*
+!runtime/state/.gitkeep
+runtime/logs/*
+!runtime/logs/.gitkeep
+runtime/recovery/*
+!runtime/recovery/.gitkeep
+runtime/snapshots/*
+!runtime/snapshots/.gitkeep
+
 # Editor / OS artifacts
 *.save
 .DS_Store
 
 # Logs
-logs/
+# Anchored to root (not "logs/") -- an unanchored pattern matches at
+# any depth, which was silently swallowing runtime/logs/ too (a real
+# bug found while verifying Phase 46's .gitignore rules -- see below --
+# meant runtime/logs/.gitkeep could never be tracked, since a
+# already-ignored parent directory can't be un-ignored by a later
+# file-level negation).
+/logs/
 *.log
 
 # Sandboxed tool workspace (agent-generated scratch files)

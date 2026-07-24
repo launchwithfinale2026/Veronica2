@@ -96,7 +96,12 @@ const DEFAULT_ROUTES = {
     "/api/automation/status": { running: true, queue: [{ status: "pending" }, { status: "completed" }], schedules: [] },
     "/api/learning/agents": [{ agent: "METIS", total: 5, successes: 4, failures: 1, successRate: 80, avgDurationMs: 900 }],
     "/api/departments": [{ id: "athena", name: "ATHENA", domain: "knowledge", status: "active", agents: ["METIS"], tools: [] }],
-    "/api/integrations": { total: 3, configured: 1, implemented: 3, integrations: [{ id: "claude", label: "Claude", configured: true, implemented: true }] }
+    "/api/integrations": { total: 3, configured: 1, implemented: 3, integrations: [{ id: "claude", label: "Claude", configured: true, implemented: true }] },
+    "/api/system/lifecycle": {
+        lifecycle: { state: "READY", lastReason: null, updatedAt: new Date().toISOString(), isOperational: true },
+        services: [{ name: "eventBus", version: "1.0", status: "READY", dependencies: [], startupTime: new Date().toISOString(), updatedAt: new Date().toISOString() }],
+        isOperational: true
+    }
 };
 
 
@@ -286,6 +291,35 @@ test("Mission Control's core visualization reacts to a real voice.statusChanged 
 
         assert.strictEqual(document.querySelector(".node-stage").getAttribute("data-state"), "speaking");
         assert.strictEqual(document.getElementById("voice-state").textContent, "SPEAKING");
+
+    });
+
+});
+
+
+test("Mission Control renders the real lifecycle state in the footer, and reacts to a real system.stateChanged event (Phase 46)", async () => {
+
+    await withMissionControl({}, async ({ window, document, FakeEventSource }) => {
+
+        const controller = window.MissionControl.start();
+        await controller.ready;
+        await flush();
+
+        assert.strictEqual(document.getElementById("footer-lifecycle").textContent, "READY");
+
+        const source = FakeEventSource.instances[0];
+        source.emitOpen();
+
+        source.emitMessage({
+            type: "system.stateChanged",
+            payload: { previous: "READY", current: "FAILED", reason: "critical health check failed" },
+            timestamp: new Date().toISOString()
+        });
+
+        await flush();
+
+        assert.strictEqual(document.getElementById("footer-lifecycle").textContent, "FAILED");
+        assert.strictEqual(document.querySelector(".node-stage").getAttribute("data-state"), "error");
 
     });
 

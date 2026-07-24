@@ -2947,3 +2947,113 @@ see the latter for the full subscription-model/widget-authoring/
 visualization-state/EventBus-integration breakdown.
 
 821 -> 852 tests, all passing.
+
+## Phase 46 — System Resurrection & Operational Boot Layer
+
+**Audit first:** substantial real infrastructure already existed --
+`core/system/bootSequence.js` (one-time real boot-stage record),
+`runtimeState.js` (per-component online/offline/error tracking),
+`healthScore.js` (unified CPU/RAM/disk/service score),
+`startupManager.js` (real resident-supervisor crash recovery via
+process restart), `credentialManager.js`/`capabilitiesRegistry.js`
+(log-only, never-halting startup validation). Two real, concrete gaps:
+`dashboard/backend/server.js` had no `SIGINT`/`SIGTERM` handler of its
+own at all (only the separate supervisor process did, and that just
+kills this one abruptly, no in-process cleanup), and nothing persisted
+*what VERONICA was doing* across a restart -- `startupManager.js`
+recovers the PROCESS, nothing recovered the APPLICATION state.
+
+**Added** (`core/system/`, composing the above rather than duplicating
+any of it -- see `docs/BootSystem.md` for the full breakdown):
+- `systemState.js` + `systemEvents.js` -- a real, guarded
+  OFFLINE→STARTING→CONFIGURING→LOADING→RECOVERING→VERIFYING→READY/
+  DEGRADED/FAILED→SHUTTING_DOWN state machine (same proven shape as
+  `core/voice/conversationState.js`), publishing real, specific bus
+  events per transition. `SHUTTING_DOWN` is reachable from every
+  non-OFFLINE state, not just the settled ones -- a real SIGTERM can
+  arrive mid-boot.
+- `serviceRegistry.js` -- real service registration with declared
+  dependencies, rejecting duplicates, `checkDependencies()` reporting
+  real missing/failed dependencies distinctly.
+- `healthManager.js` -- active verification (publishes-and-confirms a
+  real bus probe for EventBus liveness, calls the real `memory.view()`
+  for database access, reads `core/voice`'s real `status()`, etc.),
+  never a canned "healthy". Honest about one real limitation: verifying
+  the AI provider's *model* is reachable would cost a real API call on
+  every health check, so only credential presence is checked.
+- `startupChecks.js` -- real, boot-gating validation (Node version,
+  required directories, `package.json` dependencies actually
+  resolving, `identity.json` validity) with an explicit critical/
+  advisory distinction -- a missing connector credential is always
+  advisory (never halts boot), matching `credentialManager.js`'s own
+  existing behavior.
+- `recoveryManager.js` -- real, periodic state snapshots to
+  `runtime/state/` (+ a bounded, timestamped history in
+  `runtime/snapshots/`), and a real shutdown record in
+  `runtime/recovery/` written only by a genuine graceful shutdown --
+  so the next boot can honestly distinguish a clean shutdown from a
+  crash (a state save with no matching, newer shutdown record). Surfaces
+  real unfinished automation tasks and real active devices without
+  reimplementing either.
+- `shutdownManager.js` -- the graceful shutdown sequence that
+  genuinely didn't exist: stop accepting commands → save real state →
+  stop voice/automation if running → close real connections → record
+  the real shutdown reason → OFFLINE.
+- `bootManager.js` + `lifecycleManager.js` -- the real orchestrator and
+  its facade, composing everything above into one `boot()`/`shutdown()`/
+  `getStatus()`/`diagnose()`.
+
+**Wired into `dashboard/backend/server.js`:** a real `lifecycleManager.
+boot()` pass runs after the existing boot sequence reaches `online`
+(reusing this process's already-loaded `agents`, not a second load);
+real `SIGINT`/`SIGTERM` handlers now call `shutdownManager.
+gracefulShutdown()`; a real PID file (`runtime/state/dashboard.pid`)
+is written at boot and removed on graceful shutdown. New routes:
+`GET /api/system/lifecycle`, `/diagnose`, `/health-check`. A real SSE
+connection counter feeds the dashboard health check's honest
+"unknown"-vs-real-count reporting.
+
+**Added:** `scripts/veronica-cli.js` (`veronica status|start|stop|
+restart|health|diagnose`, `package.json` `bin` field for `npm link`) --
+status/health/diagnose read the real running process's own API;
+start/stop/restart manage the real process via the real PID file.
+Deliberately does not install/manage a LaunchAgent (stays
+`scripts/install-launch-agent.sh`'s own explicit step).
+`VERONICA_DIAGNOSTIC=true` prints a real, evidence-based `[BOOT]`
+checklist.
+
+**Mission Control (Phase 45) integration:** the footer shows the real
+lifecycle state, updated live via `system.stateChanged`; the central
+node reacts to a real `FAILED` transition (flashes red) and
+`SHUTTING_DOWN`/`OFFLINE` (shows offline).
+
+**Verified live**, not just via unit tests: started the real dashboard
+process with `VERONICA_DIAGNOSTIC=true`, confirmed the real printed
+checklist, hit the new routes with real `curl` calls, sent a real
+`SIGTERM` and confirmed graceful shutdown + a real recovery record left
+behind, then restarted and confirmed the next boot correctly read that
+record back as a clean shutdown. Exercised every `veronica` CLI command
+against a real running process.
+
+**Tests:** one file per new module (`tests/system-lifecycle-state`,
+`-service-registry`, `-health-manager`, `-startup-checks`,
+`-recovery-manager`, `-shutdown-manager`, `-boot-manager`,
+`-lifecycle-manager`.test.js, 67 tests total) plus 3 more extending
+`tests/mission-control-*.test.js`. The acceptance criteria's explicit
+restart simulation is a real integration test: boot a real
+`LifecycleManager`, save real state, discard the instance with **no**
+shutdown call (a real crash has no such call either), boot a fresh
+instance, and assert the recovery report honestly reports the previous
+run as unclean -- plus a second version proving a real graceful
+`shutdown()` is correctly recognized as clean.
+
+Two real bugs found and fixed while building this: `recoveryManager.
+saveSnapshot()`'s timestamped snapshot filenames could collide when two
+saves landed in the same millisecond in a tight loop, silently
+overwriting one snapshot (fixed with a random suffix); and
+`systemState.js`'s original transition table only allowed
+`SHUTTING_DOWN` from READY/DEGRADED/FAILED, which would have thrown on
+a real SIGTERM received during boot (fixed to allow it from any
+non-OFFLINE state).
+
+852 -> 923 tests, all passing.
