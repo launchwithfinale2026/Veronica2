@@ -2687,3 +2687,48 @@ The dashboard's SSE-driven `scheduleRefresh()` already debounces a full
 manual refresh" requirement was already met. The full suite
 (`node --test --test-concurrency=1 tests/*.test.js`) was run after
 every change in this session and stayed green throughout (Project 8).
+
+## Voice Layer (local-first: openWakeWord / whisper.cpp / Piper)
+
+**Added:** `core/voice/` -- a new, self-contained, OFF-by-default
+(`VOICE_ENABLED=1` required) module implementing the requested flow:
+Microphone -> Wake Word Detection -> Speech To Text -> Router ->
+Existing Agents/Claude Provider -> Text Response -> Text To Speech.
+
+`config.js` centralizes every local binary/model path as an env var
+with real, evidence-based `configured`/`missing` reporting
+(`fs.existsSync`, never assumed) -- the same "one place that knows
+what's configured" discipline as
+`core/integrations/credentialManager.js`, just for local executables
+instead of API keys. `wakeWord.js` spawns an EXTERNAL wake-word process
+(openWakeWord is a Python library, not a Node-callable tool -- see
+`core/voice/external/wake_word_listener.py` for a real, documented-API
+reference implementation, explicitly noted as unexecuted/unverified in
+this repo's own environment) and republishes real detections as a
+`voice.wakeWordDetected` bus event. `speechToText.js` and
+`textToSpeech.js` each wrap one real, one-shot whisper.cpp/Piper child
+process invocation (matching each tool's real, documented CLI usage),
+failing closed with a clear error when unconfigured -- never a
+fabricated transcript or fake audio playback.
+
+`voiceEngine.js` orchestrates the flow via a constructor-injected
+`core/router` `Router` instance -- the exact same class
+`core/interface/terminal.js`'s `ask` command already uses -- reusing
+the one real router/agent/Claude pipeline rather than building a second
+one. `index.js` is the public entry point; `start()`/`stop()` are the
+only way any of this activates, and construct that same `Router` via
+`loadAgents()`/`ContextEngine`, identical to how `terminal.js` already
+does it. `core/memory`, `core/router`, and `core/agents` were not
+modified.
+
+**Tests:** `tests/voice.test.js` (12 tests) -- real config evidence
+checks, wake-word event emission (including multi-chunk stdout
+buffering and ignoring non-`WAKE` output), the router receiving voice
+input, the router's real response text reaching the TTS layer, the
+full wake-to-speech flow end to end via `listen()`/`stopListening()`,
+and clear-error paths for every unconfigured/misused case -- all via
+injected fakes at the process-spawn/router boundary (the same
+convention `tests/system-startup-manager.test.js` already established
+for `child_process`), no real binaries, models, or microphone required.
+
+775 -> 788 tests, all passing.
