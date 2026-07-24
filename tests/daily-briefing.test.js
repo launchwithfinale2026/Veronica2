@@ -105,6 +105,46 @@ test("generate() surfaces recent external connector events (Phase 19 executive a
 });
 
 
+test("calendar() (Project 3) merges real project deadlines with real ingested calendar events, sorted nearest-first", () => {
+
+    const realPlanner = new ExecutivePlanner();
+
+    const overdueProject = realPlanner.plan({ title: "Calendar overdue project XQZCAL1", department: "ares", priority: 3, deadline: "2020-01-01" });
+    const dueSoonProject = realPlanner.plan({ title: "Calendar due-soon project XQZCAL2", department: "ares", priority: 3, deadline: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() });
+
+    const scoped = scopedPlanner(realPlanner, [overdueProject.id, dueSoonProject.id]);
+    const briefing = makeBriefingEngine(scoped);
+
+    eventIngestion.ingest({
+        source: "calendar",
+        kind: "meeting",
+        summary: "XQZCAL3 real calendar event",
+        occurredAt: new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    });
+
+    const result = briefing.calendar();
+
+    const deadlineEntry = result.find(e => e.summary === "Calendar overdue project XQZCAL1");
+    const eventEntry = result.find(e => e.summary.includes("XQZCAL3"));
+
+    assert.ok(deadlineEntry);
+    assert.strictEqual(deadlineEntry.kind, "deadline");
+    assert.strictEqual(deadlineEntry.source, "roadmap");
+
+    assert.ok(eventEntry);
+    assert.strictEqual(eventEntry.kind, "meeting");
+    assert.strictEqual(eventEntry.source, "calendar");
+
+    // Sorted nearest-first: the overdue (2020) deadline must precede the
+    // calendar event (in an hour), which must precede the due-soon
+    // (tomorrow) project.
+    const indices = [deadlineEntry, eventEntry, result.find(e => e.summary === "Calendar due-soon project XQZCAL2")].map(e => result.indexOf(e));
+    assert.ok(indices[0] < indices[1]);
+    assert.ok(indices[1] < indices[2]);
+
+});
+
+
 test("generate() surfaces pending approvals, company health, mission status, package updates, and learning summary (Phase 37 Executive Assistant)", async () => {
 
     // Unscoped (real, unfiltered) planner deliberately -- MissionEngine's

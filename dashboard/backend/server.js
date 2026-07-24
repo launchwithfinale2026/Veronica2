@@ -351,6 +351,8 @@ const ROUTES = {
 
     "GET /api/executive/deadlines": () => executive.evaluateDeadlines(),
 
+    "GET /api/executive/calendar": () => executive.calendar(),
+
     "GET /api/executive/consolidations": () => executive.consolidationHistory(),
 
     "GET /api/executive/self-monitor": () => executive.selfMonitorHistory(),

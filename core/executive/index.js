@@ -150,6 +150,10 @@ module.exports = {
 
     dailyBriefingHistory: (limit) => dailyBriefingEngine.history(limit),
 
+    // Project 3 (Executive Calendar): real project deadlines merged with
+    // real ingested calendar events, sorted nearest-first.
+    calendar: () => dailyBriefingEngine.calendar(),
+
     weeklyOperatingReport: () => weeklyReport.run(),
 
     weeklyOperatingReportHistory: (limit) => weeklyReport.history(limit),

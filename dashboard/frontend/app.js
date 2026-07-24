@@ -279,6 +279,19 @@ async function loadExecutiveDeadlines(){
 }
 
 
+async function loadExecutiveCalendar(){
+
+    const entries = await fetchJSON("/api/executive/calendar");
+
+    const container = document.getElementById("executive-calendar");
+
+    container.textContent = entries.length
+        ? entries.map(e => `[${e.date}] (${e.kind}/${e.source}) ${e.summary}`).join("\n")
+        : "Nothing date-bound right now.";
+
+}
+
+
 async function loadConsolidationHistory(){
 
     const runs = await fetchJSON("/api/executive/consolidations");
@@ -825,6 +838,7 @@ async function loadDashboard(){
             loadKnowledge(),
             loadExecutiveRoadmap(),
             loadExecutiveDeadlines(),
+            loadExecutiveCalendar(),
             loadExecutiveReport(),
             loadMemoryOverview(),
             loadMemoryLifecycle(),

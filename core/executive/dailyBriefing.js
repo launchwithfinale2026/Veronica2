@@ -169,6 +169,36 @@ class DailyBriefingEngine {
     }
 
 
+    // Project 3 (Executive Calendar): one real merged view of everything
+    // date-bound VERONICA actually knows about -- real project deadlines
+    // (from planner.evaluateDeadlines(), same as upcomingDeadlines()
+    // above) plus real ingested "calendar" events (empty until a calendar
+    // provider is actually connected -- see
+    // core/integrations/calendar.js -- never a fabricated placeholder
+    // event). Sorted by date, nearest first.
+    calendar(){
+
+        const { overdue, due_soon: dueSoon } = this.planner.evaluateDeadlines();
+
+        const deadlineEntries = [...overdue, ...dueSoon].map(project => ({
+            date: project.deadline,
+            kind: "deadline",
+            summary: project.title,
+            source: "roadmap"
+        }));
+
+        const calendarEvents = eventIngestion.recentEvents({ source: "calendar" }).map(entry => ({
+            date: entry.metadata.occurredAt,
+            kind: entry.metadata.kind || "event",
+            summary: entry.content,
+            source: "calendar"
+        }));
+
+        return [...deadlineEntries, ...calendarEvents].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    }
+
+
     // "Executive awareness" of external connector activity (Phase 19) --
     // reuses core/integrations/eventIngestion.js's recentEvents() rather
     // than re-reading memory directly, same "one shared read path" this
