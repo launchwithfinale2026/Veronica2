@@ -2588,3 +2588,102 @@ entry with no source), plus the existing empty-list test extended to
 assert `bySource: {}`.
 
 760 -> 761 tests, all passing.
+
+## Final Deployment Mode -- Projects 1-4: real boot sequence, runtime state, explainable recovery
+
+**Audit first:** `dashboard/backend/server.js`'s top-level module code
+already loaded memory/agents/departments/packages/connectors/
+automations in a real, meaningful order at require-time -- nothing was
+missing functionally, but nothing ever *recorded* that this had
+happened, so a dashboard boot-progress view or a "what actually started
+this run" query had nothing real to read. Likewise,
+`core/system/startupManager.js`'s backoff-restart logic already worked
+correctly, but a restart's cause lived only in a log line, not in any
+structured, queryable place.
+
+**Added:** `core/system/bootSequence.js` -- an idempotent, one-time
+record of the 11 real boot stages (`initializing` through `online`),
+publishing `boot.stageCompleted` on the bus as each one completes.
+Deliberately records the real order things finish in rather than
+simulating a slower boot for cosmetic effect (Node's synchronous
+`require()` model means most of this genuinely completes within
+milliseconds).
+
+`core/system/runtimeState.js` -- a generic registry any runtime
+component reports its own real state into
+(online/offline/starting/stopping/error/restarting), with a real reason
+string and a bounded history per component, publishing
+`runtime.stateChanged` on the bus.
+
+**Wired into:** `dashboard/backend/server.js`'s top-level load sequence
+at each real completion point, plus the `server.listen()` callback
+(running_diagnostics via a real `healthScore.score()` call, then
+online). `core/system/startupManager.js`'s already-real
+backoff-restart logic now reports into `runtimeState` as
+`"dashboard-child"`: `starting` on `start()`, `restarting` with the real
+exit code/signal/attempt count as the reason on each crash, `error`
+with the give-up reason once `maxRestarts` is exhausted, `online`/
+`offline` from real health-check results, `offline` on a deliberate
+`stop()`. `dashboard-process` (the dashboard's own self-report, a
+distinct registration from the supervisor's external view of the
+child, since they're different processes) goes `online` once its own
+boot sequence completes.
+
+Confirmed `scripts/install-launch-agent.sh`/`uninstall-launch-agent.sh`
+were already idempotent (unload-before-load) and scoped to a per-user
+LaunchAgent only -- no further script work was needed for Project 2.
+
+**New endpoints:** `GET /api/system/boot-status`,
+`GET /api/system/runtime-state` -- plus matching Boot Sequence /
+Runtime State dashboard panels under System.
+
+**Tests:** `tests/system-boot-sequence.test.js` (5),
+`tests/system-runtime-state.test.js` (5),
+`tests/system-startup-manager.test.js` gained 1 new test plus 2 new
+assertions in an existing one.
+
+761 -> 772 tests, all passing.
+
+## Final Deployment Mode -- Project 3: Memory Timeline, Executive Calendar, System Logs panels
+
+**Audit first:** a dashboard-panel sweep against the Project 3 panel
+list found three genuinely missing views, all backed by data that
+already existed: a chronological memory view (every entry already
+carries a real `created` timestamp), a unified date-bound view
+(project deadlines and ingested calendar events already existed as two
+separate reads), and a surfaced error log (`core/logging/index.js`'s
+`readErrors()` was already called internally but never exposed as its
+own panel).
+
+**Added:** `classification.timeline()` -- every memory entry in real
+chronological order (newest first) with its class/source/importance/
+preview, no new storage. `DailyBriefingEngine.calendar()` -- real
+project deadlines merged with real ingested `"calendar"`-source events
+(empty until an actual calendar provider is connected -- see
+`core/integrations/calendar.js`; never a fabricated placeholder event),
+sorted nearest-first.
+
+**Wired into:** `GET /api/memory/timeline`, `GET /api/executive/calendar`
+(new), `GET /api/logs/errors` (pre-existing, newly surfaced) -- three
+new dashboard panels: Memory > Timeline, Executive > Calendar,
+System > Logs.
+
+**Tests:** `tests/memory-classification.test.js` gained 2 (ordering +
+limit), `tests/daily-briefing.test.js` gained 1 (real overdue/due-soon
+deadlines merged with a real ingested calendar event, asserting
+nearest-first order).
+
+772 -> 775 tests, all passing.
+
+**Verified, not rebuilt (Projects 6-8):** all six divisions
+(marketing/sales/finance/research-department/trading-research/
+business-operations) already declare real package department configs,
+are already `active` in `core/capabilities/state.json`, and already
+have dedicated per-division health assertions passing in
+`tests/daily-briefing.test.js` (Phases 41-46 Executive Daily
+Operations) -- Project 6 was already satisfied, no code changes needed.
+The dashboard's SSE-driven `scheduleRefresh()` already debounces a full
+`loadDashboard()` re-fetch on every bus event, so Project 7's "no
+manual refresh" requirement was already met. The full suite
+(`node --test --test-concurrency=1 tests/*.test.js`) was run after
+every change in this session and stayed green throughout (Project 8).

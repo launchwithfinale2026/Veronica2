@@ -4435,3 +4435,62 @@ rather than a new panel. 1 new test (real per-source counts including
 the honest `"unknown"` fallback), plus the empty-list test extended.
 
 761 tests (760 -> 761), `npm test` green.
+
+## Boot Sequence & Runtime State Registry (Final Deployment Mode, Projects 1/4)
+
+Two small, related modules, both process-local (in-memory, not
+persisted across restarts -- that's what `core/learning/log.js`'s
+execution telemetry and each module's own bounded history are already
+for, at different granularities):
+
+**`core/system/bootSequence.js`** -- an idempotent, one-time record of
+the 11 named boot stages (see `docs/BootSequence.md` for the full list
+and exactly where each is marked in `dashboard/backend/server.js`).
+`markStage(stage)` is a no-op if that stage already completed, so
+requiring this module more than once (e.g. from a test) never
+double-records. Publishes `boot.stageCompleted` on the bus per stage.
+Exposed at `GET /api/system/boot-status`.
+
+**`core/system/runtimeState.js`** -- a generic registry any runtime
+component reports its own real state into: `online` / `offline` /
+`starting` / `stopping` / `error` / `restarting`, each transition
+carrying an optional human-readable `reason` and a bounded (20-entry)
+`history` per component. Publishes `runtime.stateChanged` on the bus
+with the real previous state. This module does not attempt recovery
+itself -- that stays each real component's own job (see below) -- it's
+the one place every component's real state and the reason behind a
+transition gets recorded, so nothing has to reinvent its own
+status-tracking to be observable here. Exposed at
+`GET /api/system/runtime-state`.
+
+Two components are currently registered:
+
+- `department:<id>` -- one per loaded department, set to `online` at
+  boot (`dashboard/backend/server.js`).
+- `dashboard-process` -- the dashboard's own self-report: `starting` at
+  module load, `online` once its own boot sequence reaches the final
+  stage.
+
+`core/system/startupManager.js`'s already-real backoff-restart logic
+(the resident supervisor's child-process monitor -- see "Phase 21" /
+"Mac Resident System" below) reports into a **third**, distinct
+component: `dashboard-child`. This is deliberately a separate
+registration from `dashboard-process`, not a duplicate -- the
+supervisor and the dashboard run in different OS processes, so neither
+can see the other's in-memory registry; each reports what it can
+actually observe. `dashboard-child` goes `starting` on `start()`,
+`restarting` with the real exit code/signal/attempt count as the
+reason on each crash, `error` with the give-up reason once
+`maxRestarts` is exhausted, `online`/`offline` from real
+`checkHealth()` results (a genuine HTTP call to `/api/status`, not a
+"is the process alive" check), and `offline` on a deliberate `stop()`.
+
+Both are surfaced in the dashboard under **System > Boot Sequence** and
+**System > Runtime State**.
+
+10 new tests (`tests/system-boot-sequence.test.js`,
+`tests/system-runtime-state.test.js`), plus 1 new test and 2 new
+assertions in `tests/system-startup-manager.test.js` covering the real
+`dashboard-child` transitions.
+
+772 tests (761 -> 772), `npm test` green.
