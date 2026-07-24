@@ -876,6 +876,7 @@ async function loadDashboard(){
             loadSystemHealth(),
             loadMaintenanceReport(),
             loadOperationalReadiness(),
+            loadSystemLogs(),
             loadBootStatus(),
             loadRuntimeState(),
             loadNotificationCenter()
@@ -4165,6 +4166,24 @@ async function loadMaintenanceReport(){
 
     } catch(error){
         document.getElementById("maintenance-report").textContent = `Error: ${error.message}`;
+    }
+
+}
+
+
+async function loadSystemLogs(){
+
+    try {
+
+        const errors = await fetchJSON("/api/logs/errors");
+        const container = document.getElementById("system-logs");
+
+        container.textContent = errors.length
+            ? errors.map(e => `[${e.timestamp}] [${e.level}] [${e.module}] ${e.message}`).join("\n")
+            : "No errors logged.";
+
+    } catch(error){
+        document.getElementById("system-logs").textContent = `Error: ${error.message}`;
     }
 
 }
